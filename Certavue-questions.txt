@@ -1,1 +1,29 @@
-Have you tried anything in the past to solve this?Anything we should keep explicitly out of scope for this project?What is “work” and how is its timeline defined? Hours, difficulty ranking?Can work be split into smaller chunks at times? How can we tell?How are dependencies defined and managed?How do you manage who does what (i.e., not everyone can do every project with their role)?How are hard constraints enforced? LIke hard deadlines, someone specific needing to do something, etcHow is availability handled?Do you want intentional gaps left for unplanned absences?What data structure exists today?Where does this data live?Database usage needed or purely API-driven?Integration with any other systems?Is this primarily for a manager, or the entire staff to manage their day?System access requirements (roles, permissions)?Website or application?OpenAI budget for API credits?Should manual overrides be used for training or ignored?How is success measured (time saved, conflicts resolved, utilization %, etc.)?Preferred communication method?Availability / response expectations?
+Initial meeting questions
+
+What is your overall goal from this? Ship out for clients, personal use, etc
+Is there an initial code base we should work from 
+Have you tried anything in the past to solve this?
+Anything we should keep explicitly out of scope for this project?
+What is ‚Äúwork‚Äù and how is its timeline defined? Hours, difficulty ranking?
+What is considered a good output, ie prioritizing some projects over others, utilization rate, etc
+Can work be split into smaller chunks at times? How can we tell?
+How are dependencies defined and managed?
+How do you manage who does what (i.e., not everyone can do every project with their role)?
+How are hard constraints enforced? LIke hard deadlines, someone specific needing to do something, etc
+How is availability handled?
+Do you want intentional gaps left for unplanned absences?
+What data structure exists today?
+Where does this data live?
+Database usage needed or purely API-driven?
+Integration with any other systems?
+Is this primarily for a manager, or the entire staff to manage their day?
+System access requirements (roles, permissions)?
+Website or application?
+OpenAI budget for API credits?
+Should manual overrides be used for training or ignored?
+How is success measured (time saved, conflicts resolved, utilization %, etc.)?
+
+
+
+Preferred communication method?
+Availability / response expectations?
