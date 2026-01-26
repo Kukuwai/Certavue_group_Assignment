@@ -8,12 +8,18 @@ I am a Executive who would like to expand/aquire new business I would like to un
 
 As a project manager I want a system to suggest a solution for a resource conflict so that I can quickly resolve a scheduling probelems.
 
-As a associate I want to see what projects im each week, so that I can know wheere my time is being spent.
+As a associate I want to see what projects im on each week, so that I can know where my time is being spent.
 
-As resource manager I want to see wach persons workload across all projects so that I can spot problems early.
+As resource manager I want to see each persons workload across all projects so that I can spot problems early.
 
-As a manager I want to see if we are on track to complete all projects within their deadlines, so that 
+As a manager I want to see if we are on track to complete all projects within their deadlines, so that I ensure client satisfaction. 
 
 As a business owner I want to check our project schedules are optimised so that I can know what options we have for additional projects/business.
 
-As
+As a manager I want to imput my teams current capacity (hours) so that I can visually tell who or what project is over capacity.
+
+As a project manager I want to take a current project and explore resourcing options, so that I can better utilise current resouring. 
+
+As a working employee I want to see my current workload across all my project, so that I can accomodate to resource needs from by business. 
+
+As a project manager I want to see why the AI reccommends a specific change so that I can trust and justify the decision to stakeholders/team-members
