@@ -8,3 +8,12 @@ I am a Executive who would like to expand/aquire new business I would like to un
 
 As a project manager I want a system to suggest a solution for a resource conflict so that I can quickly resolve a scheduling probelems.
 
+As a associate I want to see what projects im each week, so that I can know wheere my time is being spent.
+
+As resource manager I want to see wach persons workload across all projects so that I can spot problems early.
+
+As a manager I want to see if we are on track to complete all projects within their deadlines, so that 
+
+As a business owner I want to check our project schedules are optimised so that I can know what options we have for additional projects/business.
+
+As
