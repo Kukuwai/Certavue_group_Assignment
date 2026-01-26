@@ -1,0 +1,10 @@
+I am a manager who would like to view my teams resource across multiple projects so that I can tell if we are within our time-budget.
+
+I am a executive who would like to view project assignments so that I can ensure staffing allocation is approapriate. 
+
+I am a manager who would like to take on a new project I would like to make sure our current resourcing is sufficient to take it on.
+
+I am a Executive who would like to expand/aquire new business I would like to understand our current resource overalap between the two.
+
+As a project manager I want a system to suggest a solution for a resource conflict so that I can quickly resolve a scheduling probelems.
+
