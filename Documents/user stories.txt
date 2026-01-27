@@ -20,7 +20,7 @@ As a manager I want to imput my teams current capacity (hours) so that I can vis
 
 As a project manager I want to take a current project and explore resourcing options, so that I can better utilise current resourcing. 
 
-As a working employee I want to see my current workload across all my project, so that I can accomodate to resource needs from by business. 
+As a working employee I want to see my current workload across all my projects, so that I can accomodate to resource needs from by business. 
 
 As a project manager I want to see why the AI reccommends a specific change so that I can trust and justify the decision to stakeholders/team-members
 
