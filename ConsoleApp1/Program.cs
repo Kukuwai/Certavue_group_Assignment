@@ -17,7 +17,7 @@ public class Program
     public void loadData()
     {
         Loader load = new Loader();
-        (this.people, this.projects) = load.LoadData("/Users/millar/Certavue/ConsoleApp1/data/resource_allocation.csv");
+        (this.people, this.projects) = load.LoadData("/Users/millar/Certavue/ConsoleApp1/data/schedule_target75_small.csv");
         Console.WriteLine("Loaded.");
     }
 
