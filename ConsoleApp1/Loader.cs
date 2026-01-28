@@ -8,7 +8,10 @@ public class Loader
     public (List<Person> people, List<Project> projects) LoadData(string filePath)
     {
         var lines = File.ReadAllLines(filePath);
-        Console.Write(lines.ToString);
+        foreach (var l in lines)
+        {
+            Console.Write(l);
+        }
         var peopleByName = new Dictionary<string, Person>();
         var projectsByName = new Dictionary<string, Project>();
 
