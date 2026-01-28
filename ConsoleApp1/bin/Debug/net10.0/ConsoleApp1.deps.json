@@ -1,0 +1,352 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v10.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v10.0": {
+      "ConsoleApp1/1.0.0": {
+        "dependencies": {
+          "Kemsekov.GraphSharp.GoogleOrTools": "3.1.3"
+        },
+        "runtime": {
+          "ConsoleApp1.dll": {}
+        }
+      },
+      "Google.OrTools/9.8.3296": {
+        "dependencies": {
+          "Google.OrTools.runtime.linux-arm64": "9.8.3296",
+          "Google.OrTools.runtime.linux-x64": "9.8.3296",
+          "Google.OrTools.runtime.osx-arm64": "9.8.3296",
+          "Google.OrTools.runtime.osx-x64": "9.8.3296",
+          "Google.OrTools.runtime.win-x64": "9.8.3296",
+          "Google.Protobuf": "3.25.0"
+        },
+        "runtime": {
+          "lib/net6.0/Google.OrTools.dll": {
+            "assemblyVersion": "9.8.3296.0",
+            "fileVersion": "9.8.3296.0"
+          }
+        }
+      },
+      "Google.OrTools.runtime.linux-arm64/9.8.3296": {
+        "runtimeTargets": {
+          "runtimes/linux-arm64/native/google-ortools-native.so": {
+            "rid": "linux-arm64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/linux-arm64/native/libortools.so.9": {
+            "rid": "linux-arm64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "Google.OrTools.runtime.linux-x64/9.8.3296": {
+        "runtimeTargets": {
+          "runtimes/linux-x64/native/google-ortools-native.so": {
+            "rid": "linux-x64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/linux-x64/native/libortools.so.9": {
+            "rid": "linux-x64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "Google.OrTools.runtime.osx-arm64/9.8.3296": {
+        "runtimeTargets": {
+          "runtimes/osx-arm64/native/google-ortools-native.dylib": {
+            "rid": "osx-arm64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/osx-arm64/native/libortools.9.dylib": {
+            "rid": "osx-arm64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "Google.OrTools.runtime.osx-x64/9.8.3296": {
+        "runtimeTargets": {
+          "runtimes/osx-x64/native/google-ortools-native.dylib": {
+            "rid": "osx-x64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/osx-x64/native/libortools.9.dylib": {
+            "rid": "osx-x64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "Google.OrTools.runtime.win-x64/9.8.3296": {
+        "runtimeTargets": {
+          "runtimes/win-x64/native/google-ortools-native.dll": {
+            "rid": "win-x64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "Google.Protobuf/3.25.0": {
+        "runtime": {
+          "lib/net5.0/Google.Protobuf.dll": {
+            "assemblyVersion": "3.25.0.0",
+            "fileVersion": "3.25.0.0"
+          }
+        }
+      },
+      "KdTree/1.4.1": {
+        "runtime": {
+          "lib/netcoreapp2.0/KdTreeLib.dll": {
+            "assemblyVersion": "1.4.1.0",
+            "fileVersion": "1.4.1.0"
+          }
+        }
+      },
+      "Kemsekov.GraphSharp/3.1.2": {
+        "dependencies": {
+          "KdTree": "1.4.1",
+          "MIConvexHull": "1.1.19.1019",
+          "MathNet.Numerics": "5.0.0",
+          "QuikGraph": "2.5.0",
+          "RentedArraySharp": "1.0.4",
+          "Unchase.Satsuma.Algorithms": "1.0.0",
+          "Unchase.Satsuma.Core": "1.0.0",
+          "Unchase.Satsuma.TSP": "1.0.0"
+        },
+        "runtime": {
+          "lib/net6.0/GraphSharp.dll": {
+            "assemblyVersion": "3.1.2.0",
+            "fileVersion": "3.1.2.0"
+          }
+        }
+      },
+      "Kemsekov.GraphSharp.GoogleOrTools/3.1.3": {
+        "dependencies": {
+          "Google.OrTools": "9.8.3296",
+          "Kemsekov.GraphSharp": "3.1.2"
+        },
+        "runtime": {
+          "lib/net6.0/GraphSharp.GoogleOrTools.dll": {
+            "assemblyVersion": "3.1.3.0",
+            "fileVersion": "3.1.3.0"
+          }
+        }
+      },
+      "MathNet.Numerics/5.0.0": {
+        "runtime": {
+          "lib/net6.0/MathNet.Numerics.dll": {
+            "assemblyVersion": "5.0.0.0",
+            "fileVersion": "5.0.0.0"
+          }
+        }
+      },
+      "MIConvexHull/1.1.19.1019": {
+        "runtime": {
+          "lib/netstandard2.0/MIConvexHull.dll": {
+            "assemblyVersion": "1.1.19.1018",
+            "fileVersion": "1.1.19.1018"
+          }
+        }
+      },
+      "QuikGraph/2.5.0": {
+        "runtime": {
+          "lib/netstandard2.0/QuikGraph.dll": {
+            "assemblyVersion": "2.5.0.0",
+            "fileVersion": "2.5.0.0"
+          }
+        }
+      },
+      "RentedArraySharp/1.0.4": {
+        "runtime": {
+          "lib/net5.0/RentedArraySharp.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "Unchase.Satsuma.Adapters/1.0.0": {
+        "dependencies": {
+          "Unchase.Satsuma.Core": "1.0.0"
+        },
+        "runtime": {
+          "lib/net6.0/Unchase.Satsuma.Adapters.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "Unchase.Satsuma.Algorithms/1.0.0": {
+        "dependencies": {
+          "Unchase.Satsuma.Adapters": "1.0.0"
+        },
+        "runtime": {
+          "lib/net6.0/Unchase.Satsuma.Algorithms.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "Unchase.Satsuma.Core/1.0.0": {
+        "runtime": {
+          "lib/net6.0/Unchase.Satsuma.Core.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "Unchase.Satsuma.TSP/1.0.0": {
+        "dependencies": {
+          "Unchase.Satsuma.Algorithms": "1.0.0"
+        },
+        "runtime": {
+          "lib/net6.0/Unchase.Satsuma.TSP.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "ConsoleApp1/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Google.OrTools/9.8.3296": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-9IiyH4v8lrE5bJ62f8HtBG3QdmsZA4sn8/EsmT+42bfc7aAKYPnhGhssG4e6sulU9rNkeovO4cdxc7PfZ717hA==",
+      "path": "google.ortools/9.8.3296",
+      "hashPath": "google.ortools.9.8.3296.nupkg.sha512"
+    },
+    "Google.OrTools.runtime.linux-arm64/9.8.3296": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-wSVE8JcVzozYgXMUGVyRAI7sC+HXYAiwmpe8n0YpTZAsXjYat1GA2+vbB8JUZAfSjwd09NqMzOPCaIW+2G2fDg==",
+      "path": "google.ortools.runtime.linux-arm64/9.8.3296",
+      "hashPath": "google.ortools.runtime.linux-arm64.9.8.3296.nupkg.sha512"
+    },
+    "Google.OrTools.runtime.linux-x64/9.8.3296": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-bIwy9lTTtkBUmmKCJ2zPwKIXWUNSBdvb8jeazga4mIgtopx2VWTtNfIrsBglZbpXCE4MYsWl03Dk3GYazxkayw==",
+      "path": "google.ortools.runtime.linux-x64/9.8.3296",
+      "hashPath": "google.ortools.runtime.linux-x64.9.8.3296.nupkg.sha512"
+    },
+    "Google.OrTools.runtime.osx-arm64/9.8.3296": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-vHCUnGGpLFdxJ4j7eFiZBBCMpCFEEYcwiM4EFBF9vpfom6BbIex9dPa2Zuu2Bjt2XKjzX1NrjFDv8uzhgP43Tw==",
+      "path": "google.ortools.runtime.osx-arm64/9.8.3296",
+      "hashPath": "google.ortools.runtime.osx-arm64.9.8.3296.nupkg.sha512"
+    },
+    "Google.OrTools.runtime.osx-x64/9.8.3296": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-kyLAlIOvMuyL+OosdMstXx5hFIGj5OtNkAJ1oYWX5E+hd/WMtLQqIY0pxv5Rl4pYxi0kFRdApS8ZHnCSPrWjVQ==",
+      "path": "google.ortools.runtime.osx-x64/9.8.3296",
+      "hashPath": "google.ortools.runtime.osx-x64.9.8.3296.nupkg.sha512"
+    },
+    "Google.OrTools.runtime.win-x64/9.8.3296": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-S3kBqbnULsZfyJ2TilzWC5xREWkM0D3W9I+Eaw20KP67HFQ/QnjeRlTAzZ1nVzLjR4XheY7VT0io/wIdwT4n1Q==",
+      "path": "google.ortools.runtime.win-x64/9.8.3296",
+      "hashPath": "google.ortools.runtime.win-x64.9.8.3296.nupkg.sha512"
+    },
+    "Google.Protobuf/3.25.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-pIEkH1IqZV1iK8J5MYdG1kOyY0EoQLB6yEKvBq12RYNtvGXwCvnQg5zQsFmcqAEPtIZvSqPozIbUZaEd5a2gCg==",
+      "path": "google.protobuf/3.25.0",
+      "hashPath": "google.protobuf.3.25.0.nupkg.sha512"
+    },
+    "KdTree/1.4.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-yWbb35v/V9y88SLLMUPTlAN3pQEoPhDfZf9PApFnlU4kLtwVQ75U9vW5mW4/alQnLBuLKWBKcy4W5xK95mYsuA==",
+      "path": "kdtree/1.4.1",
+      "hashPath": "kdtree.1.4.1.nupkg.sha512"
+    },
+    "Kemsekov.GraphSharp/3.1.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-b8FVzXAhuKCR9A7jK8SockVlF3LQP1ZKvSHsaszCBqnmoKV2+YgcnJUltqCwo/npSDO94ABuC6qHnBJbDC6iDQ==",
+      "path": "kemsekov.graphsharp/3.1.2",
+      "hashPath": "kemsekov.graphsharp.3.1.2.nupkg.sha512"
+    },
+    "Kemsekov.GraphSharp.GoogleOrTools/3.1.3": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-iT7p2zcWoeldoa1p+Rg6wUSvAXdH4lV48BZemmm4MKrQyEBYEmdk8AtfMoQKrG8r4jetKcpTwb3/c3i1bkQjTQ==",
+      "path": "kemsekov.graphsharp.googleortools/3.1.3",
+      "hashPath": "kemsekov.graphsharp.googleortools.3.1.3.nupkg.sha512"
+    },
+    "MathNet.Numerics/5.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-pg1W2VwaEQMAiTpGK840hZgzavnqjlCMTVSbtVCXVyT+7AX4mc1o89SPv4TBlAjhgCOo9c1Y+jZ5m3ti2YgGgA==",
+      "path": "mathnet.numerics/5.0.0",
+      "hashPath": "mathnet.numerics.5.0.0.nupkg.sha512"
+    },
+    "MIConvexHull/1.1.19.1019": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-Qz0BIRVyflj9jMkIKG1tpON5Xz1lFEA9XyRH0Pw5qIsCE75heHF4cHrBr8RqvQJRaaNXH+5jdWAfFP3m3OfTOA==",
+      "path": "miconvexhull/1.1.19.1019",
+      "hashPath": "miconvexhull.1.1.19.1019.nupkg.sha512"
+    },
+    "QuikGraph/2.5.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-sG+mrPpXwxlXknRK5VqWUGiOmDACa9X+3ftlkQIMgOZUqxVOQSe0+HIU9PTjwqazy0pqSf8MPDXYFGl0GYWcKw==",
+      "path": "quikgraph/2.5.0",
+      "hashPath": "quikgraph.2.5.0.nupkg.sha512"
+    },
+    "RentedArraySharp/1.0.4": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-f981ZSMbHn+T1w3C8org/6+u1HWjwrB53lredYasb5t0jL141xL0lTAxurj6FwBp58zgIOpe1gwU/bxGpo1ZAA==",
+      "path": "rentedarraysharp/1.0.4",
+      "hashPath": "rentedarraysharp.1.0.4.nupkg.sha512"
+    },
+    "Unchase.Satsuma.Adapters/1.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-C34+nUuDa7qZCNMo0tnxnoyZS2dP9QLl7PvLPFhWIfyZgy9Wal7byBBq1sgBAZ/LGF4zvhF6Tl/76+xVax4xAw==",
+      "path": "unchase.satsuma.adapters/1.0.0",
+      "hashPath": "unchase.satsuma.adapters.1.0.0.nupkg.sha512"
+    },
+    "Unchase.Satsuma.Algorithms/1.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-y+lQ5QQg+7lfJoazvKieEtLYmQTON5gE+cTr1Usf7ZjZxu+YExjJO+ydHTzYO6igH9AzvTO9wJsqRe3M4kWNZA==",
+      "path": "unchase.satsuma.algorithms/1.0.0",
+      "hashPath": "unchase.satsuma.algorithms.1.0.0.nupkg.sha512"
+    },
+    "Unchase.Satsuma.Core/1.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-KHQmNFItdwDzMB3bHvbpCRKmhA8us+iNmaReii9H8oh6IbNoH8f0i+P0ivYm8zDF7A4mFhePnDeKrpdOEz2w/w==",
+      "path": "unchase.satsuma.core/1.0.0",
+      "hashPath": "unchase.satsuma.core.1.0.0.nupkg.sha512"
+    },
+    "Unchase.Satsuma.TSP/1.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-IonxDGpX6TPJMCrHcDKnICHrnihCCpyVMFSwOsF5VPQ6uYONb1NbmIT4PLUlMwUp/XsV/PrcEP2C/qvrviYxjw==",
+      "path": "unchase.satsuma.tsp/1.0.0",
+      "hashPath": "unchase.satsuma.tsp.1.0.0.nupkg.sha512"
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "dgSpecHash": "5HQNDaLNZ/U=",
+  "success": true,
+  "projectFilePath": "/Users/millar/Certavue/ConsoleApp1/ConsoleApp1.csproj",
+  "expectedPackageFiles": [
+    "/Users/millar/.nuget/packages/google.ortools/9.8.3296/google.ortools.9.8.3296.nupkg.sha512",
+    "/Users/millar/.nuget/packages/google.ortools.runtime.linux-arm64/9.8.3296/google.ortools.runtime.linux-arm64.9.8.3296.nupkg.sha512",
+    "/Users/millar/.nuget/packages/google.ortools.runtime.linux-x64/9.8.3296/google.ortools.runtime.linux-x64.9.8.3296.nupkg.sha512",
+    "/Users/millar/.nuget/packages/google.ortools.runtime.osx-arm64/9.8.3296/google.ortools.runtime.osx-arm64.9.8.3296.nupkg.sha512",
+    "/Users/millar/.nuget/packages/google.ortools.runtime.osx-x64/9.8.3296/google.ortools.runtime.osx-x64.9.8.3296.nupkg.sha512",
+    "/Users/millar/.nuget/packages/google.ortools.runtime.win-x64/9.8.3296/google.ortools.runtime.win-x64.9.8.3296.nupkg.sha512",
+    "/Users/millar/.nuget/packages/google.protobuf/3.25.0/google.protobuf.3.25.0.nupkg.sha512",
+    "/Users/millar/.nuget/packages/kdtree/1.4.1/kdtree.1.4.1.nupkg.sha512",
+    "/Users/millar/.nuget/packages/kemsekov.graphsharp/3.1.2/kemsekov.graphsharp.3.1.2.nupkg.sha512",
+    "/Users/millar/.nuget/packages/kemsekov.graphsharp.googleortools/3.1.3/kemsekov.graphsharp.googleortools.3.1.3.nupkg.sha512",
+    "/Users/millar/.nuget/packages/mathnet.numerics/5.0.0/mathnet.numerics.5.0.0.nupkg.sha512",
+    "/Users/millar/.nuget/packages/miconvexhull/1.1.19.1019/miconvexhull.1.1.19.1019.nupkg.sha512",
+    "/Users/millar/.nuget/packages/quikgraph/2.5.0/quikgraph.2.5.0.nupkg.sha512",
+    "/Users/millar/.nuget/packages/rentedarraysharp/1.0.4/rentedarraysharp.1.0.4.nupkg.sha512",
+    "/Users/millar/.nuget/packages/unchase.satsuma.adapters/1.0.0/unchase.satsuma.adapters.1.0.0.nupkg.sha512",
+    "/Users/millar/.nuget/packages/unchase.satsuma.algorithms/1.0.0/unchase.satsuma.algorithms.1.0.0.nupkg.sha512",
+    "/Users/millar/.nuget/packages/unchase.satsuma.core/1.0.0/unchase.satsuma.core.1.0.0.nupkg.sha512",
+    "/Users/millar/.nuget/packages/unchase.satsuma.tsp/1.0.0/unchase.satsuma.tsp.1.0.0.nupkg.sha512"
+  ],
+  "logs": []
+}
