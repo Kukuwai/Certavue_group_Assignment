@@ -1,20 +1,20 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\milla\\Certavue_group_Assignment\\CertavueApp\\CertavueApp.csproj": {}
+    "/Users/menkabhoj/Documents/swen504/project_certavue/Certavue_group_Assignment/CertavueApp/CertavueApp.csproj": {}
   },
   "projects": {
-    "C:\\Users\\milla\\Certavue_group_Assignment\\CertavueApp\\CertavueApp.csproj": {
+    "/Users/menkabhoj/Documents/swen504/project_certavue/Certavue_group_Assignment/CertavueApp/CertavueApp.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\milla\\Certavue_group_Assignment\\CertavueApp\\CertavueApp.csproj",
+        "projectUniqueName": "/Users/menkabhoj/Documents/swen504/project_certavue/Certavue_group_Assignment/CertavueApp/CertavueApp.csproj",
         "projectName": "CertavueApp",
-        "projectPath": "C:\\Users\\milla\\Certavue_group_Assignment\\CertavueApp\\CertavueApp.csproj",
-        "packagesPath": "C:\\Users\\milla\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\milla\\Certavue_group_Assignment\\CertavueApp\\obj\\",
+        "projectPath": "/Users/menkabhoj/Documents/swen504/project_certavue/Certavue_group_Assignment/CertavueApp/CertavueApp.csproj",
+        "packagesPath": "/Users/menkabhoj/.nuget/packages/",
+        "outputPath": "/Users/menkabhoj/Documents/swen504/project_certavue/Certavue_group_Assignment/CertavueApp/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "C:\\Users\\milla\\AppData\\Roaming\\NuGet\\NuGet.Config"
+          "/Users/menkabhoj/.nuget/NuGet/NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net10.0"
@@ -59,7 +59,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.102/PortableRuntimeIdentifierGraph.json",
+          "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/10.0.100/PortableRuntimeIdentifierGraph.json",
           "packagesToPrune": {
             "Microsoft.CSharp": "(,4.7.32767]",
             "Microsoft.VisualBasic": "(,10.4.32767]",

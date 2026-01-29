@@ -4,7 +4,6 @@ using static Loader;
 using System;
 using System.Collections.Generic;
 using System.IO.Pipes;
-using System.IO.Pipes;
 public class Program
 {
     List<Project> projects = new List<Project>();
@@ -16,9 +15,13 @@ public class Program
         //testPrint();
         var beforeGreedy = new ScheduleState(people, projects);
         GreedyChecker("Before Greedy", beforeGreedy);
-        new GreedyAlg().StartGreedy(people, projects);
+        //new GreedyAlg().StartGreedy(people, projects);
+        ScheduleState state = new GreedyAlg().StartGreedy(people, projects);
         var afterGreedy = new ScheduleState(people, projects);
         GreedyChecker("After Greedy", afterGreedy);
+        test_ConflictClass();
+        test_Report();
+        test_SimpleDetector();
     }
 
     public void loadData()
@@ -54,6 +57,64 @@ public class Program
         // }
         // Console.WriteLine("Count of projects: " + projects.Count);
     }
+
+    public void test_ConflictClass()
+    {
+        var conflict = new Conflict
+        {
+            PersonId = 1,
+            PersonName = "Person_01",
+            Week = 15,
+            ProjectCount = 2,
+            ProjectNames = new List<string> { "Project_001", "Project_002" }
+        };
+        Console.WriteLine($"{conflict.PersonName} has {conflict.ProjectCount} projects in week {conflict.Week}");
+        Console.WriteLine($"Projects: {string.Join(", ", conflict.ProjectNames)}");
+    }
+
+    private void test_Report()
+    {
+        var report = new ConflictReport();
+
+        report.Conflicts.Add(new Conflict
+        {
+            PersonName = "Person_01",
+            Week = 15,
+            ProjectCount = 2,
+            ProjectNames = new List<string> { "Project_001", "Project_002" }
+        });
+
+        report.Conflicts.Add(new Conflict
+        {
+            PersonName = "Person_02",
+            Week = 20,
+            ProjectCount = 3,
+            ProjectNames = new List<string> { "Project_003", "Project_004", "Project_005" }
+        });
+
+        report.PrintReport();
+    }
+
+    private void test_SimpleDetector()
+    {
+
+        var detector = new ConflictDetector();
+
+        // Create temporary grid data for testing
+        var testGrid = new Dictionary<(int, int), int>
+        {
+            { (1, 15), 2 },  // Person 1, Week 15, 2 projects (conflict)
+            { (1, 16), 1 },  // Person 1, Week 16, 1 project (no conflict)
+            { (2, 20), 3 },  // Person 2, Week 20, 3 projects (conflict)
+            { (3, 25), 1 },  // Person 3, Week 25, 1 project (no conflict)
+        };
+
+        var report = detector.DetectConflictsSimple(testGrid);
+        report.PrintReport();
+
+        Console.WriteLine($"Expected 2 conflicts, got {report.Conflicts.Count}");
+    }
+
     static void Main(string[] args)
     {
         new Program();

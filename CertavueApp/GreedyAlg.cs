@@ -4,11 +4,12 @@ using System.Linq;
 
 public class GreedyAlg
 {
-    public void StartGreedy(List<Person> people, List<Project> projects)
+    public ScheduleState StartGreedy(List<Person> people, List<Project> projects)
     {
         //state keeps track of shifts
         var state = new ScheduleState(people, projects);
         BuildGreedySchedule(state);
+        return state; // I added this for to work with finding conflicts. 
     }
 
     public void BuildGreedySchedule(ScheduleState state)
