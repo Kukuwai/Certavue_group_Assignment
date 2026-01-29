@@ -17,16 +17,17 @@ public class Program
     public void loadData()
     {
         Loader load = new Loader();
-        (this.people, this.projects) = load.LoadData("C:\\Users\\colya\\Certavue New\\CertavueApp\\Data\\schedule_target75_small.csv"); 
+        (this.people, this.projects) = load.LoadData("Data\\schedule_target75_small.csv");
         Console.WriteLine("Loaded.");
     }
+
 
     public void testPrint()
     {
         Console.WriteLine("People:");
         foreach (var p in people)
         {
-           Console.WriteLine("- " + p.name);
+            Console.WriteLine("- " + p.name);
         }
         Console.WriteLine("Projects:");
         foreach (var p in projects)
@@ -37,6 +38,6 @@ public class Program
     }
     static void Main(string[] args)
     {
-       new Program();
+        new Program();
     }
 }
