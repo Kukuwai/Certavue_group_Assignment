@@ -1,29 +1,44 @@
-C:\Users\colya\Certavue New\CertavueApp\obj\Debug\net10.0\CertavueApp.GeneratedMSBuildEditorConfig.editorconfig
-C:\Users\colya\Certavue New\CertavueApp\obj\Debug\net10.0\CertavueApp.AssemblyInfoInputs.cache
-C:\Users\colya\Certavue New\CertavueApp\obj\Debug\net10.0\CertavueApp.AssemblyInfo.cs
-C:\Users\colya\Certavue New\CertavueApp\obj\Debug\net10.0\CertavueApp.csproj.CoreCompileInputs.cache
-C:\Users\colya\Certavue New\CertavueApp\bin\Debug\net10.0\CertavueApp.exe
-C:\Users\colya\Certavue New\CertavueApp\bin\Debug\net10.0\CertavueApp.deps.json
-C:\Users\colya\Certavue New\CertavueApp\bin\Debug\net10.0\CertavueApp.runtimeconfig.json
-C:\Users\colya\Certavue New\CertavueApp\bin\Debug\net10.0\CertavueApp.dll
-C:\Users\colya\Certavue New\CertavueApp\bin\Debug\net10.0\CertavueApp.pdb
-C:\Users\colya\Certavue New\CertavueApp\obj\Debug\net10.0\CertavueApp.dll
-C:\Users\colya\Certavue New\CertavueApp\obj\Debug\net10.0\refint\CertavueApp.dll
-C:\Users\colya\Certavue New\CertavueApp\obj\Debug\net10.0\CertavueApp.pdb
-C:\Users\colya\Certavue New\CertavueApp\obj\Debug\net10.0\CertavueApp.genruntimeconfig.cache
-C:\Users\colya\Certavue New\CertavueApp\obj\Debug\net10.0\ref\CertavueApp.dll
-C:\Users\colya\Certavue_group_Assignment\CertavueApp\bin\Debug\net10.0\CertavueApp.exe
-C:\Users\colya\Certavue_group_Assignment\CertavueApp\bin\Debug\net10.0\CertavueApp.deps.json
-C:\Users\colya\Certavue_group_Assignment\CertavueApp\bin\Debug\net10.0\CertavueApp.runtimeconfig.json
-C:\Users\colya\Certavue_group_Assignment\CertavueApp\bin\Debug\net10.0\CertavueApp.dll
-C:\Users\colya\Certavue_group_Assignment\CertavueApp\bin\Debug\net10.0\CertavueApp.pdb
-C:\Users\colya\Certavue_group_Assignment\CertavueApp\obj\Debug\net10.0\CertavueApp.GeneratedMSBuildEditorConfig.editorconfig
-C:\Users\colya\Certavue_group_Assignment\CertavueApp\obj\Debug\net10.0\CertavueApp.AssemblyInfoInputs.cache
-C:\Users\colya\Certavue_group_Assignment\CertavueApp\obj\Debug\net10.0\CertavueApp.AssemblyInfo.cs
-C:\Users\colya\Certavue_group_Assignment\CertavueApp\obj\Debug\net10.0\CertavueApp.csproj.CoreCompileInputs.cache
-C:\Users\colya\Certavue_group_Assignment\CertavueApp\obj\Debug\net10.0\CertavueApp.sourcelink.json
-C:\Users\colya\Certavue_group_Assignment\CertavueApp\obj\Debug\net10.0\CertavueApp.dll
-C:\Users\colya\Certavue_group_Assignment\CertavueApp\obj\Debug\net10.0\refint\CertavueApp.dll
-C:\Users\colya\Certavue_group_Assignment\CertavueApp\obj\Debug\net10.0\CertavueApp.pdb
-C:\Users\colya\Certavue_group_Assignment\CertavueApp\obj\Debug\net10.0\CertavueApp.genruntimeconfig.cache
-C:\Users\colya\Certavue_group_Assignment\CertavueApp\obj\Debug\net10.0\ref\CertavueApp.dll
+C:/Users/colya/Certavue New/CertavueApp/obj/Debug/net10.0/CertavueApp.GeneratedMSBuildEditorConfig.editorconfig
+C:/Users/colya/Certavue New/CertavueApp/obj/Debug/net10.0/CertavueApp.AssemblyInfoInputs.cache
+C:/Users/colya/Certavue New/CertavueApp/obj/Debug/net10.0/CertavueApp.AssemblyInfo.cs
+C:/Users/colya/Certavue New/CertavueApp/obj/Debug/net10.0/CertavueApp.csproj.CoreCompileInputs.cache
+C:/Users/colya/Certavue New/CertavueApp/bin/Debug/net10.0/CertavueApp.exe
+C:/Users/colya/Certavue New/CertavueApp/bin/Debug/net10.0/CertavueApp.deps.json
+C:/Users/colya/Certavue New/CertavueApp/bin/Debug/net10.0/CertavueApp.runtimeconfig.json
+C:/Users/colya/Certavue New/CertavueApp/bin/Debug/net10.0/CertavueApp.dll
+C:/Users/colya/Certavue New/CertavueApp/bin/Debug/net10.0/CertavueApp.pdb
+C:/Users/colya/Certavue New/CertavueApp/obj/Debug/net10.0/CertavueApp.dll
+C:/Users/colya/Certavue New/CertavueApp/obj/Debug/net10.0/refint/CertavueApp.dll
+C:/Users/colya/Certavue New/CertavueApp/obj/Debug/net10.0/CertavueApp.pdb
+C:/Users/colya/Certavue New/CertavueApp/obj/Debug/net10.0/CertavueApp.genruntimeconfig.cache
+C:/Users/colya/Certavue New/CertavueApp/obj/Debug/net10.0/ref/CertavueApp.dll
+C:/Users/colya/Certavue_group_Assignment/CertavueApp/bin/Debug/net10.0/CertavueApp.exe
+C:/Users/colya/Certavue_group_Assignment/CertavueApp/bin/Debug/net10.0/CertavueApp.deps.json
+C:/Users/colya/Certavue_group_Assignment/CertavueApp/bin/Debug/net10.0/CertavueApp.runtimeconfig.json
+C:/Users/colya/Certavue_group_Assignment/CertavueApp/bin/Debug/net10.0/CertavueApp.dll
+C:/Users/colya/Certavue_group_Assignment/CertavueApp/bin/Debug/net10.0/CertavueApp.pdb
+C:/Users/colya/Certavue_group_Assignment/CertavueApp/obj/Debug/net10.0/CertavueApp.GeneratedMSBuildEditorConfig.editorconfig
+C:/Users/colya/Certavue_group_Assignment/CertavueApp/obj/Debug/net10.0/CertavueApp.AssemblyInfoInputs.cache
+C:/Users/colya/Certavue_group_Assignment/CertavueApp/obj/Debug/net10.0/CertavueApp.AssemblyInfo.cs
+C:/Users/colya/Certavue_group_Assignment/CertavueApp/obj/Debug/net10.0/CertavueApp.csproj.CoreCompileInputs.cache
+C:/Users/colya/Certavue_group_Assignment/CertavueApp/obj/Debug/net10.0/CertavueApp.sourcelink.json
+C:/Users/colya/Certavue_group_Assignment/CertavueApp/obj/Debug/net10.0/CertavueApp.dll
+C:/Users/colya/Certavue_group_Assignment/CertavueApp/obj/Debug/net10.0/refint/CertavueApp.dll
+C:/Users/colya/Certavue_group_Assignment/CertavueApp/obj/Debug/net10.0/CertavueApp.pdb
+C:/Users/colya/Certavue_group_Assignment/CertavueApp/obj/Debug/net10.0/CertavueApp.genruntimeconfig.cache
+C:/Users/colya/Certavue_group_Assignment/CertavueApp/obj/Debug/net10.0/ref/CertavueApp.dll
+/Users/millar/Certavue_group_Assignment/CertavueApp/bin/Debug/net10.0/CertavueApp
+/Users/millar/Certavue_group_Assignment/CertavueApp/bin/Debug/net10.0/CertavueApp.deps.json
+/Users/millar/Certavue_group_Assignment/CertavueApp/bin/Debug/net10.0/CertavueApp.runtimeconfig.json
+/Users/millar/Certavue_group_Assignment/CertavueApp/bin/Debug/net10.0/CertavueApp.dll
+/Users/millar/Certavue_group_Assignment/CertavueApp/bin/Debug/net10.0/CertavueApp.pdb
+/Users/millar/Certavue_group_Assignment/CertavueApp/obj/Debug/net10.0/CertavueApp.GeneratedMSBuildEditorConfig.editorconfig
+/Users/millar/Certavue_group_Assignment/CertavueApp/obj/Debug/net10.0/CertavueApp.AssemblyInfoInputs.cache
+/Users/millar/Certavue_group_Assignment/CertavueApp/obj/Debug/net10.0/CertavueApp.AssemblyInfo.cs
+/Users/millar/Certavue_group_Assignment/CertavueApp/obj/Debug/net10.0/CertavueApp.csproj.CoreCompileInputs.cache
+/Users/millar/Certavue_group_Assignment/CertavueApp/obj/Debug/net10.0/CertavueApp.sourcelink.json
+/Users/millar/Certavue_group_Assignment/CertavueApp/obj/Debug/net10.0/CertavueApp.dll
+/Users/millar/Certavue_group_Assignment/CertavueApp/obj/Debug/net10.0/refint/CertavueApp.dll
+/Users/millar/Certavue_group_Assignment/CertavueApp/obj/Debug/net10.0/CertavueApp.pdb
+/Users/millar/Certavue_group_Assignment/CertavueApp/obj/Debug/net10.0/CertavueApp.genruntimeconfig.cache
+/Users/millar/Certavue_group_Assignment/CertavueApp/obj/Debug/net10.0/ref/CertavueApp.dll

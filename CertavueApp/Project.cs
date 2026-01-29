@@ -12,7 +12,7 @@ public class Project
     public int duration {get; set;}
     public Dictionary<int, int> totalResource { get; set; }
 
-    public Project(string name)
+    public Project(string name, int startDate, int endDate)
     {
         id = ++idCounter;
         this.name = name;

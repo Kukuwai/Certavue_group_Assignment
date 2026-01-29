@@ -17,7 +17,7 @@ public class Program
     public void loadData()
     {
         Loader load = new Loader();
-        (this.people, this.projects) = load.LoadData("C:\\Users\\colya\\Certavue New\\CertavueApp\\Data\\schedule_target75_small.csv"); 
+        (this.people, this.projects) = load.LoadData("Data/schedule_target75_small.csv"); 
         Console.WriteLine("Loaded.");
     }
 
