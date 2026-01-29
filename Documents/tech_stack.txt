@@ -1,6 +1,0 @@
-The tech stack options 
-
-for local AI: localAI, Ollama
-need to select whoch model to use;
-
-LLMtornado
