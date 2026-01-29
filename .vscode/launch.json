@@ -5,18 +5,15 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": ".NET Launch CertavueApp",
-            "type": "dotnet",
+            "name": ".NET Core Launch CertavueApp",
+            "type": "coreclr",
             "request": "launch",
-            "projectPath": "${workspaceFolder}/CertavueApp/CertavueApp.csproj",
-            "launchBrowser": {
-                "enabled": false
-            },
-            "env": {
-            },
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/CertavueApp/Program.cs",
+            "args": [],
             "cwd": "${workspaceFolder}/CertavueApp",
             "stopAtEntry": false,
-            "preLaunchTask": "build"
+            "console": "integratedTerminal"
         }
 
 

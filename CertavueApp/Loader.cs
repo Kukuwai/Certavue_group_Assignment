@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using static Person;
+using static Project;
 
 public class Loader
 {
@@ -42,15 +44,14 @@ public class Loader
             var project = projectsByName[projectName];
 
             List<int> weeksAssigned = new List<int>();
-            string assigned = "x";
             
             for (int i = 2; i < cells.Length; i++)
                 {
-                    if (cells[i].Equals('x'))
-                {
-                    weeksAssigned.Add(i);
+                    if (cells[i].Equals("X"))
+                    {
+                        weeksAssigned.Add(i);
+                    }
                 }
-}
 
             person.projects.Add(project, weeksAssigned);
             project.people.Add(person);
