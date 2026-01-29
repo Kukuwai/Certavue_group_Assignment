@@ -8,25 +8,24 @@
     "net10.0": []
   },
   "packageFolders": {
-    "/Users/millar/.nuget/packages/": {}
+    "C:\\Users\\milla\\.nuget\\packages\\": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "/Users/millar/Certavue_group_Assignment/CertavueApp/CertavueApp.csproj",
+      "projectUniqueName": "C:\\Users\\milla\\Certavue_group_Assignment\\CertavueApp\\CertavueApp.csproj",
       "projectName": "CertavueApp",
-      "projectPath": "/Users/millar/Certavue_group_Assignment/CertavueApp/CertavueApp.csproj",
-      "packagesPath": "/Users/millar/.nuget/packages/",
-      "outputPath": "/Users/millar/Certavue_group_Assignment/CertavueApp/obj/",
+      "projectPath": "C:\\Users\\milla\\Certavue_group_Assignment\\CertavueApp\\CertavueApp.csproj",
+      "packagesPath": "C:\\Users\\milla\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\milla\\Certavue_group_Assignment\\CertavueApp\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
-        "/Users/millar/.nuget/NuGet/NuGet.Config"
+        "C:\\Users\\milla\\AppData\\Roaming\\NuGet\\NuGet.Config"
       ],
       "originalTargetFrameworks": [
         "net10.0"
       ],
       "sources": {
-        "/usr/local/share/dotnet/library-packs": {},
         "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {
@@ -66,7 +65,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/10.0.102/PortableRuntimeIdentifierGraph.json",
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.102/PortableRuntimeIdentifierGraph.json",
         "packagesToPrune": {
           "Microsoft.CSharp": "(,4.7.32767]",
           "Microsoft.VisualBasic": "(,10.4.32767]",
