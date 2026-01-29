@@ -17,11 +17,7 @@ public class Program
     public void loadData()
     {
         Loader load = new Loader();
-<<<<<<< HEAD
-        (this.people, this.projects) = load.LoadData("Data/schedule_target75_small.csv"); 
-=======
-        (this.people, this.projects) = load.LoadData("Data\\schedule_target75_small.csv");
->>>>>>> GreedyAlg
+        (this.people, this.projects) = load.LoadData("");
         Console.WriteLine("Loaded.");
     }
 
