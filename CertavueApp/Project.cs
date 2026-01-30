@@ -17,5 +17,7 @@ public class Project
         id = ++idCounter;
         this.name = name;
         this.totalResource = new Dictionary<int,int>();
+        this.endDate = endDate;     
+        this.startDate = startDate;
     }
 }

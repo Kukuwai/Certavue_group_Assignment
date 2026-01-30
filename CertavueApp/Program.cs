@@ -15,10 +15,10 @@ public class Program
         loadData();
         //testPrint();
         var beforeGreedy = new ScheduleState(people, projects);
-        GreedyChecker("Before Greedy", beforeGreedy);
+       // GreedyChecker("Before Greedy", beforeGreedy);
         new GreedyAlg().StartGreedy(people, projects);
         var afterGreedy = new ScheduleState(people, projects);
-        GreedyChecker("After Greedy", afterGreedy);
+      //  GreedyChecker("After Greedy", afterGreedy);
     }
 
     public void loadData()
@@ -28,14 +28,24 @@ public class Program
         Console.WriteLine("Loaded.");
     }
 
+    //checking in GreedyAlg now
+    // private void GreedyChecker(string label, ScheduleState state)
+    // {
+    //     int totalAssignments = state.PersonWeekGrid.Values.Sum();
+    //     int nonConflictAssignments = state.PersonWeekGrid
+    //         .Where(kv => kv.Value == 1)
+    //         .Sum(kv => kv.Value);
+    //     int doubleBooked = state.PersonWeekGrid.Count(kv => kv.Value >= 2);
 
-    private void GreedyChecker(string label, ScheduleState state)
-    {
-        int doubleBooked = state.PersonWeekGrid.Count(kv => kv.Value > 1);
-        int total = state.PersonWeekGrid.Count;
-        double pctClear = total == 0 ? 100 : (double)(total - doubleBooked) / total * 100;
-        Console.WriteLine(label + " Double-booked= " + doubleBooked + " % not double-booked= " + pctClear);
-    }
+    //     double pctNotDoubleBooked = totalAssignments == 0
+    //         ? 100
+    //         : (double)nonConflictAssignments / totalAssignments * 100;
+
+    //     Console.WriteLine(label + " Total assignments=" + totalAssignments
+    //         + " Double-booked weeks=" + doubleBooked
+    //         + " % not double-booked=" + pctNotDoubleBooked.ToString("0.##"));
+    // }
+
     public void testPrint()
     {
         // Console.WriteLine("People:");

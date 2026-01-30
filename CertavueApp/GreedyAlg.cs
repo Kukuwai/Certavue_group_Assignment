@@ -14,6 +14,17 @@ public class GreedyAlg
     public void BuildGreedySchedule(ScheduleState state)
     {
         Console.WriteLine("Greedy algorithm running");
+        //grabs stats before algorithm
+        int totalAssignments = state.PersonWeekGrid.Values.Sum();
+        int nonConflictAssignments = state.PersonWeekGrid
+            .Where(kv => kv.Value == 1)
+            .Sum(kv => kv.Value);
+        double pctNotDoubleBooked = totalAssignments == 0
+            ? 100
+            : (double)nonConflictAssignments / totalAssignments * 100;
+
+        Console.WriteLine("Before running. Total assignments=" + totalAssignments
+            + " % not double-booked=" + pctNotDoubleBooked.ToString("0.##"));
 
         //Harder weeks go first aka projects with most X's
         var ordered = state.Projects
@@ -21,7 +32,7 @@ public class GreedyAlg
             .ToList();
 
 
-        //takes the ordered list and looks for each ones best shift
+        //takes the ordered list and looks for each ones best shift and prints stats 
         foreach (var project in ordered)
         {
             int bestShift = 0;
@@ -38,11 +49,19 @@ public class GreedyAlg
             }
 
             state.ApplyShift(project, bestShift);
-            Console.WriteLine(project.name + " -> shift " + bestShift + ", conflicts " + bestConflicts);
+            //Console.WriteLine(project.name + " -> shift " + bestShift + ", conflicts " + bestConflicts);
         }
 
-        int doubleBooked = state.PersonWeekGrid.Count(kv => kv.Value > 1);
-        Console.WriteLine("Done. Double-booked weeks: " + doubleBooked);
+        totalAssignments = state.PersonWeekGrid.Values.Sum();
+        nonConflictAssignments = state.PersonWeekGrid
+            .Where(kv => kv.Value == 1)
+            .Sum(kv => kv.Value);
+        pctNotDoubleBooked = totalAssignments == 0
+            ? 100
+            : (double)nonConflictAssignments / totalAssignments * 100;
+
+        Console.WriteLine("Done. Total assignments=" + totalAssignments
+            + " % not double-booked=" + pctNotDoubleBooked.ToString("0.##"));
     }
 
     //Counts how many conflicts someone has
@@ -58,7 +77,7 @@ public class GreedyAlg
     }
 }
 
-//Since we designed it without a schedule class in the loader we keep track here
+//Since we designed it without a schedule class in the loader we keep track here making the "grid" in the CSV form
 public class ScheduleState
 {
     private const int Weeks = 52;
@@ -84,6 +103,7 @@ public class ScheduleState
     public int GetShift(Project p) => _shift[p];
     public void SetShift(Project p, int shift) => _shift[p] = shift;
 
+    //finds all valid shifts for each project 
     public List<int> GetValidShifts(Project p)
     {
 
@@ -113,16 +133,24 @@ public class ScheduleState
         return Enumerable.Range(minShift, maxShift - minShift + 1).ToList();
     }
 
+    //This is what actually moves the weeks. It takes a project and shift and moves ever person's weeks by the shift #
     public IEnumerable<(int personId, int week)> GetFootprintForShift(Project p, int shift)
     {
-        foreach (var person in p.people)
-            for (int w = _window[p].start; w <= _window[p].end; w++)
+        foreach (var person in p.people)        //loops anyone on a project
+        {
+            if (!person.projects.TryGetValue(p, out var weeks))
             {
-                yield return (person.id, w + shift);
+                continue;       //not skipping people without weeks on that project was giving an error so this fixed it 
+            }
+            foreach (var week in weeks)
+            {
+                yield return (person.id, week + shift);
 
             }
+        }
     }
 
+    //used at beginning to build the grid and add projects to it
     public void RebuildGrid()
     {
         PersonWeekGrid.Clear();
@@ -133,12 +161,14 @@ public class ScheduleState
         }
     }
 
+    //updates the grid with shifts
     public void ApplyShift(Project p, int shift)
     {
         RemoveProjectFromGrid(p);
         SetShift(p, shift);
         AddProjectToGrid(p);
     }
+    //removes a project from the grid when it is being shifted
 
     private void RemoveProjectFromGrid(Project p)
     {
@@ -153,6 +183,7 @@ public class ScheduleState
         }
     }
 
+    //current shift added 
     private void AddProjectToGrid(Project p)
     {
         int shift = GetShift(p);
