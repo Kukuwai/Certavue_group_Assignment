@@ -14,17 +14,17 @@ public class Program
     {
         loadData();
         //testPrint();
-        var beforeGreedy = new ScheduleState(people, projects);
+       // var beforeGreedy = new ScheduleState(people, projects);
        // GreedyChecker("Before Greedy", beforeGreedy);
         new GreedyAlg().StartGreedy(people, projects);
-        var afterGreedy = new ScheduleState(people, projects);
+       // var afterGreedy = new ScheduleState(people, projects);
       //  GreedyChecker("After Greedy", afterGreedy);
     }
 
     public void loadData()
     {
         Loader load = new Loader();
-        (this.people, this.projects) = load.LoadData("Data/schedule_target75_large.csv");
+        (this.people, this.projects) = load.LoadData("Data/schedule_target75_small.csv");
         Console.WriteLine("Loaded.");
     }
 
