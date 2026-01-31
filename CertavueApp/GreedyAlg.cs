@@ -35,21 +35,25 @@ public class GreedyAlg
         //takes the ordered list and looks for each ones best shift and prints stats 
         foreach (var project in ordered)
         {
-            int bestShift = 0;
-            int bestConflicts = int.MaxValue;
+            int bestShift = 0; //starts by assuming no shift is best
+            var bestMetrics = (int.MaxValue, int.MaxValue, int.MaxValue);
 
             foreach (int shift in state.GetValidShifts(project))
             {
-                int conflicts = CountConflicts(state, project, shift);
-                if (conflicts < bestConflicts)
+                var metrics = EvaluateShift(state, project, shift);
+
+                //prefers fewer shifts, then fewer new double books, if it is a tie do the smaller move
+                //this is only used if extra overlaps ties with the new double bookings
+                if (metrics.extraOverlaps < bestMetrics.Item1 ||
+                    (metrics.extraOverlaps == bestMetrics.Item1 && metrics.newDoubleBooked < bestMetrics.Item2) ||
+                    (metrics.extraOverlaps == bestMetrics.Item1 && metrics.newDoubleBooked == bestMetrics.Item2 && metrics.shiftDistance < bestMetrics.Item3))
                 {
-                    bestConflicts = conflicts;
                     bestShift = shift;
+                    bestMetrics = metrics;
                 }
             }
 
             state.ApplyShift(project, bestShift);
-            //Console.WriteLine(project.name + " -> shift " + bestShift + ", conflicts " + bestConflicts);
         }
 
         totalAssignments = state.PersonWeekGrid.Values.Sum();
@@ -64,16 +68,30 @@ public class GreedyAlg
             + " % not double-booked=" + pctNotDoubleBooked.ToString("0.##"));
     }
 
-    //Counts how many conflicts someone has
-    private int CountConflicts(ScheduleState state, Project project, int shift)
+    //Counts how many conflicts someone has, returns extra overlaps, new double booked weeks, and shift distance
+    //input is the state, project being evaluated, and the shift being evaluated
+    public (int extraOverlaps, int newDoubleBooked, int shiftDistance) EvaluateShift(
+    ScheduleState state, Project project, int shift)
     {
-        int conflicts = 0;
-        foreach (var (personId, week) in state.GetFootprintForShift(project, shift))
+        int extraOverlaps = 0;
+        int newDoubleBooked = 0;
+
+        foreach (var (personId, week) in state.GetGrid(project, shift))
         {
-            if (state.PersonWeekGrid.GetValueOrDefault((personId, week)) > 0)
-                conflicts++;
+            int currentCount = state.PersonWeekGrid.GetValueOrDefault((personId, week), 0);
+
+            if (currentCount > 0)
+            {
+                extraOverlaps++;  //Has logic to count worse double bookings
+
+                if (currentCount == 1)
+                {
+                    newDoubleBooked++;  //Week is double booked
+                }
+            }
         }
-        return conflicts;
+
+        return (extraOverlaps, newDoubleBooked, Math.Abs(shift));
     }
 }
 
@@ -99,53 +117,70 @@ public class ScheduleState
 
 
     //duration should be from start date week to end date week -1 but need to check my maths on this one on paper
-    public int GetDuration(Project p) => _window[p].end - _window[p].start + 1;
+    public int GetDuration(Project p)
+    {
+        var weeks = p.people
+            .SelectMany(person => person.projects[p]) //weeks on proj for this person
+            .Distinct() //remove duplicate weeks ie 2 people working week 10
+            .ToList();
+
+        int leftmost = weeks.Min();
+        int rightmost = weeks.Max();
+        int duration = rightmost - leftmost + 1;
+
+        return duration;
+    }
     public int GetShift(Project p) => _shift[p];
     public void SetShift(Project p, int shift) => _shift[p] = shift;
 
     //finds all valid shifts for each project 
     public List<int> GetValidShifts(Project p)
     {
-
-        var weeks = p.people
-            .SelectMany(person => person.projects[p])
-            .Distinct()
-            .OrderBy(w => w)
+        var weeks = p.people //all work weeks on project
+            .SelectMany(person => person.projects[p])  //returns weeks a person works
+            .Distinct()  //removes duplicates aka 2 people workinf
             .ToList();
 
         if (weeks.Count == 0)
         {
-            return new List<int> { 0 }; //Was getting an error for no movement allowed projects. I am not sure why this fixes it but please don't remove it
+            return new List<int> { 0 }; //breaks without this do not remove
         }
-        int baselineStart = weeks.First();
-        int duration = weeks.Count;
 
-        int earliestStart = _window[p].start + 1;
-        int latestEnd = _window[p].end - 1;
+        int baselineStart = weeks.Min();   //earliest x
+        int baselineEnd = weeks.Max();     //latest x
 
-        int minShift = earliestStart - baselineStart;
-        int maxShift = latestEnd - (baselineStart + duration - 1);
+        int duration = baselineEnd - baselineStart + 1; //how wide the project is or long
+
+        int earliestStart = _window[p].start + 1;  //valid moves left
+        int latestEnd = _window[p].end - 1;        //valid moves right
+
+        int minShift = Math.Max(-baselineStart + 1, earliestStart - baselineStart); //how far left can it go
+        int maxShift = Math.Min(52 - baselineEnd, latestEnd - baselineEnd); // how far right
 
         if (maxShift < minShift)
         {
-            return new List<int>();
+            return new List<int>();  //gave an error on some if constraints didn't allow movement
         }
-        return Enumerable.Range(minShift, maxShift - minShift + 1).ToList();
+
+        return Enumerable.Range(minShift, maxShift - minShift + 1).ToList(); //list of valid shfts
     }
 
-    //This is what actually moves the weeks. It takes a project and shift and moves ever person's weeks by the shift #
-    public IEnumerable<(int personId, int week)> GetFootprintForShift(Project p, int shift)
-    {
-        foreach (var person in p.people)        //loops anyone on a project
-        {
-            if (!person.projects.TryGetValue(p, out var weeks))
-            {
-                continue;       //not skipping people without weeks on that project was giving an error so this fixed it 
-            }
-            foreach (var week in weeks)
-            {
-                yield return (person.id, week + shift);
 
+    //This is what actually moves the weeks. It takes a project and shift and moves ever person's weeks by the shift #
+    public IEnumerable<(int personId, int week)> GetGrid(Project p, int shift)
+    {
+        foreach (var person in p.people) //every person in a project looped
+        {
+            if (person.projects.ContainsKey(p))  //Only does work for that week people
+            {
+                foreach (var originalWeek in person.projects[p])  //loops every week that person is on the project and makes the + or - shift
+                {
+                    int shiftedWeek = originalWeek + shift;
+                    if (shiftedWeek >= 1 && shiftedWeek <= 52) //out of bounds protector. Was getting an error on edges prior
+                    {
+                        yield return (person.id, shiftedWeek);
+                    }
+                }
             }
         }
     }
@@ -173,7 +208,7 @@ public class ScheduleState
     private void RemoveProjectFromGrid(Project p)
     {
         int shift = GetShift(p);
-        foreach (var (personId, week) in GetFootprintForShift(p, shift))
+        foreach (var (personId, week) in GetGrid(p, shift))
         {
             if (week is < 1 or > Weeks) continue;
             var key = (personId, week);
@@ -187,7 +222,7 @@ public class ScheduleState
     private void AddProjectToGrid(Project p)
     {
         int shift = GetShift(p);
-        foreach (var (personId, week) in GetFootprintForShift(p, shift))
+        foreach (var (personId, week) in GetGrid(p, shift))
         {
             if (week is < 1 or > Weeks) continue;
             var key = (personId, week);
