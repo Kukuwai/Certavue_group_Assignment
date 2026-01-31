@@ -24,7 +24,7 @@ public class Program
     public void loadData()
     {
         Loader load = new Loader();
-        (this.people, this.projects) = load.LoadData("Data/schedule_target75_small.csv");
+        (this.people, this.projects) = load.LoadData("Data/schedule_target75_large.csv");
         Console.WriteLine("Loaded.");
     }
 
