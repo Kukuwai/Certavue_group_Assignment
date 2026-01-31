@@ -14,10 +14,25 @@ public class Program
         loadData();
         //testPrint();
         var beforeGreedy = new ScheduleState(people, projects);
-       // GreedyChecker("Before Greedy", beforeGreedy);
+        // GreedyChecker("Before Greedy", beforeGreedy);
         new GreedyAlg().StartGreedy(people, projects);
         var afterGreedy = new ScheduleState(people, projects);
-      //  GreedyChecker("After Greedy", afterGreedy);
+        //  GreedyChecker("After Greedy", afterGreedy);
+        var state = new ScheduleState(people, projects);
+        var detector = new ConflictDetector();
+        var report = detector.AnalyzeSchedule(state);
+        report.CalculateStatistics(state);
+
+        Console.WriteLine($"Total conflicts: {report.TotalConflictWeeks}");
+        Console.WriteLine($"People affected: {report.PeopleAffected}");
+        Console.WriteLine($"Conflict rate: {report.ConflictPercentage:F2}%");
+
+        Console.WriteLine("\nTop 3 conflicted people:");
+        foreach (var person in report.ConflictsByPerson.OrderByDescending(kv => kv.Value).Take(3))
+        {
+            Console.WriteLine($"  {person.Key}: {person.Value} conflicts");
+        }
+
     }
 
     public void loadData()
