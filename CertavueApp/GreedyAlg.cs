@@ -1,20 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using static ScheduleState;
 
 public class GreedyAlg
 {
-    public struct WeekKey //handles a person and week cell
-    {
-        public int PersonId;
-        public int Week;
-
-        public WeekKey(int personId, int week)
-        {
-            PersonId = personId;
-            Week = week;
-        }
-    }
     public ScheduleState StartGreedy(List<Person> people, List<Project> projects)
     {
         //state keeps track of shifts
@@ -161,16 +151,6 @@ public class GreedyAlg
             OverlapAfter = overlapAfter,
             ShiftDistance = Math.Abs(candidateShift)
         };
-    }
-    public class Window    //handles the start and end weeks of project
-    {
-        public int Start; //as far left 
-        public int End; //right
-        public Window(int start, int end)
-        {
-            Start = start;
-            End = end;
-        }
     }
 
     //Since we designed it without a schedule class in the loader we keep track here making the "grid" in the CSV form

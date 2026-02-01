@@ -2,6 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using static GreedyAlg;
+<<<<<<< HEAD
+=======
+using static ScheduleState;
+>>>>>>> Schedule-extract
 public class ConflictDetector
 {
   // // This is initial method to test the Detection and then report. This can be removed later but for now keep it. 
@@ -29,7 +33,7 @@ public class ConflictDetector
 
   
 
-  private List<string> GetProjectsForPersonInWeek(ScheduleState state, int personId, int week)
+ private List<string> GetProjectsForPersonInWeek(ScheduleState state, int personId, int week)
   {
     var projects = new List<string>();
     var person = state.People.First(p => p.id == personId);
