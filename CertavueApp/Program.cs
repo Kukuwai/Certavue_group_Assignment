@@ -14,11 +14,12 @@ public class Program
     {
         loadData();
         //testPrint();
-       // var beforeGreedy = new ScheduleState(people, projects);
-       // GreedyChecker("Before Greedy", beforeGreedy);
-        new GreedyAlg().StartGreedy(people, projects);
-       // var afterGreedy = new ScheduleState(people, projects);
-      //  GreedyChecker("After Greedy", afterGreedy);
+        // var beforeGreedy = new ScheduleState(people, projects);
+        // GreedyChecker("Before Greedy", beforeGreedy);
+        var greedy = new GreedyAlg();
+        var state = greedy.StartGreedy(people, projects);
+        // var afterGreedy = new ScheduleState(people, projects);
+        //  GreedyChecker("After Greedy", afterGreedy);
     }
 
     public void loadData()

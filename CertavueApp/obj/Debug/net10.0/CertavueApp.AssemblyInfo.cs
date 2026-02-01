@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("CertavueApp")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+7de6e337ea5018d74dba00560496636e84527e05")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+66cf2a56b0904df9acbeff9faeee7dcebb907d51")]
 [assembly: System.Reflection.AssemblyProductAttribute("CertavueApp")]
 [assembly: System.Reflection.AssemblyTitleAttribute("CertavueApp")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

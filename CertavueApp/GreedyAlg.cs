@@ -15,11 +15,12 @@ public class GreedyAlg
             Week = week;
         }
     }
-    public void StartGreedy(List<Person> people, List<Project> projects)
+    public ScheduleState StartGreedy(List<Person> people, List<Project> projects)
     {
         //state keeps track of shifts
         var state = new ScheduleState(people, projects);
         BuildGreedySchedule(state);
+        return state; //will be passed to next alg
     }
     public void BuildGreedySchedule(ScheduleState state)
     {
