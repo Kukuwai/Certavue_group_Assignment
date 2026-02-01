@@ -30,7 +30,7 @@ public class ConflictDetector
 
   
 
-  private List<string> GetProjectsForPersonInWeek(ScheduleState state, int personId, int week)
+ private List<string> GetProjectsForPersonInWeek(ScheduleState state, int personId, int week)
   {
     var projects = new List<string>();
     var person = state.People.First(p => p.id == personId);
@@ -42,7 +42,7 @@ public class ConflictDetector
       var shift = state.GetShift(project);
       var footprint = state.GetGrid(project, shift);
 
-      if (footprint.Any(f => f.personId == personId && f.week == week))
+      if (footprint.Any(f => f.PersonId == personId && f.Week == week))
       {
         projects.Add(project.name);
       }
