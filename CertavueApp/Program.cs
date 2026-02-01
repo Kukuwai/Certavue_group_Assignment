@@ -12,26 +12,52 @@ public class Program
     public Program()
     {
         loadData();
+
+        // Before Greedy algorithm
+        Console.WriteLine("********* Before running Greedy *********");
+        var stateBefore = new ScheduleState(people, projects);
+        var detectorBefore = new ConflictDetector();
+        var reportBefore = detectorBefore.AnalyzeSchedule(stateBefore);
+        reportBefore.CalculateStatistics(stateBefore);
+        //reportBefore.PrintReport();
+
+        // Run Greedy algorithm
+        Console.WriteLine("********* Running Greedy ***************");
+        var stateAfter = new GreedyAlg().StartGreedy(people, projects);
+
+        // After Greedy algorithm
+        Console.WriteLine("********* After running Greedy *******");
+        var detectorAfter = new ConflictDetector();
+        var reportAfter = detectorAfter.AnalyzeSchedule(stateAfter);
+        reportAfter.CalculateStatistics(stateAfter);
+        //reportAfter.PrintReport();
+
+        // Comparison
+        Console.WriteLine("************ Comparison *************");
+        Console.WriteLine($"Conflicts before: {reportBefore.TotalConflictWeeks}");
+        Console.WriteLine($"Conflicts after:  {reportAfter.TotalConflictWeeks}");
+        Console.WriteLine($"Reduction:        {reportBefore.TotalConflictWeeks - reportAfter.TotalConflictWeeks}");
+        Console.WriteLine($"% Improvement:    {(1 - (double)reportAfter.TotalConflictWeeks / reportBefore.TotalConflictWeeks) * 100:F1}%");
         //testPrint();
-        var beforeGreedy = new ScheduleState(people, projects);
+        //var beforeGreedy = new ScheduleState(people, projects);
         // GreedyChecker("Before Greedy", beforeGreedy);
-        new GreedyAlg().StartGreedy(people, projects);
-        var afterGreedy = new ScheduleState(people, projects);
+        //new GreedyAlg().StartGreedy(people, projects);
+        //var afterGreedy = new ScheduleState(people, projects);
         //  GreedyChecker("After Greedy", afterGreedy);
-        var state = new ScheduleState(people, projects);
-        var detector = new ConflictDetector();
-        var report = detector.AnalyzeSchedule(state);
-        report.CalculateStatistics(state);
+        //var state = new ScheduleState(people, projects);
+        //var detector = new ConflictDetector();
+        //var report = detector.AnalyzeSchedule(state);
+        //report.CalculateStatistics(state);
 
-        Console.WriteLine($"Total conflicts: {report.TotalConflictWeeks}");
-        Console.WriteLine($"People affected: {report.PeopleAffected}");
-        Console.WriteLine($"Conflict rate: {report.ConflictPercentage:F2}%");
+        //Console.WriteLine($"Total conflicts: {report.TotalConflictWeeks}");
+        //Console.WriteLine($"People affected: {report.PeopleAffected}");
+        //Console.WriteLine($"Conflict rate: {report.ConflictPercentage:F2}%");
 
-        Console.WriteLine("\nTop 3 conflicted people:");
-        foreach (var person in report.ConflictsByPerson.OrderByDescending(kv => kv.Value).Take(3))
-        {
-            Console.WriteLine($"  {person.Key}: {person.Value} conflicts");
-        }
+        // Console.WriteLine("\nTop 3 conflicted people:");
+        // foreach (var person in report.ConflictsByPerson.OrderByDescending(kv => kv.Value).Take(3))
+        // {
+        //     Console.WriteLine($"  {person.Key}: {person.Value} conflicts");
+        // }
 
     }
 

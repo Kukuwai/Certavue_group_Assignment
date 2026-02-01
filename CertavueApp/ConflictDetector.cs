@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 public class ConflictDetector
 {
-  // This is initial method to test the Detection and then report. This can be removed later but for now keep it. 
+  // // This is initial method to test the Detection and then report. This can be removed later but for now keep it. 
   public ConflictReport DetectConflictsSimple(Dictionary<(int personId, int week), int> grid)
   {
     var report = new ConflictReport();
@@ -25,6 +25,8 @@ public class ConflictDetector
 
     return report;
   }
+
+  
 
   private List<string> GetProjectsForPersonInWeek(ScheduleState state, int personId, int week)
   {
