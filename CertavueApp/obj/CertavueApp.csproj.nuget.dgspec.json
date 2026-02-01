@@ -1,25 +1,31 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\milla\\Certavue_group_Assignment\\CertavueApp\\CertavueApp.csproj": {}
+    "C:\\Users\\colya\\Certavue_group_Assignment\\CertavueApp\\CertavueApp.csproj": {}
   },
   "projects": {
-    "C:\\Users\\milla\\Certavue_group_Assignment\\CertavueApp\\CertavueApp.csproj": {
+    "C:\\Users\\colya\\Certavue_group_Assignment\\CertavueApp\\CertavueApp.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\milla\\Certavue_group_Assignment\\CertavueApp\\CertavueApp.csproj",
+        "projectUniqueName": "C:\\Users\\colya\\Certavue_group_Assignment\\CertavueApp\\CertavueApp.csproj",
         "projectName": "CertavueApp",
-        "projectPath": "C:\\Users\\milla\\Certavue_group_Assignment\\CertavueApp\\CertavueApp.csproj",
-        "packagesPath": "C:\\Users\\milla\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\milla\\Certavue_group_Assignment\\CertavueApp\\obj\\",
+        "projectPath": "C:\\Users\\colya\\Certavue_group_Assignment\\CertavueApp\\CertavueApp.csproj",
+        "packagesPath": "C:\\Users\\colya\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\colya\\Certavue_group_Assignment\\CertavueApp\\obj\\",
         "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
         "configFilePaths": [
-          "C:\\Users\\milla\\AppData\\Roaming\\NuGet\\NuGet.Config"
+          "C:\\Users\\colya\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
           "net10.0"
         ],
         "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
@@ -59,7 +65,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.102/PortableRuntimeIdentifierGraph.json",
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.101/PortableRuntimeIdentifierGraph.json",
           "packagesToPrune": {
             "Microsoft.CSharp": "(,4.7.32767]",
             "Microsoft.VisualBasic": "(,10.4.32767]",
