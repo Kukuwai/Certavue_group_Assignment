@@ -325,7 +325,7 @@ public class GreedyAlg
         private void AddProjectToGrid(Project p)
         {
             int shift = GetShift(p);           
-            foreach (var key in GetGrid(p, shift))
+            foreach (var key in GetGrid(p, shift))  //loops over occupied cells
             {
                 int week = key.Week;
                 if (week < 1 || week > Weeks) continue;
