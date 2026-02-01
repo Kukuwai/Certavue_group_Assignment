@@ -55,8 +55,12 @@ public class ConflictDetector
   {
     var report = new ConflictReport();
 
-    foreach (var ((personId, week), count) in state.PersonWeekGrid)
+    foreach (var kvp in state.PersonWeekGrid)
     {
+      var personId = kvp.Key.PersonId;
+      var week = kvp.Key.Week;
+      var count = kvp.Value;
+
       if (count > 1)
       {
         var person = state.People.First(p => p.id == personId);
