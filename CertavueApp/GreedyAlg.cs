@@ -4,119 +4,187 @@ using System.Linq;
 
 public class GreedyAlg
 {
+    public struct WeekKey
+    {
+        public int PersonId;
+        public int Week;
+
+        public WeekKey(int personId, int week)
+        {
+            PersonId = personId;
+            Week = week;
+        }
+    }
     public void StartGreedy(List<Person> people, List<Project> projects)
     {
         //state keeps track of shifts
         var state = new ScheduleState(people, projects);
         BuildGreedySchedule(state);
     }
-
     public void BuildGreedySchedule(ScheduleState state)
     {
-        Console.WriteLine("Greedy algorithm running");
-        //grabs stats before algorithm
-        int totalAssignments = state.PersonWeekGrid.Values.Sum();
-        int nonConflictAssignments = state.PersonWeekGrid
-            .Where(kv => kv.Value == 1)
-            .Sum(kv => kv.Value);
-        double pctNotDoubleBooked = totalAssignments == 0
-            ? 100
-            : (double)nonConflictAssignments / totalAssignments * 100;
-
-        Console.WriteLine("Before running. Total assignments=" + totalAssignments
-            + " % not double-booked=" + pctNotDoubleBooked.ToString("0.##"));
-
-        //Harder weeks go first aka projects with most X's
-        var ordered = state.Projects
-            .OrderByDescending(p => p.people.Count * state.GetDuration(p))
-            .ToList();
-
-
-        //takes the ordered list and looks for each ones best shift and prints stats 
-        foreach (var project in ordered)
+        const int maxPasses = 6; //seeing if this improves perfornmancesince greedy is cheap.it can be any number really
+        //for file 75 large should start with 1036 and 36.39% double booked
+        int startTotal = state.PersonWeekGrid.Values.Sum();
+        int startNonConflict = state.PersonWeekGrid.Where(kv => kv.Value == 1).Sum(kv => kv.Value);
+        int startDouble = state.PersonWeekGrid.Count(kv => kv.Value >= 2);
+        double startPct;
+        if (startTotal == 0)
         {
-            int bestShift = 0; //assumes 0 is best start
-            //metrics to track for best
-            int bestExtraOverlaps = int.MaxValue;
-            int bestNewDoubleBookings = int.MaxValue;
-            int bestShiftDistance = int.MaxValue;
-
-            foreach (int shift in state.GetValidShifts(project))
-            {
-                var metrics = EvaluateShiftImpact(state, project, shift); //tracks what happens with this shift
-                //prioritizes fewer extra overlaps, then fewer new double bookings, then smaller shift distance
-                bool isBetter =
-                    metrics.ExtraOverlaps < bestExtraOverlaps ||
-                    (metrics.ExtraOverlaps == bestExtraOverlaps && metrics.NewDoubleBookings < bestNewDoubleBookings) ||
-                    (metrics.ExtraOverlaps == bestExtraOverlaps && metrics.NewDoubleBookings == bestNewDoubleBookings && metrics.ShiftDistance < bestShiftDistance);
-
-                if (isBetter)
-                {
-                    //stores best shift and metrics for it
-                    bestShift = shift;
-
-                    bestExtraOverlaps = metrics.ExtraOverlaps;
-                    bestNewDoubleBookings = metrics.NewDoubleBookings;
-                    bestShiftDistance = metrics.ShiftDistance;
-                }
-            }
-
-
-            state.ApplyShift(project, bestShift);
-        }
-
-        totalAssignments = state.PersonWeekGrid.Values.Sum();
-        nonConflictAssignments = state.PersonWeekGrid
-            .Where(kv => kv.Value == 1)
-            .Sum(kv => kv.Value);
-        if (totalAssignments == 0)
-        {
-            pctNotDoubleBooked = 100;
+            startPct = 100.0;
         }
         else
         {
-            pctNotDoubleBooked = (double)nonConflictAssignments / totalAssignments * 100;
+            startPct = (double)startNonConflict / startTotal * 100.0;
         }
+        Console.WriteLine("Greedy algorithm running: ");
 
-        Console.WriteLine("Done. Total assignments=" + totalAssignments
-            + " % not double-booked=" + pctNotDoubleBooked.ToString("0.##"));
+        Console.WriteLine("Start total: " + startTotal + ", double-booked=" + startDouble + ", % not double-booked=" + startPct.ToString("0.##"));
+
+
+        for (int pass = 1; pass <= maxPasses; pass++)
+        {
+            var ordered = state.Projects
+            .OrderByDescending(p => state.GetDuration(p))   //longest projs first
+            .ThenByDescending(p => p.people.Count)          //breaks tie by most people on proj
+            .ToList();
+
+            bool anyShifted = false; //track if any schedules are moved 
+
+            foreach (var project in ordered)  //tracks projects in order
+            {
+                int currentShift = state.GetShift(project);
+                int bestShift = currentShift;
+                ShiftScore best = EvaluateShift(state, project, currentShift); // baseline
+
+                foreach (int candidate in state.GetValidShifts(project)) //all allowed shifts ie within dates
+                {
+                    ShiftScore test = EvaluateShift(state, project, candidate);
+
+                    //goes in order fewer double booked, overlap and then shortest move
+                    bool better =
+                        test.DeltaDoubleBooked < best.DeltaDoubleBooked ||
+                        (test.DeltaDoubleBooked == best.DeltaDoubleBooked && test.OverlapAfter < best.OverlapAfter) ||
+                        (test.DeltaDoubleBooked == best.DeltaDoubleBooked && test.OverlapAfter == best.OverlapAfter && test.ShiftDistance < best.ShiftDistance);
+
+                    if (better)
+                    {
+                        bestShift = candidate; //tracks best shift
+                        best = test; //keeps the best
+                    }
+                }
+
+                if (bestShift != currentShift)
+                {
+                    state.ApplyShift(project, bestShift); //implements the move
+                    anyShifted = true;  //used to make sure changes occurred
+                }
+            }
+            int total = state.PersonWeekGrid.Values.Sum();  //all time slots
+            int nonConflict = state.PersonWeekGrid.Where(kv => kv.Value == 1).Sum(kv => kv.Value);  //clean slots aka not double booked
+            int doubleBooked = state.PersonWeekGrid.Count(kv => kv.Value >= 2); //double booked
+            double pct;  //% not double booked
+            if (total == 0)
+            {
+                pct = 100;
+            }
+
+            else
+            {
+                pct = (double)nonConflict / total * 100;
+
+            }
+
+            Console.WriteLine("After pass " + pass + ", total: " + total + ", double-booked=" + doubleBooked + ", % not double-booked=" + pct.ToString("0.##"));
+
+            if (!anyShifted) break; //ends if nothing moves so we really could have the passes be pretty high for safety
+        }
     }
 
-    //Counts how many conflicts someone has, returns extra overlaps, new double booked weeks, and shift distance
-
-    public EvaluateShift EvaluateShiftImpact(ScheduleState state, Project project, int shiftAmount)
+    // Counts how many of this project's current cells are already conflicted
+    private int ConflictsCausedBy(ScheduleState state, Project project)
     {
-        var result = new EvaluateShift(); //holds evaluation results
-        int shiftDistance = Math.Abs(shiftAmount); //tie breakers
-        //loops everyt person and week 
-        foreach (var (personId, week) in state.GetGrid(project, shiftAmount))
+        int shift = state.GetShift(project);  //current shift on this project
+        int conflicts = 0;
+        foreach (var key in state.GetGrid(project, shift)) //manages the schedule of occupied cells
         {
-            int assignmentsThisWeek = state.PersonWeekGrid.GetValueOrDefault((personId, week), 0);  //how many projs this person has this week
-
-            bool alreadyAssignedThatWeek = assignmentsThisWeek > 0; //at least one proj this week
-            bool wouldCreateDoubleBooking = assignmentsThisWeek == 1; //one proj so adding more is a double booking
-
-            if (alreadyAssignedThatWeek)
+            if (state.PersonWeekGrid.GetValueOrDefault(key, 0) > 1) //if conflicted counts it
             {
-                result.ExtraOverlaps++;
+                conflicts++;
+            }
+        }
+        return conflicts;
+    }
 
-                if (wouldCreateDoubleBooking)
-                {
-                    result.NewDoubleBookings++; //this shift makes another double booking
-                }
+
+    // Holds the scoring results for a candidate shift
+    public class ShiftScore
+    {
+        public int DeltaDoubleBooked { get; set; } //double booked change
+        public int OverlapAfter { get; set; } //remaining double booked after a move
+        public int ShiftDistance { get; set; } //shift size aka smaller may = better
+    }
+
+    // Returns a ShiftScore
+    public ShiftScore EvaluateShift(ScheduleState state, Project project, int candidateShift)
+    {
+        int currentShift = state.GetShift(project);
+
+        List<WeekKey> current = new List<WeekKey>(state.GetGrid(project, currentShift)); //weeks at current shift
+        List<WeekKey> candidate = new List<WeekKey>(state.GetGrid(project, candidateShift)); //weeks at new shift
+
+
+        List<WeekKey> touched = new List<WeekKey>(current); //any cells impacted by change
+        foreach (WeekKey k in candidate)
+        {
+            if (!touched.Contains(k))
+                touched.Add(k);
+        }
+
+        int delta = 0; //change in 2x bookings
+        int overlapAfter = 0; //how many double bookings after move
+
+        foreach (WeekKey key in touched)
+        {
+            int baseCount = 0;
+            state.PersonWeekGrid.TryGetValue(key, out baseCount); //current bookings from all projects
+            if (current.Contains(key)) baseCount -= 1; //removes current projects placement
+
+            //adds the canidate project p;cement
+            int newCount;
+            if (candidate.Contains(key))
+            {
+                newCount = baseCount + 1;
+            }
+            else
+            {
+                newCount = baseCount + 0;
+            }
+            if (baseCount >= 2) delta -= 1; //double booked pre move
+            if (newCount >= 2) //double booked after move
+            {
+                delta += 1;
+                overlapAfter++;
             }
         }
 
-        result.ShiftDistance = shiftDistance;
-        return result;
+
+        return new ShiftScore
+        {
+            DeltaDoubleBooked = delta,
+            OverlapAfter = overlapAfter,
+            ShiftDistance = Math.Abs(candidateShift)
+        };
     }
-
-
-    public class EvaluateShift
+    public class Window
     {
-        public int ExtraOverlaps { get; set; }
-        public int NewDoubleBookings { get; set; }
-        public int ShiftDistance { get; set; }
+        public int Start;
+        public int End;
+        public Window(int start, int end)
+        {
+            Start = start;
+            End = end;
+        }
     }
 
     //Since we designed it without a schedule class in the loader we keep track here making the "grid" in the CSV form
@@ -125,22 +193,29 @@ public class GreedyAlg
         private const int Weeks = 52;
         public List<Person> People { get; } //list of all people in that schedule
         public List<Project> Projects { get; } //list of projects
-        public Dictionary<(int personId, int week), int> PersonWeekGrid { get; } = new(); //dictionary to track projects a person has each week
 
-        private readonly Dictionary<Project, (int start, int end)> _window; //considers start and end dates to know what valid moves are 
+        public Dictionary<WeekKey, int> PersonWeekGrid { get; } = new(); //dictionary to track projects a person has each week
+        private readonly Dictionary<Project, Window> _window; //considers start and end dates to know what valid moves are 
         private readonly Dictionary<Project, int> _shift; //current shift of project
-
         public ScheduleState(List<Person> people, List<Project> projects)
         {
             People = people;
             Projects = projects;
-            _window = projects.ToDictionary(p => p, p => (p.startDate, p.endDate));
-            _shift = projects.ToDictionary(p => p, _ => 0);
+            _window = new Dictionary<Project, Window>();
+            foreach (var proj in projects)
+            {
+                _window[proj] = new Window(proj.startDate, proj.endDate);
+            }
+
+            _shift = new Dictionary<Project, int>();
+            foreach (var proj in projects)
+            {
+                _shift[proj] = 0;   // all projects start with shift 0
+            }
+
             RebuildGrid();
         }
-
-
-        //duration should be from start date week to end date week -1 but need to check my maths on this one on paper
+        //duration should be from start date week +1 to end date week -1 but need to check my maths on this one on paper
         public int GetDuration(Project p)
         {
             var weeks = p.people
@@ -154,8 +229,14 @@ public class GreedyAlg
 
             return duration;
         }
-        public int GetShift(Project p) => _shift[p];
-        public void SetShift(Project p, int shift) => _shift[p] = shift;
+        public int GetShift(Project p)
+        {
+            return _shift[p];
+        }
+        public void SetShift(Project p, int shift)
+        {
+            _shift[p] = shift;
+        }
 
         //finds all valid shifts for each project 
         public List<int> GetValidShifts(Project p)
@@ -175,8 +256,9 @@ public class GreedyAlg
 
             int duration = baselineEnd - baselineStart + 1; //how wide the project is or long
 
-            int earliestStart = _window[p].start + 1;  //valid moves left
-            int latestEnd = _window[p].end - 1;        //valid moves right
+            int earliestStart = _window[p].Start + 1;  //valid moves left
+            int latestEnd = _window[p].End - 1;        //valid moves right
+
 
             int minShift = Math.Max(-baselineStart + 1, earliestStart - baselineStart); //how far left can it go
             int maxShift = Math.Min(52 - baselineEnd, latestEnd - baselineEnd); // how far right
@@ -188,25 +270,25 @@ public class GreedyAlg
 
             return Enumerable.Range(minShift, maxShift - minShift + 1).ToList(); //list of valid shfts
         }
-
-
         //This is what actually moves the weeks. It takes a project and shift and moves ever person's weeks by the shift #
-        public IEnumerable<(int personId, int week)> GetGrid(Project p, int shift)
+        public List<WeekKey> GetGrid(Project p, int shift)
         {
-            foreach (var person in p.people) //every person in a project looped
+            List<WeekKey> cells = new List<WeekKey>();
+            foreach (var person in p.people)
             {
-                if (person.projects.ContainsKey(p))  //Only does work for that week people
+                if (person.projects.ContainsKey(p))
                 {
-                    foreach (var originalWeek in person.projects[p])  //loops every week that person is on the project and makes the + or - shift
+                    foreach (var originalWeek in person.projects[p])
                     {
                         int shiftedWeek = originalWeek + shift;
-                        if (shiftedWeek >= 1 && shiftedWeek <= 52) //out of bounds protector. Was getting an error on edges prior
+                        if (shiftedWeek >= 1 && shiftedWeek <= 52)
                         {
-                            yield return (person.id, shiftedWeek);
+                            cells.Add(new WeekKey(person.id, shiftedWeek));
                         }
                     }
                 }
             }
+            return cells;
         }
 
         //used at beginning to build the grid and add projects to it
@@ -219,7 +301,6 @@ public class GreedyAlg
 
             }
         }
-
         //updates the grid with shifts
         public void ApplyShift(Project p, int shift)
         {
@@ -228,28 +309,26 @@ public class GreedyAlg
             AddProjectToGrid(p);
         }
         //removes a project from the grid when it is being shifted
-
         private void RemoveProjectFromGrid(Project p)
         {
             int shift = GetShift(p);
-            foreach (var (personId, week) in GetGrid(p, shift))
+            foreach (var key in GetGrid(p, shift))
             {
-                if (week is < 1 or > Weeks) continue;
-                var key = (personId, week);
+                int week = key.Week;
+                if (week < 1 || week > Weeks) continue;
                 if (!PersonWeekGrid.TryGetValue(key, out var count)) continue;
                 if (--count == 0) PersonWeekGrid.Remove(key);
                 else PersonWeekGrid[key] = count;
             }
         }
-
         //current shift added 
         private void AddProjectToGrid(Project p)
         {
             int shift = GetShift(p);
-            foreach (var (personId, week) in GetGrid(p, shift))
+            foreach (var key in GetGrid(p, shift))
             {
-                if (week is < 1 or > Weeks) continue;
-                var key = (personId, week);
+                int week = key.Week;
+                if (week < 1 || week > Weeks) continue;
                 PersonWeekGrid[key] = PersonWeekGrid.GetValueOrDefault(key) + 1;
             }
         }
