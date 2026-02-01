@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using static GreedyAlg;
+using static ScheduleState;
 public class ConflictDetector
 {
   // // This is initial method to test the Detection and then report. This can be removed later but for now keep it. 
@@ -39,7 +40,7 @@ public class ConflictDetector
       if (!project.people.Contains(person)) continue;
 
       var shift = state.GetShift(project);
-      var footprint = state.GetFootprintForShift(project, shift);
+      var footprint = state.GetGrid(project, shift);
 
       if (footprint.Any(f => f.personId == personId && f.week == week))
       {
