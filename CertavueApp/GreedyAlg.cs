@@ -20,7 +20,8 @@ public class GreedyAlg
         //state keeps track of shifts
         var state = new ScheduleState(people, projects);
         BuildGreedySchedule(state);
-        return state; //will be passed to next alg
+
+        return state; // I added this for to work with finding conflicts. 
     }
     public void BuildGreedySchedule(ScheduleState state)
     {
@@ -266,7 +267,7 @@ public class GreedyAlg
                     foreach (var originalWeek in person.projects[p])   //takes each week someone is on a project
                     {
                         int shiftedWeek = originalWeek + shift;  //makes the shift change
-                        if (shiftedWeek >= 1 && shiftedWeek <= 52) 
+                        if (shiftedWeek >= 1 && shiftedWeek <= 52)
                         {
                             cells.Add(new WeekKey(person.id, shiftedWeek)); //adds the new changed cell to list
                         }
@@ -309,7 +310,7 @@ public class GreedyAlg
         //current shift added 
         private void AddProjectToGrid(Project p)
         {
-            int shift = GetShift(p);           
+            int shift = GetShift(p);
             foreach (var key in GetGrid(p, shift))  //loops over occupied cells
             {
                 int week = key.Week;
