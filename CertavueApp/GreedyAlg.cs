@@ -102,22 +102,6 @@ public class GreedyAlg
         }
     }
 
-    // Counts how many of this project's current cells are already conflicted
-    private int ConflictsCausedBy(ScheduleState state, Project project)
-    {
-        int shift = state.GetShift(project);  //current shift on this project
-        int conflicts = 0;
-        foreach (var key in state.GetGrid(project, shift)) //manages the schedule of occupied cells
-        {
-            if (state.PersonWeekGrid.GetValueOrDefault(key, 0) > 1) //if conflicted counts it
-            {
-                conflicts++;
-            }
-        }
-        return conflicts;
-    }
-
-
     // Holds the scoring results for a candidate shift
     public class ShiftScore
     {
