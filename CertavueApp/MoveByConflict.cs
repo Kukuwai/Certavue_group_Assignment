@@ -73,6 +73,7 @@ public class MoveByConflict
             //Get grid handles some of the removing and placing logic
             //build greedy schedule lines 46-73 has the bulk of the actual greedy logic so it can be repurposed and moved here
             //apply shift actually sets the shift when we confirm the best move
+            //
         }
 
 
