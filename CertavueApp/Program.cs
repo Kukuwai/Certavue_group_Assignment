@@ -23,7 +23,8 @@ public class Program
 
         // Run Greedy algorithm
         Console.WriteLine("********* Running Greedy ***************");
-        var stateAfter = new GreedyAlg().StartGreedy(people, projects);
+        var stateAfterGreedy = new GreedyAlg().StartGreedy(people, projects);
+        var stateAfter = new ScheduleState(stateAfterGreedy.People, stateAfterGreedy.Projects);
 
         // After Greedy algorithm
         Console.WriteLine("********* After running Greedy *******");
