@@ -18,19 +18,6 @@ public class Program
         var state = new ScheduleState(people, projects);
         var finder = new AvailabilityFinder(state);
 
-        // Test: Check a person in a specific week
-        int workload1 = finder.GetPersonWorkload("Person_02", 32);
-        Console.WriteLine($"Person_02, Week 32: {workload1} projects");
-
-        var leastBusy5 = finder.FindLeastBusyWeeks(5);
-
-        int overload02 = finder.CountOverloadedWeeks("Person_02");
-        Console.WriteLine($"Person_02: {overload02} overloaded weeks");
-
-        test_AvailablePeople();
-        TestGetAvailableWeeksForPerson();
-
-
         // Before Greedy algorithm
         //Console.WriteLine("********* Before running Greedy *********");
         // var stateBefore = new ScheduleState(people, projects);
@@ -80,40 +67,6 @@ public class Program
         // {
         //     Console.WriteLine($"  {person.Key}: {person.Value} conflicts");
         // }
-    }
-
-    public void test_AvailablePeople()
-    {
-        loadData();
-        var state = new ScheduleState(people, projects);
-
-        int week = 32;
-        int availableCount = 0;
-
-        foreach (var person in state.People)
-        {
-            var key = new ScheduleState.WeekKey(person.id, week);
-            if (!state.PersonWeekGrid.ContainsKey(key))
-            {
-                availableCount++;
-            }
-        }
-
-        Console.WriteLine($"Week {week}: {availableCount} people available");
-    }
-
-    public void TestGetAvailableWeeksForPerson()
-    {
-        loadData();
-        var state = new ScheduleState(people, projects);
-        var finder = new AvailabilityFinder(state);
-
-        var weeks = finder.GetAvailableWeeksForPerson("Person_02");
-        Console.WriteLine($"Person_02: {weeks.Count} free weeks");
-        if (weeks.Count > 0 && weeks.Count <= 10)
-        {
-            Console.WriteLine($"Free weeks: {string.Join(", ", weeks)}");
-        }
     }
 
     public void loadData()

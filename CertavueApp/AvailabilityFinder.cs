@@ -10,6 +10,7 @@ public class AvailabilityFinder
   {
     _state = state;
   }
+  // This method gives the number of projects a person is working in a week.
   public int GetPersonWorkload(string personName, int week)
   {
     var person = _state.People.FirstOrDefault(p => p.name == personName);
@@ -23,7 +24,7 @@ public class AvailabilityFinder
     }
     return 0;
   }
-
+  // This method gives a list of Person objects which are free in a given week. 
   public List<Person> GetAvailablePeopleInWeek(int week)
   {
     return _state.People
@@ -34,7 +35,7 @@ public class AvailabilityFinder
         })
         .ToList();
   }
-
+  // This method gives all weeks where a given person is free or not working.
   public List<int> GetAvailableWeeksForPerson(string personName)
   {
     var person = _state.People.FirstOrDefault(p => p.name == personName);
@@ -51,7 +52,7 @@ public class AvailabilityFinder
     }
     return availableWeeks;
   }
-
+  // This method gives an ordered list of weeks starting with least number of projects.
   public List<int> FindLeastBusyWeeks(int numberOfWeeks = 5)
   {
     var weekWorkload = new Dictionary<int, int>();
@@ -74,7 +75,7 @@ public class AvailabilityFinder
         .Select(kv => kv.Key)
         .ToList();
   }
-
+  // This method gives number of weeks for a person working on more than one project that means the person is overloaded.
   public int CountOverloadedWeeks(string personName)
   {
     var person = _state.People.FirstOrDefault(p => p.name == personName);
