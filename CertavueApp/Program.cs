@@ -19,12 +19,12 @@ public class Program
         var finder = new AvailabilityFinder(state);
 
         // Before Greedy algorithm
-        //Console.WriteLine("********* Before running Greedy *********");
-        // var stateBefore = new ScheduleState(people, projects);
-        // var detectorBefore = new ConflictDetector();
-        // var reportBefore = detectorBefore.AnalyzeSchedule(stateBefore);
-        // reportBefore.CalculateStatistics(stateBefore);
-        //reportBefore.PrintReport();
+        Console.WriteLine("********* Before running Greedy *********");
+        var stateBefore = new ScheduleState(people, projects);
+        var detectorBefore = new ConflictDetector();
+        var reportBefore = detectorBefore.AnalyzeSchedule(stateBefore);
+        reportBefore.CalculateStatistics(stateBefore);
+        reportBefore.PrintReport();
 
         // Run Greedy algorithm
 
@@ -171,8 +171,9 @@ public class Program
     //     Console.WriteLine($"Expected 2 conflicts, got {report.Conflicts.Count}");
     // }
 
-    static void Main(string[] args)
-    {
-        new Program();
-    }
+    // Temporarily comment the main method when testing. For running the Program, please un-comment it. There is some issue with versions. 
+    // static void Main(string[] args)
+    // {
+    //     new Program();
+    // }
 }

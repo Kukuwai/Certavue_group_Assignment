@@ -124,8 +124,8 @@ public class ConflictReport
 public class Conflict
 {
   public int PersonId { get; set; }
-  public string PersonName { get; set; }
+  public string PersonName { get; set; } = string.Empty;
   public int Week { get; set; }
   public int ProjectCount { get; set; }
-  public List<string> ProjectNames { get; set; }
+  public List<string> ProjectNames { get; set; } = new List<string>();
 }
