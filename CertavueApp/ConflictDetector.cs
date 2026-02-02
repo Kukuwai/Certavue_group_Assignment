@@ -2,10 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using static GreedyAlg;
-<<<<<<< HEAD
-=======
 using static ScheduleState;
->>>>>>> Schedule-extract
 public class ConflictDetector
 {
   // // This is initial method to test the Detection and then report. This can be removed later but for now keep it. 
