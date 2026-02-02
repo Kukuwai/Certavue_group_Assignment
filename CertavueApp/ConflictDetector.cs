@@ -3,10 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using static GreedyAlg;
 using static ScheduleState;
-<<<<<<< HEAD
-=======
 
->>>>>>> 047ce3c0ea3fab809ad8901a7438aee71b5f854d
 public class ConflictDetector
 {
   // // This is initial method to test the Detection and then report. This can be removed later but for now keep it. 

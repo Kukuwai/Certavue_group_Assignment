@@ -8,8 +8,8 @@ using static MoveByConflict;
 using static ScheduleState;
 public class Program
 {
-    List<Project> projects = new List<Project>();
-    List<Person> people = new List<Person>();
+    public List<Project> projects = new List<Project>();
+    public List<Person> people = new List<Person>();
 
     public Program()
     {
@@ -27,7 +27,7 @@ public class Program
 
         // Console.WriteLine("********* Running Greedy ***************");
         var stateAfter = new GreedyAlg().StartGreedy(people, projects);
-        var m = new MoveByConflict(stateAfter);
+        var m = new MoveByConflict(stateAfter, projects);
 
 
         // After Greedy algorithm
@@ -69,7 +69,7 @@ public class Program
     public void loadData()
     {
         Loader load = new Loader();
-        (this.people, this.projects) = load.LoadData("Data/schedule_target75_large.csv");
+        (this.people, this.projects) = load.LoadData("Data\\schedule_target75_large.csv");
         Console.WriteLine("Loaded.");
     }
 
