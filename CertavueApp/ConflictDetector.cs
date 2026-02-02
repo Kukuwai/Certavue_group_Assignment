@@ -29,9 +29,9 @@ public class ConflictDetector
     return report;
   }
 
-  
 
- private List<string> GetProjectsForPersonInWeek(ScheduleState state, int personId, int week)
+
+  private List<string> GetProjectsForPersonInWeek(ScheduleState state, int personId, int week)
   {
     var projects = new List<string>();
     var person = state.People.First(p => p.id == personId);
