@@ -16,24 +16,69 @@ public class MoveByConflict
 
     public ScheduleState start(ScheduleState state, List<Project> projects)
     {
-        Dictionary<Project, List<int>> canidates = new Dictionary<Project, List<int>>();
+        Dictionary<Project, List<int>> canidates = new Dictionary<Project, List<int>>(); //determines max shift #
         foreach (Project p in projects)
         {
-            int current = state.GetShift(p);
-            List<int> shifts = new List<int>();
-            foreach (int s in state.GetValidShifts(p))
+            int current = state.GetShift(p);     //current shift on project
+            List<int> shifts = new List<int>(); //list of valid shifts for this project
+            foreach (int s in state.GetValidShifts(p)) //considers max shift ie 3 or s/e
             {
                 if (Math.Abs(s - current) <= maxShift)
                 {
-                    shifts.Add(s);
+                    shifts.Add(s);  //adds if allowed
                 }
             }
             if (shifts.Count == 0)
             {
-                shifts.Add(current);
+                shifts.Add(current);        //
             }
             canidates[p] = shifts;
         }
+
+        List<Project> ordered = GetOrderedProjects(projects, state);
+
+        int bestConflicts = CountConflicts(state);
+        double bestPct = CalcPct(state);
+        Dictionary<Project, int> bestShifts = new Dictionary<Project, int>();
+        foreach (Project p in projects)
+        {
+            bestShifts[p] = state.GetShift(p);
+        }
+
+        void CaptureBest()
+        {
+            foreach (Project p in projects)
+            {
+                bestShifts[p] = state.GetShift(p);
+            }
+        }
+
+        void applyBest()
+        {
+            foreach (Project p in projects)
+            {
+                state.ApplyShift(p, bestShifts[p]);
+            }
+        }
+
+        void Search(int index)
+        {
+            if (index == ordered.Count)
+            {
+                int conflicts = CountConflicts(state);
+                double pct = CalcPct(state);
+                if (conflicts < bestConflicts || (conflicts == bestConflicts && pct > bestPct))
+                {
+                    bestConflicts = conflicts;
+                    bestPct = pct;
+                    CaptureBest();
+                }
+                return;
+            }
+            Project proj = ordered[index];
+            int original = state.GetShift(proj);
+        }
+
 
 
         // // reference score
@@ -210,8 +255,27 @@ public class MoveByConflict
         }
         return shifts;
     }
+    private double CalcPct(ScheduleState state)
+    {
+        int total = 0;
+        int nonConflict = 0;
+        foreach (int value in state.PersonWeekGrid.Values)
+        {
+            total += value;
+            if (value == 1)
+            {
+                nonConflict += 1;
+            }
+        }
+        if (total == 0)
+        {
+            return 100.0;
+        }
+        return (double)nonConflict / total * 100.0;
+    }
 
-    private List<Project> GetOrderedProjects(List<Project> projects, ScheduleState state)
+
+    public List<Project> GetOrderedProjects(List<Project> projects, ScheduleState state)
     {
         List<Project> ordered = new List<Project>(projects);
         for (int i = 0; i < ordered.Count - 1; i++)
