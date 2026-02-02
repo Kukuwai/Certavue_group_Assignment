@@ -72,7 +72,7 @@ public class Program
     public void loadData()
     {
         Loader load = new Loader();
-        (this.people, this.projects) = load.LoadData("C:\\Users\\milla\\Certavue_group_Assignment\\CertavueApp\\Data\\schedule_target75_large.csv");
+        (this.people, this.projects) = load.LoadData("Data\\schedule_target_overbooked_large_full_horizon_slack.csv");
         Console.WriteLine("Loaded.");
     }
 
@@ -174,7 +174,7 @@ public class Program
     public void testAlgo(ScheduleState state)
     {
         // think this is double booking count, taken from Greedy
-        Console.WriteLine(state.PersonWeekGrid.Count(kv => kv.Value >= 2));
+        // Console.WriteLine("Writing");
     }
 
     static void Main(string[] args)

@@ -15,7 +15,7 @@ public class GreedyAlg
     }
     public void BuildGreedySchedule(ScheduleState state)
     {
-        const int maxPasses = 6; //seeing if this improves perfornmancesince greedy is cheap.it can be any number really
+        const int maxPasses = 10; //seeing if this improves perfornmancesince greedy is cheap.it can be any number really
         //for file 75 large should start with 1036 and 36.39% double booked
         int startTotal = state.PersonWeekGrid.Values.Sum();
         int startNonConflict = state.PersonWeekGrid.Where(kv => kv.Value == 1).Sum(kv => kv.Value);

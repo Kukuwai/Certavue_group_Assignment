@@ -9,10 +9,7 @@ using System.Runtime.CompilerServices;
 public class MoveByConflict
 {
 
-    const int maxShift = 3;
-    const int maxPasses = 6;
-
-
+    const int maxShift = 50;
 
     public ScheduleState start(ScheduleState state, List<Project> projects)
     {
@@ -92,6 +89,7 @@ public class MoveByConflict
         }
         Search(0);
         applyBest();
+        Console.WriteLine(bestPct);
         return state;
     }
 
