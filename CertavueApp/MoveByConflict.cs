@@ -83,7 +83,7 @@ public class MoveByConflict
 
             //Evaluate shift does the scoring of overlaps. 
 
-            ShiftScore best = scorer.EvaluateShift(state, project.Key, currentShift);
+            ShiftScore bestScore = scorer.EvaluateShift(state, project.Key, currentShift);
 
             //getvalidshifts in schedulestate, can't call because we will have +/- 3 logic but can copy and paste into this class and refactor
 
@@ -102,29 +102,51 @@ public class MoveByConflict
 
                 //need to get compare if doing the shift is better than current shift
                 // probably need to get current greedy shift score everytime, to compare
-                ShiftScore test = scorer.EvaluateShift(state, project.Key, potentialshift);
+                ShiftScore testScore = scorer.EvaluateShift(state, project.Key, potentialshift);
+                // get best shift distance to compare to proposed shift
                 int bestDistance = Math.Abs(bestShift - currentShift);
                 int proposedDistance = Math.Abs(potentialshift - currentShift);
-            }
-
-        }
-
-
-        private List<int> getSetShifts(ScheduleState state, Project project, int maxShift)
-        {
-            int currentShift = state.GetShift(project);
-            List<int> shifts = new List<int>();
-            foreach (var shift in state.GetValidShifts(project))
-            {
-               // check shifts are valid in either direction (-/+)
-               if (Math.Abs(shift - currentShift) <= maxShift)
+                // compare scores to see if a new best 
+                // prioritise whats better???? conflixct???
+                bool isBetter = false;
+                if (proposedDistance < bestDistance)
+                // I think we need to also factor in other factors like double-booked/overlap which I think will be easy
+                // as we have the variables alreayt in the Shiftscore data type i.e DoubleBooked variable
                 {
-                    // add if within maxShift 
-                    shifts.Add(shift);
+                    isBetter = true;
+                }
+                if (isBetter)
+                {
+                    bestShift = potentialshift;
+                    bestScore = testScore;
+                }
+                // apply the shift i guess (do we need to apply the shift or only report it?)
+                if (bestShift != currentShift)
+                {
+                    state.ApplyShift(project.Key, bestShift);
+                    shifted = true;
                 }
             }
-            return shifts;
         }
+    }
 
+    private List<int> getSetShifts(ScheduleState state, Project project, int maxShift)
+    {
+        int currentShift = state.GetShift(project);
+        List<int> shifts = new List<int>();
+        foreach (var shift in state.GetValidShifts(project))
+        {
+           // check shifts are valid in either direction (-/+)
+           if (Math.Abs(shift - currentShift) <= maxShift)
+            {
+                // add if within maxShift 
+                shifts.Add(shift);
+            }
+        }
+        return shifts;
+    }
+
+    private run(ScheduleState state){
+        
     }
 }
