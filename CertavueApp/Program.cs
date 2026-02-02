@@ -26,8 +26,9 @@ public class Program
         // Run Greedy algorithm
 
         // Console.WriteLine("********* Running Greedy ***************");
-        var stateAfter = new GreedyAlg().StartGreedy(people, projects);
-        var m = new MoveByConflict(stateAfter, projects);
+        var scheduleAfterGreedy = new GreedyAlg().StartGreedy(people, projects);
+        var scheduleAfterConflict = new MoveByConflict().start(scheduleAfterGreedy, projects);
+        testConflictAlgo(scheduleAfterGreedy, scheduleAfterConflict);
 
 
         // After Greedy algorithm
@@ -166,6 +167,17 @@ public class Program
 
     //     Console.WriteLine($"Expected 2 conflicts, got {report.Conflicts.Count}");
     // }
+
+
+    public void testConflictAlgo(ScheduleState before, ScheduleState after)
+    {
+
+        Console.WriteLine(before.PersonWeekGrid.Values.Sum());
+        Console.WriteLine(after.PersonWeekGrid.Values.Sum());
+        // think this is double booking count, taken from Greedy
+        Console.WriteLine(before.PersonWeekGrid.Count(kv => kv.Value >= 2));
+        Console.WriteLine(after.PersonWeekGrid.Count(kv => kv.Value >= 2));
+    }
 
     static void Main(string[] args)
     {

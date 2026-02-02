@@ -11,7 +11,7 @@ public class MoveByConflict
 
     const int maxShift = 3;
 
-    public MoveByConflict(ScheduleState state, List<Project> projects)
+    public ScheduleState start(ScheduleState state, List<Project> projects)
     {
         // reference score
         var scorer = new GreedyAlg();
@@ -127,7 +127,9 @@ public class MoveByConflict
                     shifted = true;
                 }
             }
+            // how to return the modified state?
         }
+        return state;
     }
 
     private List<int> getSetShifts(ScheduleState state, Project project, int maxShift)
@@ -144,9 +146,5 @@ public class MoveByConflict
             }
         }
         return shifts;
-    }
-
-    private run(ScheduleState state){
-        
     }
 }
