@@ -109,9 +109,15 @@ public class MoveByConflict
                 // compare scores to see if a new best 
                 // prioritise whats better???? conflixct???
                 bool isBetter = false;
-                if (proposedDistance < bestDistance)
+
+                //if (proposedDistance < bestDistance)
+
                 // I think we need to also factor in other factors like double-booked/overlap which I think will be easy
                 // as we have the variables alreayt in the Shiftscore data type i.e DoubleBooked variable
+                // RESOLVED - COPIED SCORING FROM GREEDY
+                if (testScore.DeltaDoubleBooked < bestScore.DeltaDoubleBooked ||
+                (testScore.DeltaDoubleBooked == bestScore.DeltaDoubleBooked && testScore.OverlapAfter < bestScore.OverlapAfter) ||
+                (testScore.DeltaDoubleBooked == bestScore.DeltaDoubleBooked && testScore.OverlapAfter == bestScore.OverlapAfter && proposedDistance < bestDistance))
                 {
                     isBetter = true;
                 }
