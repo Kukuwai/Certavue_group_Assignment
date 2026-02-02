@@ -27,8 +27,10 @@ public class Program
 
         // Console.WriteLine("********* Running Greedy ***************");
         var scheduleAfterGreedy = new GreedyAlg().StartGreedy(people, projects);
+        testAlgo(scheduleAfterGreedy);
         var scheduleAfterConflict = new MoveByConflict().start(scheduleAfterGreedy, projects);
-        testConflictAlgo(scheduleAfterGreedy, scheduleAfterConflict);
+        testAlgo(scheduleAfterConflict);
+
 
 
         // After Greedy algorithm
@@ -70,7 +72,7 @@ public class Program
     public void loadData()
     {
         Loader load = new Loader();
-        (this.people, this.projects) = load.LoadData("Data\\schedule_target75_large.csv");
+        (this.people, this.projects) = load.LoadData("C:\\Users\\milla\\Certavue_group_Assignment\\CertavueApp\\Data\\schedule_target75_large.csv");
         Console.WriteLine("Loaded.");
     }
 
@@ -169,14 +171,10 @@ public class Program
     // }
 
 
-    public void testConflictAlgo(ScheduleState before, ScheduleState after)
+    public void testAlgo(ScheduleState state)
     {
-
-        Console.WriteLine(before.PersonWeekGrid.Values.Sum());
-        Console.WriteLine(after.PersonWeekGrid.Values.Sum());
         // think this is double booking count, taken from Greedy
-        Console.WriteLine(before.PersonWeekGrid.Count(kv => kv.Value >= 2));
-        Console.WriteLine(after.PersonWeekGrid.Count(kv => kv.Value >= 2));
+        Console.WriteLine(state.PersonWeekGrid.Count(kv => kv.Value >= 2));
     }
 
     static void Main(string[] args)

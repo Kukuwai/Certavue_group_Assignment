@@ -1,3 +1,4 @@
 obj/
 bin/
-
+/obj/Debug/net10.0/CertavueApp.AssemblyInfo.cs
+/obj/Debug/net10.0/CertavueApp.AssemblyInfoInputs.cache 

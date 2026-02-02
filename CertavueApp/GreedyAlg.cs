@@ -103,7 +103,8 @@ public class GreedyAlg
 
     // Returns a ShiftScore
     public ShiftScore EvaluateShift(ScheduleState state, Project project, int candidateShift)
-    {
+    {   
+        const int CONFLICT_WEIGHT = 50;
         int currentShift = state.GetShift(project);
 
         List<WeekKey> current = new List<WeekKey>(state.GetGrid(project, currentShift)); //weeks at current shift
@@ -141,6 +142,12 @@ public class GreedyAlg
             {
                 delta += 1;
                 overlapAfter++;
+            }
+            int conflictPenalty = 0;
+            foreach (var kv in state.PersonWeekGrid)
+            {
+                if (kv.Value > 1)
+                    conflictPenalty += (kv.Value - 1);
             }
         }
 

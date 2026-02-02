@@ -10,36 +10,14 @@ public class MoveByConflict
 {
 
     const int maxShift = 3;
+    const int maxPasses = 6;
+
+    
 
     public ScheduleState start(ScheduleState state, List<Project> projects)
     {
         // reference score
         var scorer = new GreedyAlg();
-
-        var ProjectsWithConflict = new Dictionary<Project, int>();
-        foreach (KeyValuePair<ScheduleState.WeekKey, int> entry in state.PersonWeekGrid)
-        {
-            foreach (Project p in projects)
-            {
-                foreach (var person in p.people)
-                {
-                    if (person.id == entry.Key.PersonId)
-                    {
-                        if (ProjectsWithConflict.ContainsKey(p))
-                        {
-                            ProjectsWithConflict[p]++;
-                        }
-                        else
-                        {
-                            ProjectsWithConflict[p] = 1;
-                        }
-                    }
-                }
-            }
-
-        }
-
-        var ProjectsSortedByConflict = ProjectsWithConflict.OrderByDescending(pair => pair.Value);
 
         
         // foreach (var sort in ProjectsSortedByConflict) 
@@ -69,71 +47,129 @@ public class MoveByConflict
 
         Console.WriteLine("Start total: " + startTotal + ", double-booked=" + startDouble + ", % not double-booked=" + startPct.ToString("0.##"));
 
+
+        for (int pass = 1; pass <= maxPasses; pass++)
+        {
+        
+        var ProjectsWithConflict = new Dictionary<Project, int>();
+        foreach (KeyValuePair<ScheduleState.WeekKey, int> entry in state.PersonWeekGrid)
+        {
+            foreach (Project p in projects)
+            {
+                foreach (var person in p.people)
+                {
+                    if (person.id == entry.Key.PersonId)
+                    {
+                        if (ProjectsWithConflict.ContainsKey(p))
+                        {
+                            ProjectsWithConflict[p]++;
+                        }
+                        else
+                        {
+                            ProjectsWithConflict[p] = 1;
+                        }
+                    }
+                }
+            }
+
+        }
+
+        var ProjectsSortedByConflict = ProjectsWithConflict.OrderByDescending(pair => pair.Value);
+
+
+        // shift monitor
         bool shifted = false;
 
         foreach (var project in ProjectsSortedByConflict)
-        {
-            //some helpful methods
-            
-            //get and set shift should be recyclable
-
-            // get current shift in the schedule state (from greedy)
-            int currentShift = state.GetShift(project.Key);
-            int bestShift = currentShift;
-
-            //Evaluate shift does the scoring of overlaps. 
-
-            ShiftScore bestScore = scorer.EvaluateShift(state, project.Key, currentShift);
-
-            //getvalidshifts in schedulestate, can't call because we will have +/- 3 logic but can copy and paste into this class and refactor
-
-            var potentialShifts = getSetShifts(state, project.Key, 3);
-            //Get grid handles some of the removing and placing logic
-            //build greedy schedule lines 46-73 has the bulk of the actual greedy logic so it can be repurposed and moved here
-            //apply shift actually sets the shift when we confirm the best move
-            //
-            foreach (var potentialshift in potentialShifts)
             {
-                // sanity check (not needed really) if shift is already optimal shift, skip it
-                if (potentialshift == currentShift)
-                {
-                    continue;
-                }
+                //get and set shift should be recyclable
+                // get shift in state for comparison
+                int originalShift = state.GetShift(project.Key);
+                // make current the best, used to compare later
+                int bestShift = originalShift;
+                
+                // get conflicts count for comparison
+                int originalConflicts = CountConflicts(state);
+                int bestConflicts = originalConflicts;
 
-                //need to get compare if doing the shift is better than current shift
-                // probably need to get current greedy shift score everytime, to compare
-                ShiftScore testScore = scorer.EvaluateShift(state, project.Key, potentialshift);
-                // get best shift distance to compare to proposed shift
-                int bestDistance = Math.Abs(bestShift - currentShift);
-                int proposedDistance = Math.Abs(potentialshift - currentShift);
-                // compare scores to see if a new best 
-                // prioritise whats better???? conflixct???
-                bool isBetter = false;
+        
 
-                //if (proposedDistance < bestDistance)
+                // get current shift in the schedule state (from greedy)
+                int currentShift = state.GetShift(project.Key);
 
-                // I think we need to also factor in other factors like double-booked/overlap which I think will be easy
-                // as we have the variables alreayt in the Shiftscore data type i.e DoubleBooked variable
-                // RESOLVED - COPIED SCORING FROM GREEDY
-                if (testScore.DeltaDoubleBooked < bestScore.DeltaDoubleBooked ||
-                (testScore.DeltaDoubleBooked == bestScore.DeltaDoubleBooked && testScore.OverlapAfter < bestScore.OverlapAfter) ||
-                (testScore.DeltaDoubleBooked == bestScore.DeltaDoubleBooked && testScore.OverlapAfter == bestScore.OverlapAfter && proposedDistance < bestDistance))
+
+                //Evaluate shift does the scoring of overlaps. 
+
+                //ShiftScore bestScore = scorer.EvaluateShift(state, project.Key, currentShift);
+
+                //getvalidshifts in schedulestate, can't call because we will have +/- 3 logic but can copy and paste into this class and refactor
+
+                var potentialShifts = getSetShifts(state, project.Key, maxShift);
+                //Get grid handles some of the removing and placing logic
+                //build greedy schedule lines 46-73 has the bulk of the actual greedy logic so it can be repurposed and moved here
+                //apply shift actually sets the shift when we confirm the best move
+                //
+                foreach (var potentialshift in potentialShifts)
                 {
-                    isBetter = true;
+                    // sanity check (not needed really) if shift is already optimal shift, skip it
+                    if (potentialshift == originalShift)
+                    {
+                        continue;
+                    }
+
+                    //need to get compare if doing the shift is better than current shift
+                    // probably need to get current greedy shift score everytime, to compare
+                    
+                    //ShiftScore testScore = scorer.EvaluateShift(state, project.Key, potentialshift);
+                    
+                    // get best shift distance to compare to proposed shift
+                    //int bestDistance = Math.Abs(bestShift - currentShift);
+                    //int proposedDistance = Math.Abs(potentialshift - currentShift);
+                    // compare scores to see if a new best 
+                    // prioritise whats better???? conflixct???
+                    //bool isBetter = false;
+
+                    //if (proposedDistance < bestDistance)
+
+                    // I think we need to also factor in other factors like double-booked/overlap which I think will be easy
+                    // as we have the variables alreayt in the Shiftscore data type i.e DoubleBooked variable
+                    // RESOLVED - COPIED SCORING FROM GREEDY
+                    
+                    /*if (testScore.DeltaDoubleBooked < bestScore.DeltaDoubleBooked ||
+                    (testScore.DeltaDoubleBooked == bestScore.DeltaDoubleBooked && testScore.OverlapAfter < bestScore.OverlapAfter) ||
+                    (testScore.DeltaDoubleBooked == bestScore.DeltaDoubleBooked && testScore.OverlapAfter == bestScore.OverlapAfter && proposedDistance < bestDistance))
+                    {
+                        isBetter = true;
+                    }*/
+
+                    state.ApplyShift(project.Key, potentialshift);
+                    int conflicts = CountConflicts(state);
+
+                    if (conflicts < bestConflicts)
+                    {
+                        bestConflicts = conflicts;
+                        bestShift = potentialshift;
+                    }
+                    
+                    // go back to original state so to compare against original
+                    state.ApplyShift(project.Key, originalShift);
+
+
+                    // test print to see potential shifts (making sure not showing only 1 shift option)
+
+                    //int availableShiftCount = getSetShifts(state, project.Key, maxShift).Count;
+                    //Console.WriteLine("Project: " + project.Key.name + " Availble shifts: " + availableShiftCount);
                 }
-                if (isBetter)
-                {
-                    bestShift = potentialshift;
-                    bestScore = testScore;
-                }
-                // apply the shift i guess (do we need to apply the shift or only report it?)
-                if (bestShift != currentShift)
+                if (bestShift != originalShift && bestConflicts < originalConflicts)
                 {
                     state.ApplyShift(project.Key, bestShift);
                     shifted = true;
                 }
             }
-            // how to return the modified state?
+            if (shifted == false)
+            {
+                break;
+            }
         }
         return state;
     }
@@ -152,5 +188,16 @@ public class MoveByConflict
             }
         }
         return shifts;
+    }
+
+    public int CountConflicts(ScheduleState state)
+    {
+        int conflicts = 0;
+        foreach (var personCount in state.PersonWeekGrid)
+        {
+            if (personCount.Value >= 2)
+                conflicts += 1;
+        }
+        return conflicts;
     }
 }
