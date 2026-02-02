@@ -24,9 +24,11 @@ public class Program
         //reportBefore.PrintReport();
 
         // Run Greedy algorithm
+
         // Console.WriteLine("********* Running Greedy ***************");
         var stateAfter = new GreedyAlg().StartGreedy(people, projects);
         var m = new MoveByConflict(stateAfter);
+
 
         // After Greedy algorithm
         // Console.WriteLine("********* After running Greedy *******");
