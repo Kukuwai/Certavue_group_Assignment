@@ -9,6 +9,7 @@ using System.Runtime.CompilerServices;
 public class MoveByConflict
 {
 
+    const int maxShift = 3;
 
     public MoveByConflict(ScheduleState state, List<Project> projects)
     {
@@ -86,11 +87,26 @@ public class MoveByConflict
 
             //getvalidshifts in schedulestate, can't call because we will have +/- 3 logic but can copy and paste into this class and refactor
 
-            var potentialShifts = getSetShifts(state....project, 3)
+            var potentialShifts = getSetShifts(state, project.Key, 3);
             //Get grid handles some of the removing and placing logic
             //build greedy schedule lines 46-73 has the bulk of the actual greedy logic so it can be repurposed and moved here
             //apply shift actually sets the shift when we confirm the best move
             //
+            foreach (var potentialshift in potentialShifts)
+            {
+                // sanity check (not needed really) if shift is already optimal shift, skip it
+                if (potentialshift == currentShift)
+                {
+                    continue;
+                }
+
+                //need to get compare if doing the shift is better than current shift
+                // probably need to get current greedy shift score everytime, to compare
+                ShiftScore test = scorer.EvaluateShift(state, project.Key, potentialshift);
+                int bestDistance = Math.Abs(bestShift - currentShift);
+                int proposedDistance = Math.Abs(potentialshift - currentShift);
+            }
+
         }
 
 
