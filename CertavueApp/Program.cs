@@ -20,7 +20,7 @@ public class Program
         // var stateBefore = new ScheduleState(people, projects);
         // var detectorBefore = new ConflictDetector();
         // var reportBefore = detectorBefore.AnalyzeSchedule(stateBefore);
-       // reportBefore.CalculateStatistics(stateBefore);
+        // reportBefore.CalculateStatistics(stateBefore);
         //reportBefore.PrintReport();
 
         // Run Greedy algorithm
@@ -69,7 +69,8 @@ public class Program
     public void loadData()
     {
         Loader load = new Loader();
-        (this.people, this.projects) = load.LoadData("Data\\schedule_target75_large.csv");
+        // (this.people, this.projects) = load.LoadData("Data\\schedule_target75_large.csv");
+        (this.people, this.projects) = load.LoadData("Data/schedule_target75_large.csv"); // For Mac.
         Console.WriteLine("Loaded.");
     }
 
