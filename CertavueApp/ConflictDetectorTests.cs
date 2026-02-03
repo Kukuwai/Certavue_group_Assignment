@@ -37,32 +37,73 @@ public class ConflictDetectorTests
   [Fact]
   public void Test1_AnalyzeSchedule_DetectsConflicts()
   {
-    // ARRANGE
     var (state, _, _) = CreateTestSchedule();
     var detector = new ConflictDetector();
 
-    // ACT
     var report = detector.AnalyzeSchedule(state);
 
-    // ASSERT
     Assert.NotNull(report);
     Assert.True(report.Conflicts.Count > 0, "Should detect conflicts");
     Console.WriteLine($"Test 1 Passed: Found {report.Conflicts.Count} conflicts");
+
   }
 
   [Fact]
   public void Test2_AnalyzeSchedule_CountsCorrectly()
   {
-    // ARRANGE
     var (state, _, _) = CreateTestSchedule();
     var detector = new ConflictDetector();
 
-    // ACT
     var report = detector.AnalyzeSchedule(state);
 
-    // ASSERT - Person_02 has conflicts in weeks 16, 17, 18
+    // Person_02 has conflicts in weeks 16, 17, 18
     Assert.Equal(3, report.Conflicts.Count);
     Console.WriteLine($"Test 2 Passed: Counted {report.Conflicts.Count} conflicts");
   }
+  [Fact]
+  public void Test3_AnalyzeSchedule_IdentifiesCorrectPerson()
+  {
+    var (state, people, _) = CreateTestSchedule();
+    var detector = new ConflictDetector();
 
+    var report = detector.AnalyzeSchedule(state);
+
+    // All conflicts should be for Person_02
+    Assert.All(report.Conflicts, c => Assert.Equal("Person_02", c.PersonName));
+    Console.WriteLine($"Test 3 Passed: All conflicts are Person_02");
+  }
+  [Fact]
+  public void Test4_CalculateStatistics_Works()
+  {
+    var (state, _, _) = CreateTestSchedule();
+    var detector = new ConflictDetector();
+
+    var report = detector.AnalyzeSchedule(state);
+    report.CalculateStatistics(state);
+
+    Assert.Equal(3, report.TotalConflictWeeks);
+    Assert.Equal(1, report.PeopleAffected); // // Only Person_02 affected
+    Console.WriteLine($"Test 4 Passed: Statistics calculated correctly");
+  }
+  [Fact]
+  public void Test5_EmptySchedule_NoConflicts()
+  {
+    var emptyPeople = new List<Person>();
+    var emptyProjects = new List<Project>();
+    var state = new ScheduleState(emptyPeople, emptyProjects);
+    var detector = new ConflictDetector();
+
+    var report = detector.AnalyzeSchedule(state);
+
+    Assert.Empty(report.Conflicts);
+    Console.WriteLine($"Test 5 Passed: Empty schedule has no conflicts");
+
+  }
 }
+
+
+
+
+
+
+
