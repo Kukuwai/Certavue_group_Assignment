@@ -15,12 +15,15 @@ public class Program
     {
         loadData();
 
+        var state = new ScheduleState(people, projects);
+        var finder = new AvailabilityFinder(state);
+
         // Before Greedy algorithm
         //Console.WriteLine("********* Before running Greedy *********");
         // var stateBefore = new ScheduleState(people, projects);
         // var detectorBefore = new ConflictDetector();
         // var reportBefore = detectorBefore.AnalyzeSchedule(stateBefore);
-       // reportBefore.CalculateStatistics(stateBefore);
+        // reportBefore.CalculateStatistics(stateBefore);
         //reportBefore.PrintReport();
 
         // Run Greedy algorithm
