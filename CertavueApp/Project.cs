@@ -20,4 +20,5 @@ public class Project
         this.endDate = endDate;     
         this.startDate = startDate;
     }
+    public int Duration => endDate - startDate + 1;
 }

@@ -4,7 +4,22 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
+<<<<<<< HEAD
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+=======
+    <Nullable>disable</Nullable> 
+  </PropertyGroup>
+
+  <ItemGroup>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Data\*.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+>>>>>>> e504683 (add output and test function)
 </Project>
