@@ -85,7 +85,6 @@ public class MoveByConflict
                 }
                 state.ApplyShift(proj, original);
             }
-
         }
         Search(0);
         applyBest();
