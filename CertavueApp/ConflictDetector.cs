@@ -29,9 +29,15 @@ public class ConflictDetector
     return report;
   }
 
+<<<<<<< HEAD
 
   // This method gives a list of Projects a person is working in a week. 
   private List<string> GetProjectsForPersonInWeek(ScheduleState state, int personId, int week)
+=======
+  
+
+ private List<string> GetProjectsForPersonInWeek(ScheduleState state, int personId, int week)
+>>>>>>> e504683 (add output and test function)
   {
     var projects = new List<string>();
     var person = state.People.First(p => p.id == personId);
@@ -52,7 +58,10 @@ public class ConflictDetector
     return projects;
   }
 
+<<<<<<< HEAD
   // This method gives a conflict report for all persons when they are booked more than once in a week. 
+=======
+>>>>>>> e504683 (add output and test function)
   public ConflictReport AnalyzeSchedule(ScheduleState state)
   {
     var report = new ConflictReport();
@@ -82,8 +91,11 @@ public class ConflictDetector
     return report;
   }
 }
+<<<<<<< HEAD
 
 // This class stores Conflicts, prints them, calculate statistics, counts affected people and groups conflicts by weeks and persons. 
+=======
+>>>>>>> e504683 (add output and test function)
 public class ConflictReport
 {
   public List<Conflict> Conflicts { get; set; } = new List<Conflict>();
@@ -111,11 +123,18 @@ public class ConflictReport
     int totalWeeks = state.PersonWeekGrid.Count;
     ConflictPercentage = totalWeeks > 0 ? (double)TotalConflictWeeks / totalWeeks * 100 : 0;
 
+<<<<<<< HEAD
     // group conflicts by Persons.
     ConflictsByPerson = Conflicts
     .GroupBy(c => c.PersonName)
     .ToDictionary(g => g.Key, g => g.Count());
     // group conflcits by Weeks.
+=======
+    ConflictsByPerson = Conflicts
+    .GroupBy(c => c.PersonName)
+    .ToDictionary(g => g.Key, g => g.Count());
+
+>>>>>>> e504683 (add output and test function)
     ConflictsByWeek = Conflicts
         .GroupBy(c => c.Week)
         .ToDictionary(g => g.Key, g => g.Count());

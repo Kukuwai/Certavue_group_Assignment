@@ -1,5 +1,6 @@
 using System.Data;
 //using static ScheduleState;
+<<<<<<< HEAD
 using static Program;
 using static Person;
 using static GreedyAlg;
@@ -37,4 +38,23 @@ public class MoveByConflict
 
         }
     }
+=======
+
+public class MoveByConflict
+{
+    public MoveByConflict(ScheduleState state)
+    {
+        bool run = true;
+        while (run)
+        {
+            foreach (var week in state.PersonWeekGrid)
+            {
+                //Console.WriteLine(week.Key.PersonId + " " + week.Key.Week + " " + week.Value);
+            }
+        }
+    }
+
+
+    
+>>>>>>> e504683 (add output and test function)
 }
