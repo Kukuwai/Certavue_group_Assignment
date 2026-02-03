@@ -20,9 +20,5 @@ public class Project
         this.endDate = endDate;     
         this.startDate = startDate;
     }
-<<<<<<< HEAD
-=======
-
     public int Duration => endDate - startDate + 1;
->>>>>>> e504683 (add output and test function)
 }
