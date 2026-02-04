@@ -97,7 +97,7 @@ public class GreedyAlg
     {
         if (!to.projects.ContainsKey(project)) //iff the new person doesn't hae this project already add it to their list
         {
-            to.projects[project] = new List<int>(); 
+            to.projects[project] = new List<int>();
         }
         to.projects[project].Add(week); //assigns the week being traded 
 
@@ -109,6 +109,13 @@ public class GreedyAlg
         }
 
         state.RebuildGrid(); //rebuilds the state with changes
+    }
+
+    //Checking person's schedule for open week
+    private static bool IsPersonFree(ScheduleState state, Person person, int week) //boolean that returns true/false if person is free or not
+    {
+        var key = new ScheduleState.WeekKey(person.id, week); //week key for review
+        return !state.PersonWeekGrid.TryGetValue(key, out var count); //Checks if this person has a project for the week, if they do it returns false which means they cannot be swapped
     }
 
     //Holds the scoring results for a candidate shift
