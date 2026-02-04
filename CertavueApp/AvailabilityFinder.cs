@@ -92,4 +92,27 @@ public class AvailabilityFinder
     }
     return overloadedWeeks;
   }
+
+  // Implemented the methods based on the Tests in FinderTest on 04 Feb 2026. 
+  // This method gives all people working on a project and their weeks
+  public Dictionary<string, List<int>> GetPeopleForProject(Project project)
+  {
+    var result = new Dictionary<string, List<int>>();
+
+    foreach (var person in project.people)
+    {
+      if (person.projects.ContainsKey(project))
+      {
+        result[person.name] = person.projects[project];
+      }
+    }
+
+    return result;
+  }
+
+  // This method gives all projects a person works on and their weeks
+  public Dictionary<Project, List<int>> GetProjectForPerson(Person person)
+  {
+    return new Dictionary<Project, List<int>>(person.projects);
+  }
 }
