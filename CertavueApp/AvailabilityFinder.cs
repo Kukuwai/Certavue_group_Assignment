@@ -93,7 +93,7 @@ public class AvailabilityFinder
     return overloadedWeeks;
   }
 
-  // Implemented the methods based on the Tests in FinderTest on 04 Feb 2026. 
+  // Implemented the methods based on the Tests in FinderTest on 04 Feb 2026. Still need to update the tests.
   // This method gives all people working on a project and their weeks
   public Dictionary<string, List<int>> GetPeopleForProject(Project project)
   {
