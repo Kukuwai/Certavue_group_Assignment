@@ -99,7 +99,7 @@ public class GreedyAlg
         {
             to.projects[project] = new List<int>(); 
         }
-        to.projects[project].Add(week); //assigns the week being traded
+        to.projects[project].Add(week); //assigns the week being traded 
 
         project.people.Add(to);
         if (from.projects[project].Count == 0) //removes old person if their project weeks are 0 aka no longer on project
