@@ -11,12 +11,11 @@ public class GreedyAlg
         var state = new ScheduleState(people, projects);
         BuildGreedySchedule(state);
 
-        return state; // I added this for to work with finding conflicts. 
+        return state; //I added this for to work with finding conflicts. 
     }
     public void BuildGreedySchedule(ScheduleState state)
     {
         const int maxPasses = 10; //seeing if this improves perfornmancesince greedy is cheap.it can be any number really
-        //for file 75 large should start with 1036 and 36.39% double booked
         int startTotal = state.PersonWeekGrid.Values.Sum();
         int startNonConflict = state.PersonWeekGrid.Where(kv => kv.Value == 1).Sum(kv => kv.Value);
         int startDouble = state.PersonWeekGrid.Count(kv => kv.Value >= 2);
@@ -47,7 +46,7 @@ public class GreedyAlg
             {
                 int currentShift = state.GetShift(project);
                 int bestShift = currentShift;
-                ShiftScore best = EvaluateShift(state, project, currentShift); // baseline
+                ShiftScore best = EvaluateShift(state, project, currentShift); //baseline
 
                 foreach (int candidate in state.GetValidShifts(project)) //all allowed shifts ie within dates
                 {
@@ -93,7 +92,26 @@ public class GreedyAlg
         }
     }
 
-    // Holds the scoring results for a candidate shift
+    //we can probably move this method out somewhere else later but just the initial handoff shift logic
+    private static void MoveWeekToReplacement(ScheduleState state, Project project, Person from, Person to, int week)
+    {
+        if (!to.projects.ContainsKey(project)) //iff the new person doesn't hae this project already add it to their list
+        {
+            to.projects[project] = new List<int>(); 
+        }
+        to.projects[project].Add(week); //assigns the week being traded
+
+        project.people.Add(to);
+        if (from.projects[project].Count == 0) //removes old person if their project weeks are 0 aka no longer on project
+        {
+            project.people.Remove(from);
+
+        }
+
+        state.RebuildGrid(); //rebuilds the state with changes
+    }
+
+    //Holds the scoring results for a candidate shift
     public class ShiftScore
     {
         public int DeltaDoubleBooked { get; set; } //double booked change
@@ -101,10 +119,8 @@ public class GreedyAlg
         public int ShiftDistance { get; set; } //shift size aka smaller may = better
     }
 
-    // Returns a ShiftScore
     public ShiftScore EvaluateShift(ScheduleState state, Project project, int candidateShift)
-    {   
-        const int CONFLICT_WEIGHT = 50;
+    {
         int currentShift = state.GetShift(project);
 
         List<WeekKey> current = new List<WeekKey>(state.GetGrid(project, currentShift)); //weeks at current shift
@@ -159,5 +175,5 @@ public class GreedyAlg
             ShiftDistance = Math.Abs(candidateShift)
         };
     }
-   
+
 }
