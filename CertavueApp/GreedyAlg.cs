@@ -91,9 +91,69 @@ public class GreedyAlg
             if (!anyShifted) break; //ends if nothing moves so we really could have the passes be pretty high for safety
         }
     }
+    public bool MoveBetweenRoles(ScheduleState state)
+    {
+        var conflictedPersons = new List<ScheduleState.WeekKey>(); //list of over booked persons
+
+        foreach (var entry in state.PersonWeekGrid) //if someone has more than 1 proj for the week they are added
+        {
+            if (entry.Value > 1)
+            {
+                conflictedPersons.Add(entry.Key);
+            }
+        }
+
+        foreach (var key in conflictedPersons) //will manage each conflict in the list
+        {
+            Person overloadedPerson = null;
+            foreach (var person in state.People)
+            {
+                if (person.id == key.PersonId) //finds the person object attached to the conflicted person and assigns them
+                {
+                    overloadedPerson = person;
+                    break;
+                }
+            }
+
+            int week = key.Week;  //the week with conflict
+
+            var weeksProjects = new List<Project>(); //list of persons project for that week
+
+            foreach (var project in state.Projects) //checks projects to see which ones are conflicted
+            {
+                int shift = state.GetShift(project);        //decides what shift and grid apply to this project
+                var grid = state.GetGrid(project, shift);
+
+                bool assigned = false;  //used to see if project will be assigned
+
+                foreach (var cell in grid)      //sees if the project is on the actual week of issue
+                {
+                    if (cell.PersonId == overloadedPerson.id && cell.Week == week)
+                    {
+                        assigned = true;
+                        break;
+                    }
+                }
+
+                if (assigned)   //if it is on the weeks issue this it is added to the list
+                {
+                    weeksProjects.Add(project);
+                }
+            }
+
+            foreach (var project in weeksProjects)  //needs to find an open replacement based on role still
+            {
+                Person replacementPerson = null;
+            }
+
+        }
+
+        return true; //placeholder temporarily 
+    }
+
 
     //we can probably move this method out somewhere else later but just the initial handoff shift logic
-    private static void MoveWeekToReplacement(ScheduleState state, Project project, Person from, Person to, int week)
+    public static void MoveWeekToReplacement(ScheduleState state, Project project, Person from, Person to, int week)
     {
         if (!to.projects.ContainsKey(project)) //iff the new person doesn't hae this project already add it to their list
         {
@@ -112,7 +172,7 @@ public class GreedyAlg
     }
 
     //Checking person's schedule for open week
-    private static bool IsPersonFree(ScheduleState state, Person person, int week) //boolean that returns true/false if person is free or not
+    public static bool IsPersonFree(ScheduleState state, Person person, int week) //boolean that returns true/false if person is free or not
     {
         var key = new ScheduleState.WeekKey(person.id, week); //week key for review
         return !state.PersonWeekGrid.TryGetValue(key, out var count); //Checks if this person has a project for the week, if they do it returns false which means they cannot be swapped
