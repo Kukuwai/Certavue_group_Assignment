@@ -20,5 +20,13 @@ public class Project
         this.endDate = endDate;     
         this.startDate = startDate;
     }
+
+    public Project(string name, int startDate, int endDate)
+    {
+        id = ++idCounter;
+        this.name = name;
+        this.endDate = endDate;     
+        this.startDate = startDate;
+    }
     
 }

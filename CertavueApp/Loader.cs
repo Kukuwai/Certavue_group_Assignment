@@ -19,6 +19,7 @@ public class Loader
         // searches the index for the headers i.e people name and project name (this should always be 0 and 1)
         int personHeader = Array.IndexOf(header, "Person");
         int projectHeader = Array.IndexOf(header, "Project");
+        int roleHeader = Array.IndexOf(header,"Role");
 
         // skips the headers, so reads in the rows (our actual data i.e capacity)
         foreach (var line in lines.Skip(1))
@@ -31,11 +32,14 @@ public class Loader
             // stores the name of the project in the current row
             string projectName = cells[projectHeader].Trim();
 
+            // stores the name of the project in the current row
+            string RoleName = cells[roleHeader].Trim();
+
             var startDate = Array.IndexOf(cells,"s")-1;
             var endDate = Array.IndexOf(cells, "e")-1;
 
             if (!peopleByName.ContainsKey(personName))
-                peopleByName[personName] = new Person(personName);
+                peopleByName[personName] = new Person(personName, RoleName);
 
             if (!projectsByName.ContainsKey(projectName))
                 projectsByName[projectName] = new Project(projectName, startDate, endDate);
