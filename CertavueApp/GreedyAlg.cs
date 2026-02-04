@@ -227,7 +227,7 @@ public class GreedyAlg
         return !state.PersonWeekGrid.TryGetValue(key, out var count); //Checks if this person has a project for the week, if they do it returns false which means they cannot be swapped
     }
 
-    //Holds the scoring results for a candidate shift
+    //Holds the scoring results for a candidate shift 
     public class ShiftScore
     {
         public int DeltaDoubleBooked { get; set; } //double booked change
