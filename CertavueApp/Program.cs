@@ -96,7 +96,7 @@ public class Program
     public void loadData()
     {
         Loader load = new Loader();
-        (this.people, this.projects) = load.LoadData("Data\\schedule_target_overbooked_large_full_horizon_slack.csv");
+        (this.people, this.projects) = load.LoadData("Data\\schedule_target75_medium_with_roles_40s.csv");
         Console.WriteLine("Loaded.");
     }
 
