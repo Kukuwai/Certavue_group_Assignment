@@ -71,6 +71,11 @@ public class GreedyAlg
                     anyShifted = true;  //used to make sure changes occurred
                 }
             }
+            if (MoveBetweenRoles(state))
+            {
+                anyShifted = true;
+            }
+
             int total = state.PersonWeekGrid.Values.Sum();  //all time slots
             int nonConflict = state.PersonWeekGrid.Where(kv => kv.Value == 1).Sum(kv => kv.Value);  //clean slots aka not double booked
             int doubleBooked = state.PersonWeekGrid.Count(kv => kv.Value >= 2); //double booked
@@ -91,9 +96,13 @@ public class GreedyAlg
             if (!anyShifted) break; //ends if nothing moves so we really could have the passes be pretty high for safety
         }
     }
+
+    //something to think about on this method is it replaces it with the first available person. Maybe that is fine, maybe not but good to discuss
     public bool MoveBetweenRoles(ScheduleState state)
     {
         var conflictedPersons = new List<ScheduleState.WeekKey>(); //list of over booked persons
+        bool changed = false; //used as the return
+
 
         foreach (var entry in state.PersonWeekGrid) //if someone has more than 1 proj for the week they are added
         {
@@ -115,12 +124,21 @@ public class GreedyAlg
                 }
             }
 
+            if (overloadedPerson == null)
+            {
+                continue; //nobody found go to next person
+            }
+
             int week = key.Week;  //the week with conflict
 
             var weeksProjects = new List<Project>(); //list of persons project for that week
 
             foreach (var project in state.Projects) //checks projects to see which ones are conflicted
             {
+                if (!project.people.Contains(overloadedPerson)) //ignores any project a person isn't assigned to
+                {
+                    continue;
+                }
                 int shift = state.GetShift(project);        //decides what shift and grid apply to this project
                 var grid = state.GetGrid(project, shift);
 
@@ -147,38 +165,45 @@ public class GreedyAlg
 
                 foreach (var person in state.People) //searching for a valid replacement 
                 {
-                    if(person.id == overloadedPerson.id)
+                    if (person.id == overloadedPerson.id)
                     {
                         continue; //can't replace themselves
                     }
 
-                    if(person.role == overloadedPerson.role)    //roles are equal
+                    if (person.role == overloadedPerson.role)    //roles are equal
                     {
-                        if(IsPersonFree(state, person, week))   //calls is free method to verify opening
+                        if (IsPersonFree(state, person, week))   //calls is free method to verify opening
                         {
                             replacementPerson = person; //found the person to replace
                             break;
                         }
 
-                        if(replacementPerson != null)
-                        {
-                            MoveWeekToReplacement(state, project, overloadedPerson, replacementPerson, week);
-                            return true; //successfully fixed
-                        }
+
                     }
-                    
+
+                }
+
+                if (replacementPerson != null)
+                {
+                    MoveWeekToReplacement(state, project, overloadedPerson, replacementPerson, week);
+                    changed = true; //successfully fixed
                 }
             }
 
         }
 
-       return false;
+        return changed;
     }
 
 
     //we can probably move this method out somewhere else later but just the initial handoff shift logic
     public static void MoveWeekToReplacement(ScheduleState state, Project project, Person from, Person to, int week)
     {
+
+        if (!from.projects.ContainsKey(project) || !from.projects[project].Remove(week)) //error was happening if someone was previously removed from a project
+        {
+            return;
+        }
         if (!to.projects.ContainsKey(project)) //iff the new person doesn't hae this project already add it to their list
         {
             to.projects[project] = new List<int>();
