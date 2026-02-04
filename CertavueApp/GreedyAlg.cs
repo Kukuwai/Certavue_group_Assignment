@@ -144,11 +144,35 @@ public class GreedyAlg
             foreach (var project in weeksProjects)  //needs to find an open replacement based on role still
             {
                 Person replacementPerson = null;
+
+                foreach (var person in state.People) //searching for a valid replacement 
+                {
+                    if(person.id == overloadedPerson.id)
+                    {
+                        continue; //can't replace themselves
+                    }
+
+                    if(person.role == overloadedPerson.role)    //roles are equal
+                    {
+                        if(IsPersonFree(state, person, week))   //calls is free method to verify opening
+                        {
+                            replacementPerson = person; //found the person to replace
+                            break;
+                        }
+
+                        if(replacementPerson != null)
+                        {
+                            MoveWeekToReplacement(state, project, overloadedPerson, replacementPerson, week);
+                            return true; //successfully fixed
+                        }
+                    }
+                    
+                }
             }
 
         }
 
-        return true; //placeholder temporarily 
+       return false;
     }
 
 
