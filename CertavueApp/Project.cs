@@ -8,7 +8,7 @@ public class Project
     public string name {get; set;}
     public HashSet<Person> people { get; } = new();
     public int startDate {get; set;}
-    public int endDate {get; set;}
+    public int endDate {get; set;} 
     public int duration {get; set;}
     public int hoursNeeded {get; set;}
 

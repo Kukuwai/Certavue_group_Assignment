@@ -6,7 +6,7 @@ public class Person
     public int id {get; }
     public string name {get; set;}
     public Dictionary<Project, List<int>> projects { get; } = new();
-    public int capacity { get; set; }
+    public int capacity { get; set;}
 
     public Person(string name, int capacity)
     {
