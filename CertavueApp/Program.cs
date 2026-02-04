@@ -39,7 +39,8 @@ public class Program
         // Run Greedy algorithm
 
         // Console.WriteLine("********* Running Greedy ***************");
-
+        var originalState = loadData();
+        testPrint(originalState);
         var scheduleAfterGreedy = new GreedyAlg().StartGreedy(people, projects);
         testAlgo(scheduleAfterGreedy);
         var scheduleAfterConflict = new MoveByConflict().start(scheduleAfterGreedy, projects);
@@ -84,20 +85,22 @@ public class Program
         
     }
 
-    public void StartApp()
+    /*public void StartApp()
     {
         loadData(); // 加载大数据
         var stateAfter = new GreedyAlg().StartGreedy(people, projects);
         string filePath = "Data/schedule_target75_large.csv";
         ExportToHtml(filePath, stateAfter);
         //var m = new MoveByConflict(stateAfter);
-    }
+    }*/
 
-    public void loadData()
+    public ScheduleState loadData()
     {
         Loader load = new Loader();
         (this.people, this.projects) = load.LoadData("Data\\schedule_target75_medium_with_roles_40s.csv");
+        var state = new ScheduleState(this.people, this.projects);
         Console.WriteLine("Loaded.");
+        return state;
     }
 
 
@@ -250,11 +253,18 @@ public class Program
     //         + " % not double-booked=" + pctNotDoubleBooked.ToString("0.##"));
     // }
 
-    public void testPrint()
+    public void testPrint(ScheduleState state)
+    {
+        foreach (var p in state.People)
+        {
+            Console.WriteLine("Name: " + p.id + " | Role: " + p.role);
+        }
+    }
+    public void testPrint(List<Person> people)
     {
         // Console.WriteLine("People:");
-        // foreach (var p in people)
-        // {
+        foreach (var p in people)
+        {
         //     Console.WriteLine("- " + p.name);
         //     foreach (KeyValuePair<Project, List<int>> kvp in p.projects)
         //     {
@@ -264,8 +274,8 @@ public class Program
         //             Console.WriteLine("Key = {0}, Value = {1}", kvp.Key.name, v);
         //         }
         //     }
-
-        // }
+            Console.WriteLine("Name: " + p.id + " | Role: " + p.role);
+        }
         // Console.WriteLine("Count of projects: " + projects.Count);
     }
 
@@ -335,8 +345,7 @@ public class Program
 
     static void Main(string[] args)
     {
-        var p = new Program();
-        p.StartApp();
+        new Program();
     }
 
 }
