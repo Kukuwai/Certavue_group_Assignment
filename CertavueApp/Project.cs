@@ -10,15 +10,15 @@ public class Project
     public int startDate {get; set;}
     public int endDate {get; set;}
     public int duration {get; set;}
-    public Dictionary<int, int> totalResource { get; set; }
+    public int hoursNeeded {get; set;}
 
-    public Project(string name, int startDate, int endDate)
+    public Project(string name, int startDate, int endDate, int hoursNeeded)
     {
         id = ++idCounter;
         this.name = name;
-        this.totalResource = new Dictionary<int,int>();
+        this.hoursNeeded = hoursNeeded;
         this.endDate = endDate;     
         this.startDate = startDate;
     }
-    public int Duration => endDate - startDate + 1;
+    
 }
