@@ -51,7 +51,7 @@ public class Loader
             
             for (int i = 2; i < cells.Length; i++)
                 {
-                    if (cells[i].Equals("X"))
+                    if (cells[i].Equals("40"))
                     {
                         weeksAssigned.Add(i);
                     }
