@@ -97,8 +97,10 @@ public class Program
     public ScheduleState loadData()
     {
         Loader load = new Loader();
-        (this.people, this.projects) = load.LoadData("Data\\schedule_target75_medium_with_roles_40s.csv");
-        var state = new ScheduleState(this.people, this.projects);
+        (var people, var projects) = load.LoadData("Data/schedule_target75_medium_with_roles_40s.csv");
+        var state = new ScheduleState(people, projects);
+        this.people = people;
+        this.projects = projects;
         Console.WriteLine("Loaded.");
         return state;
     }
