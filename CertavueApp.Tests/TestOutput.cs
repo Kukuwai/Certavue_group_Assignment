@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Diagnostics;
 using System.Text;
+using static Output;
 
 public class TestOutput
 {
@@ -48,9 +49,8 @@ public void TestAlgorithmToCsvAndHtml()
         .ToList();
 
     // --- 4. 同时输出两种格式 ---
-    var program = new Program();
-    program.ExportToHtml(csvPath, state); // 输出热力图
-    program.ExportToCsv(csvPath, sorted); // 输出排序后的 CSV
+    Output output = new Output();
+    output.ExportToHtml(csvPath, state); // 输出热力图
 
     // --- 5. 验证 ---
     string expectedCsvPath = csvPath.Replace(".csv", "_Sorted.csv");
@@ -64,6 +64,6 @@ public void TestAlgorithmToCsvAndHtml()
         // 退三级回到源码根目录
         string projectRootDir = Path.GetFullPath(Path.Combine(baseDir, "..", "..", ".."));
         // 确保这里文件名是 SmallTestSet.csv
-        return Path.Combine(projectRootDir, "Data", "SmallTestSet.csv");
+        return Path.Combine(projectRootDir, "Data", "schedule_target75_medium_with_roles_40s.csv");
     }
 }

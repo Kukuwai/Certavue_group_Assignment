@@ -4,6 +4,8 @@ VisualStudioVersion = 17.5.2.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CertavueApp", "CertavueApp\CertavueApp.csproj", "{F70D9BAE-FA98-B682-9583-0A55C5217951}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CertavueApp.Tests", "CertavueApp.Tests\CertavueApp.Tests.csproj", "{9C3FDC59-7A2C-4E22-B7D1-C5EF327CF23D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -14,6 +16,10 @@ Global
 		{F70D9BAE-FA98-B682-9583-0A55C5217951}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F70D9BAE-FA98-B682-9583-0A55C5217951}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F70D9BAE-FA98-B682-9583-0A55C5217951}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9C3FDC59-7A2C-4E22-B7D1-C5EF327CF23D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9C3FDC59-7A2C-4E22-B7D1-C5EF327CF23D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9C3FDC59-7A2C-4E22-B7D1-C5EF327CF23D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9C3FDC59-7A2C-4E22-B7D1-C5EF327CF23D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
