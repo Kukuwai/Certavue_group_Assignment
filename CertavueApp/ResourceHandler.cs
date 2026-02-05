@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 
 public class ScheduleHandler
 {
@@ -19,23 +20,22 @@ public class ScheduleHandler
     public AvailabilityFinder GetFinder() => _finder;
 
 
-    /// get possibity int that valid(not out overall timeline)
+    // --- Gets a list of valid shift offsets that keep the project within its allowed timeframe.
     public List<int> GetValidOptions(Project p)
     {
         return _state.GetValidShifts(p);
     }
 
-    //----return each person's gap period
+    // Returns a dictionary mapping each person to their available (free) week ranges.
     public Dictionary<string, string> GetGapsPerPerson()
-   {
-    var report = new Dictionary<string, string>();
-    foreach (var p in _state.People)
     {
-        List<int> freeWeeks = GetAvailableWeeksForPerson(p.name);
-        
-        report[p.name] = string.Join(", ", freeWeeks);
-    }
-    return report;
+        var report = new Dictionary<string, string>();
+        foreach (var p in _state.People)
+        {
+            List<int> freeWeeks = _finder.GetAvailableWeeksForPerson(p.name);
+            report[p.name] = FormatWeeksIntoRanges(freeWeeks); 
+        }
+        return report;
     }
 
     public ShiftScore EvaluateMove(Project p, int candidateShift)
@@ -85,25 +85,6 @@ public class ScheduleHandler
     }
 
 
-    //--- return specifical overloaded perosn in which week is overloaded
-    public string GetOverloadDetails(string personName)
-    {
-    var person = _state.People.FirstOrDefault(p => p.name == personName);
-    if (person == null) return "Person not found";
-
-    var overloadWeeks = new List<int>();
-
-    for (int week = 1; week <= 52; week++)
-    {
-        if (GetPersonWorkload(personName, week) > 1)
-        {
-            overloadWeeks.Add(week);
-        }
-    }
-
-    return FormatWeeksIntoRanges(overloadWeeks); 
-    }
-
 
    //----return conflicts detail: exist conflict in which project whose overloap and which week overloap
     public List<string> GetDetailedConflictList()
@@ -124,13 +105,55 @@ public class ScheduleHandler
         details.Add($"Week {key.Week} | {person.name} | Projects: {string.Join(" & ", conflictingProjects)}");
     }
     return details;
-}
+    }
+
+
+    private List<int> GetOverloadWeeksList(string personName)
+    {
+        List<int> overloads = new List<int>();
+        for (int w = 1; w <= 52; w++)
+        {
+            // 注意这里要加 _finder.
+            if (_finder.GetPersonWorkload(personName, w) > 1)
+            {
+                overloads.Add(w);
+            }
+        }
+        return overloads;
+    }
+
+    private string FormatWeeksIntoRanges(List<int> weeks)
+    {
+        if (weeks == null || !weeks.Any()) return "None";
+        var sortedWeeks = weeks.Distinct().OrderBy(w => w).ToList();
+        
+        var ranges = new List<string>();
+        int start = sortedWeeks[0];
+        int end = sortedWeeks[0];
+
+        for (int i = 1; i < sortedWeeks.Count; i++)
+        {
+            if (sortedWeeks[i] == end + 1)
+            {
+                end = sortedWeeks[i];
+            }
+            else
+            {
+                ranges.Add(start == end ? $"{start}" : $"{start}-{end}");
+                start = end = sortedWeeks[i];
+            }
+        }
+        ranges.Add(start == end ? $"{start}" : $"{start}-{end}");
+        return string.Join(", ", ranges);
+    }
 
 
     public void ExecuteMove(Project p, int newShift)
     {
         _state.ApplyShift(p, newShift);
     }
+
+
 
 
 public string GenerateSummary()
@@ -158,9 +181,9 @@ public string GenerateSummary()
         sb.AppendLine("  ✅ No resource overloads detected.");
     }
 
-    // 3. Conflict Breakdown (New - What is happening)
+    // 3. Conflict Breakdown ( What is happening)
     sb.AppendLine("\n[Conflict Breakdown - Project Overlaps]");
-    var conflictDetails = GetDetailedConflictList(); // 调用明细方法
+    var conflictDetails = GetDetailedConflictList(); 
     if (conflictDetails.Any()) {
         foreach (var line in conflictDetails) sb.AppendLine($"  ❌ {line}");
     } else {
@@ -177,6 +200,7 @@ public string GenerateSummary()
     sb.AppendLine("\n====================================================");
     return sb.ToString();
 }
+
 
     public ScheduleState Finalize()
     {
