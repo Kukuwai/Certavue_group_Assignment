@@ -27,7 +27,7 @@ public class FinderTest
         a.people.Add(carol);
         b.people.Add(alice);
 
-        var result = GetPeopleForProject(a);
+        //call method here
 
         Assert.Equal(3, result.Count);
         Assert.Equal(new[] { 1, 2, 3, 4 }, result["Alice"].OrderBy(x => x));
@@ -55,7 +55,7 @@ public class FinderTest
         a.people.Add(carol);
         b.people.Add(alice);
 
-        var result =  GetProjectForPerson(alice);
+        //call method here
 
         Assert.Equal(2, result.Count);
         Assert.Equal(new[] { 1, 2, 3, 4 }, result[a].OrderBy(w => w));
