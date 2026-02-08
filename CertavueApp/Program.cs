@@ -25,7 +25,7 @@ public class Program
         var originalState = loadData(dataPath);
         Output output = new Output();
         output.ExportToHtml(dataPath, originalState);
-        testPrint(originalState);
+        //testPrint(originalState);
         var scheduleAfterGreedy = new GreedyAlg().StartGreedy(people, projects);
         testAlgo(scheduleAfterGreedy, "After Greedy");
 
@@ -74,21 +74,21 @@ public class Program
 
 
 
-    public void testPrint(ScheduleState state)
-    {
-        foreach (var p in state.People)
-        {
-            Console.WriteLine("Name: " + p.id + " | Role: " + p.role);
-        }
-    }
-    public void testPrint(List<Person> people)
-    {
-        foreach (var p in people)
-        {
+    // public void testPrint(ScheduleState state)
+    // {
+    //     foreach (var p in state.People)
+    //     {
+    //         Console.WriteLine("Name: " + p.id + " | Role: " + p.role);
+    //     }
+    // }
+    // public void testPrint(List<Person> people)
+    // {
+    //     foreach (var p in people)
+    //     {
 
-            Console.WriteLine("Name: " + p.id + " | Role: " + p.role);
-        }
-    }
+    //         Console.WriteLine("Name: " + p.id + " | Role: " + p.role);
+    //     }
+    // }
 
 
     public void testAlgo(ScheduleState state, string label)
