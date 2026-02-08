@@ -25,14 +25,14 @@ public class Program
         var originalState = loadData(dataPath);
         Output output = new Output();
         output.ExportToHtml(dataPath, originalState);
-        testPrint(originalState);
+        //testPrint(originalState);
         var scheduleAfterGreedy = new GreedyAlg().StartGreedy(people, projects);
         testAlgo(scheduleAfterGreedy, "After Greedy");
 
         testAlgo(scheduleAfterGreedy, "CP-SAT start");
 
         var cp = new cpsat();
-        var cpResult = cp.OptimizeShifts(scheduleAfterGreedy, 300);
+        var cpResult = cp.OptimizeShifts(scheduleAfterGreedy, 30);
 
         Console.WriteLine($"CP-SAT status: {cpResult.Status}");
 
@@ -47,8 +47,8 @@ public class Program
             Console.WriteLine("No feasible CP-SAT solution; kept Greedy schedule.");
         }
 
-        var scheduleAfterConflict = new MoveByConflict().start(scheduleAfterGreedy, projects);
-        testAlgo(scheduleAfterConflict, "After MoveByConflict");
+        //var scheduleAfterConflict = new MoveByConflict().start(scheduleAfterGreedy, projects);
+        //testAlgo(scheduleAfterConflict, "After MoveByConflict");
 
     }
 
@@ -74,40 +74,39 @@ public class Program
 
 
 
-    public void testPrint(ScheduleState state)
-    {
-        foreach (var p in state.People)
-        {
-            Console.WriteLine("Name: " + p.id + " | Role: " + p.role);
-        }
-    }
-    public void testPrint(List<Person> people)
-    {
-        foreach (var p in people)
-        {
+    // public void testPrint(ScheduleState state)
+    // {
+    //     foreach (var p in state.People)
+    //     {
+    //         Console.WriteLine("Name: " + p.id + " | Role: " + p.role);
+    //     }
+    // }
+    // public void testPrint(List<Person> people)
+    // {
+    //     foreach (var p in people)
+    //     {
 
-            Console.WriteLine("Name: " + p.id + " | Role: " + p.role);
-        }
-    }
+    //         Console.WriteLine("Name: " + p.id + " | Role: " + p.role);
+    //     }
+    // }
 
 
     public void testAlgo(ScheduleState state, string label)
     {
-        int total = state.PersonWeekGrid.Values.Sum();
-        int nonConflict = state.PersonWeekGrid.Where(kv => kv.Value == 1).Sum(kv => kv.Value);
-        int doubleBooked = state.PersonWeekGrid.Count(kv => kv.Value >= 2);
+        int total = state.PersonWeekGrid.Count; //only occupied person/weeks
+        int notDoubleBookedCells = state.PersonWeekGrid.Count(kv => kv.Value == 1);
         double pct;
+
         if (total == 0)
         {
             pct = 100.0;
         }
         else
         {
-            pct = (double)nonConflict / total * 100.0;
+            pct = (double)notDoubleBookedCells / total * 100.0;
         }
 
-
-        Console.WriteLine(label + " total: " + total + ", double-booked=" + doubleBooked + ", % not double-booked=" + pct.ToString("0.##"));
+        Console.WriteLine(label + " total: " + total + ", double-booked=" + (total - notDoubleBookedCells) + ", % not double-booked=" + pct.ToString("0.##"));
     }
 
 
