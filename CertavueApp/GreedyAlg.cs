@@ -36,7 +36,7 @@ public class GreedyAlg
         for (int pass = 1; pass <= maxPasses; pass++)
         {
             var ordered = state.Projects
-            .OrderByDescending(p => state.GetDuration(p))   //longest projs first
+            .OrderByDescending(p => state.GetDuration(p))   //longest projs first 
             .ThenByDescending(p => p.people.Count)          //breaks tie by most people on proj
             .ToList();
 

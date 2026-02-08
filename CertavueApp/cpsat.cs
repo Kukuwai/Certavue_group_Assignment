@@ -37,7 +37,7 @@ public class cpsat
             }
             model.AddExactlyOne(shifts.Select(s => choose[(p, s)])); //takes one shift for every project
 
-            int currentShift = state.GetShift(p);//takes how far the move is
+            int currentShift = state.GetShift(p);//takes how far the move is 
             if (shifts.Contains(currentShift))
             {
                 model.AddHint(choose[(p, currentShift)], 1);
