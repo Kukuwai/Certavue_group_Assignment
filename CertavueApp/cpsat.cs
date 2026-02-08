@@ -103,24 +103,34 @@ public class cpsat
         var status = solver.Solve(model);
         var result = new SolveResult { Status = status };
 
-        if(status == CpSolverStatus.Optimal || status == CpSolverStatus.Feasible)
+        if (status == CpSolverStatus.Optimal || status == CpSolverStatus.Feasible)
         {
-            foreach(var p in state.Projects)
+            foreach (var p in state.Projects)
             {
                 int chosenShift = validShiftsByProject[p][0];
-                foreach(var s in validShiftsByProject[p])
+                foreach (var s in validShiftsByProject[p])
                 {
-                    if(solver.Value(choose[(p, s)]) == 1){
+                    if (solver.Value(choose[(p, s)]) == 1)
+                    {
                         chosenShift = s;
                         break;
                     }
                 }
+                result.ChosenShiftByProject[p] = chosenShift;
 
-                
             }
+            result.TotalConflicts = conflicts.Count(v => solver.Value(v) == 1);
         }
 
-        SolveResult solve = null;
-        return solve;
+        return result;
+
+    }
+
+    public void ApplySolution(ScheduleState state, SolveResult result)
+    {
+        foreach(var k in result.ChosenShiftByProject)
+        {
+            state.ApplyShift(k.Key, k.Value);
+        }
     }
 }

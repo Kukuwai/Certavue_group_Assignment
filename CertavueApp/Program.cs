@@ -20,17 +20,36 @@ public class Program
 
     public Program()
     {
-        
+
         dataPath = Path.Combine(AppContext.BaseDirectory, "Data", "schedule_target75_medium_with_roles_40s.csv");
         var originalState = loadData(dataPath);
         Output output = new Output();
         output.ExportToHtml(dataPath, originalState);
         testPrint(originalState);
         var scheduleAfterGreedy = new GreedyAlg().StartGreedy(people, projects);
-        testAlgo(scheduleAfterGreedy);
+        testAlgo(scheduleAfterGreedy, "After Greedy");
+
+        testAlgo(scheduleAfterGreedy, "CP-SAT start");
+
+        var cp = new cpsat();
+        var cpResult = cp.OptimizeShifts(scheduleAfterGreedy, 20);
+
+        Console.WriteLine($"CP-SAT status: {cpResult.Status}");
+
+        if (cpResult.Status == Google.OrTools.Sat.CpSolverStatus.Optimal ||
+            cpResult.Status == Google.OrTools.Sat.CpSolverStatus.Feasible)
+        {
+            cp.ApplySolution(scheduleAfterGreedy, cpResult);
+            testAlgo(scheduleAfterGreedy, "After CP-SAT");
+        }
+        else
+        {
+            Console.WriteLine("No feasible CP-SAT solution; kept Greedy schedule.");
+        }
 
         var scheduleAfterConflict = new MoveByConflict().start(scheduleAfterGreedy, projects);
-        testAlgo(scheduleAfterConflict);
+        testAlgo(scheduleAfterConflict, "After MoveByConflict");
+
     }
 
     /*public void StartApp()
@@ -72,10 +91,25 @@ public class Program
     }
 
 
-    public void testAlgo(ScheduleState state)
+    public void testAlgo(ScheduleState state, string label)
     {
-        // double booking count
+        int total = state.PersonWeekGrid.Values.Sum();
+        int nonConflict = state.PersonWeekGrid.Where(kv => kv.Value == 1).Sum(kv => kv.Value);
+        int doubleBooked = state.PersonWeekGrid.Count(kv => kv.Value >= 2);
+        double pct;
+        if (total == 0)
+        {
+            pct = 100.0;
+        }
+        else
+        {
+            pct = (double)nonConflict / total * 100.0;
+        }
+
+
+        Console.WriteLine(label + " total: " + total + ", double-booked=" + doubleBooked + ", % not double-booked=" + pct.ToString("0.##"));
     }
+
 
     static void Main(string[] args)
     {
@@ -84,7 +118,7 @@ public class Program
 
 }
 
-    public class AssignmentRow
+public class AssignmentRow
 {
     public string PersonName { get; set; }
     public string ProjectName { get; set; }
