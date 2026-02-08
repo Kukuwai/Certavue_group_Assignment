@@ -35,8 +35,8 @@ public class Loader
             // stores the name of the project in the current row
             string RoleName = cells[roleHeader].Trim();
 
-            var startDate = Array.IndexOf(cells,"s")-1;
-            var endDate = Array.IndexOf(cells, "e")-1;
+            var startDate = Array.IndexOf(cells,"s")-2;
+            var endDate = Array.IndexOf(cells, "e")-2;
 
             if (!peopleByName.ContainsKey(personName))
                 peopleByName[personName] = new Person(personName, RoleName);
@@ -49,11 +49,11 @@ public class Loader
 
             List<int> weeksAssigned = new List<int>();
             
-            for (int i = 2; i < cells.Length; i++)
+            for (int i = startDate; i < endDate; i++)
                 {
                     if (cells[i].Equals("40"))
                     {
-                        weeksAssigned.Add(i);
+                        weeksAssigned.Add(i-2);
                     }
                 }
 
