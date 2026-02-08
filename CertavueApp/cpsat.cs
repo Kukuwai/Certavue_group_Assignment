@@ -12,7 +12,7 @@ public class cpsat
         public Dictionary<Project, int> ChosenShiftByProject { get; set; } = new(); //final shift for each prohect
     }
 
-    public SolveResult OptimizeShifts(ScheduleState state, double maxTime = 300)
+    public SolveResult OptimizeShifts(ScheduleState state, double maxTime = 3000)
     {
         var model = new CpModel();
         var choose = new Dictionary<(Project P, int S), BoolVar>(); //Decision variable that lists what shift is actually chosen and is used to map the final move
@@ -35,9 +35,14 @@ public class cpsat
             {
                 choose[(p, s)] = model.NewBoolVar($"choose_p{p.id}_s{s}"); //makes a pick or not pick decision 
             }
-            model.Add(LinearExpr.Sum(shifts.Select(s => choose[(p, s)])) == 1); //takes one shift for every project
+            model.AddExactlyOne(shifts.Select(s => choose[(p, s)])); //takes one shift for every project
 
-            int currentShift = state.GetShift(p); //takes how far the move is
+            int currentShift = state.GetShift(p);//takes how far the move is
+            if (shifts.Contains(currentShift))
+            {
+                model.AddHint(choose[(p, currentShift)], 1);
+            }
+
             int maxDistanceForProject = 0; //worst movement possible for binding
 
 
@@ -63,7 +68,7 @@ public class cpsat
                     if (!activeChoicesByPersonWeek.TryGetValue(key, out var varsHere)) //list if this is a new person and week combo
                     {
                         varsHere = new List<BoolVar>(); //list of all possible decisions
-                        activeChoicesByPersonWeek[key] = varsHere; 
+                        activeChoicesByPersonWeek[key] = varsHere;
                     }
                     varsHere.Add(choose[(p, s)]); //records the load of options
                 }
@@ -73,9 +78,9 @@ public class cpsat
 
         }
 
-        var conflicts = new List<BoolVar>(); 
+        var conflicts = new List<BoolVar>();
 
-        foreach (var k in activeChoicesByPersonWeek.OrderBy(x => x.Key.personId).ThenBy(x => x.Key.Week)) 
+        foreach (var k in activeChoicesByPersonWeek.OrderBy(x => x.Key.personId).ThenBy(x => x.Key.Week))
         {
             int personId = k.Key.personId;
             int week = k.Key.Week;
@@ -85,12 +90,14 @@ public class cpsat
             {
                 continue;
             }
-            var load = model.NewIntVar(0, activeChoices.Count, $"load_person{personId}_w{week}"); //counts how many decisions in a cell
-            model.Add(load == LinearExpr.Sum(activeChoices)); 
+
+            var sum = LinearExpr.Sum(activeChoices); //counts how many decisions in a cell
             var conflict = model.NewBoolVar($"conflict_person{personId}_w{week}");
-            model.Add(load >= 2).OnlyEnforceIf(conflict); //enforce the conflict ie it is double booked
-            model.Add(load <= 1).OnlyEnforceIf(conflict.Not()); //do not enforce conflict 
-            conflicts.Add(conflict); //minimizes total conflict
+            model.Add(sum >= 2).OnlyEnforceIf(conflict); //enforce the conflict ie it is double booked
+            model.Add(sum <= 1).OnlyEnforceIf(conflict.Not()); //do not enforce conflict 
+            conflicts.Add(conflict);//minimizes total conflict
+
+
         }
 
         long conflictWeight = maxMovementUpperBound + 1; //conflict always worse than movement savings
@@ -98,7 +105,7 @@ public class cpsat
         var totalMovementEx = LinearExpr.Sum(movementTerms); //total shifts
         model.Minimize(conflictWeight * totalConflictEx + totalMovementEx); //gives it conflicts first priority and movement as tie breaker
         var solver = new CpSolver(); //solver finds best assignment
-        int workers = Math.Max(1, Environment.ProcessorCount - 1); //this is just a CPU thing that leaves some free to avoid my laptop from exploding. Need to research if the cloud will improve this
+        int workers = Math.Max(1, Environment.ProcessorCount); //using full core capacity now (hopefully no melting)
         solver.StringParameters = $"max_time_in_seconds:{maxTime},num_search_workers:{workers}"; //limits solve time and parallel searches
         var status = solver.Solve(model); //runs the solve and captures its status ie feasilbe, optimal
         var result = new SolveResult { Status = status };//inspects outcome
@@ -128,7 +135,7 @@ public class cpsat
 
     public void ApplySolution(ScheduleState state, SolveResult result) //applies the solveronto the state and does the actual updating
     {
-        foreach(var k in result.ChosenShiftByProject)
+        foreach (var k in result.ChosenShiftByProject)
         {
             state.ApplyShift(k.Key, k.Value);
         }

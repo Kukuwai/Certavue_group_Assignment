@@ -16,21 +16,21 @@ public class GreedyAlg
     public void BuildGreedySchedule(ScheduleState state)
     {
         const int maxPasses = 10; //seeing if this improves perfornmancesince greedy is cheap.it can be any number really
-        int startTotal = state.PersonWeekGrid.Values.Sum();
-        int startNonConflict = state.PersonWeekGrid.Where(kv => kv.Value == 1).Sum(kv => kv.Value);
-        int startDouble = state.PersonWeekGrid.Count(kv => kv.Value >= 2);
+        int startTotal = state.PersonWeekGrid.Count; //only occupied person/weeks
+        int startNotDoubleBookedCells = state.PersonWeekGrid.Count(kv => kv.Value == 1);
         double startPct;
+
         if (startTotal == 0)
         {
             startPct = 100.0;
         }
         else
         {
-            startPct = (double)startNonConflict / startTotal * 100.0;
+            startPct = (double)startNotDoubleBookedCells / startTotal * 100.0;
         }
         Console.WriteLine("Greedy algorithm running: ");
 
-        Console.WriteLine("Start total: " + startTotal + ", double-booked=" + startDouble + ", % not double-booked=" + startPct.ToString("0.##"));
+        Console.WriteLine("Start total: " + startTotal + ", double-booked=" + (startTotal-startNotDoubleBookedCells) + ", % not double-booked=" + startPct.ToString("0.##"));
 
 
         for (int pass = 1; pass <= maxPasses; pass++)
@@ -76,22 +76,20 @@ public class GreedyAlg
                 anyShifted = true;
             }
 
-            int total = state.PersonWeekGrid.Values.Sum();  //all time slots
-            int nonConflict = state.PersonWeekGrid.Where(kv => kv.Value == 1).Sum(kv => kv.Value);  //clean slots aka not double booked
-            int doubleBooked = state.PersonWeekGrid.Count(kv => kv.Value >= 2); //double booked
-            double pct;  //% not double booked
+            int total = state.PersonWeekGrid.Count; //only occupied person/weeks
+            int notDoubleBookedCells = state.PersonWeekGrid.Count(kv => kv.Value == 1);
+            double pct;
+
             if (total == 0)
             {
-                pct = 100;
+                pct = 100.0;
             }
-
             else
             {
-                pct = (double)nonConflict / total * 100;
-
+                pct = (double)notDoubleBookedCells / total * 100.0;
             }
 
-            Console.WriteLine("After pass " + pass + ", total: " + total + ", double-booked=" + doubleBooked + ", % not double-booked=" + pct.ToString("0.##"));
+            Console.WriteLine("After pass " + pass + ", total: " + total + ", double-booked=" + (total - notDoubleBookedCells) + ", % not double-booked=" + pct.ToString("0.##"));
 
             if (!anyShifted) break; //ends if nothing moves so we really could have the passes be pretty high for safety
         }
