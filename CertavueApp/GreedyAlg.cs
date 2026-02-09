@@ -16,8 +16,9 @@ public class GreedyAlg
     public void BuildGreedySchedule(ScheduleState state)
     {
         const int maxPasses = 10; //seeing if this improves perfornmancesince greedy is cheap.it can be any number really
-        int startTotal = state.PersonWeekGrid.Count; //only occupied person/weeks
-        int startNotDoubleBookedCells = state.PersonWeekGrid.Count(kv => kv.Value == 1);
+        int startTotal = state.PersonWeekGrid.Values.Sum();//only occupied person/weeks
+        int startNotDoubleBookedCells = state.PersonWeekGrid.Where(kv => kv.Value == 1).Sum(kv => kv.Value);
+
         double startPct;
 
         if (startTotal == 0)
@@ -30,15 +31,33 @@ public class GreedyAlg
         }
         Console.WriteLine("Greedy algorithm running: ");
 
-        Console.WriteLine("Start total: " + startTotal + ", double-booked=" + (startTotal-startNotDoubleBookedCells) + ", % not double-booked=" + startPct.ToString("0.##"));
+        var scheduleHandler = new ScheduleHandler(state);
+        Console.WriteLine($"Start fitness: {scheduleHandler.CalculateFitnessScore(state):0.000000}");
+
+
+        int GetConflictScore(Project p)
+        {
+            int shift = state.GetShift(p);
+            var grid = state.GetGrid(p, shift);
+
+            int score = 0;
+            foreach (var cell in grid)
+            {
+                if (state.PersonWeekGrid.TryGetValue(cell, out var count))
+                    score += Math.Max(0, count - 1);
+            }
+            return score;
+        }
 
 
         for (int pass = 1; pass <= maxPasses; pass++)
         {
             var ordered = state.Projects
-            .OrderByDescending(p => state.GetDuration(p))   //longest projs first 
-            .ThenByDescending(p => p.people.Count)          //breaks tie by most people on proj
-            .ToList();
+     .OrderByDescending(p => GetConflictScore(p))
+     .ThenByDescending(p => state.GetDuration(p))
+     .ThenByDescending(p => p.people.Count)
+     .ToList();
+
 
             bool anyShifted = false; //track if any schedules are moved 
 
@@ -46,17 +65,15 @@ public class GreedyAlg
             {
                 int currentShift = state.GetShift(project);
                 int bestShift = currentShift;
-                ShiftScore best = EvaluateShift(state, project, currentShift); //baseline
+                var best = scheduleHandler.EvaluateMove(project, currentShift); //baseline
 
                 foreach (int candidate in state.GetValidShifts(project)) //all allowed shifts ie within dates
                 {
-                    ShiftScore test = EvaluateShift(state, project, candidate);
+                    var test = scheduleHandler.EvaluateMove(project, candidate);
 
-                    //goes in order fewer double booked, overlap and then shortest move
                     bool better =
-                        test.DeltaDoubleBooked < best.DeltaDoubleBooked ||
-                        (test.DeltaDoubleBooked == best.DeltaDoubleBooked && test.OverlapAfter < best.OverlapAfter) ||
-                        (test.DeltaDoubleBooked == best.DeltaDoubleBooked && test.OverlapAfter == best.OverlapAfter && test.ShiftDistance < best.ShiftDistance);
+                        test.Fitness > best.Fitness ||
+                        (test.Fitness == best.Fitness && test.ShiftDistance < best.ShiftDistance);
 
                     if (better)
                     {
@@ -76,8 +93,9 @@ public class GreedyAlg
                 anyShifted = true;
             }
 
-            int total = state.PersonWeekGrid.Count; //only occupied person/weeks
-            int notDoubleBookedCells = state.PersonWeekGrid.Count(kv => kv.Value == 1);
+            int total = state.PersonWeekGrid.Values.Sum();//only occupied person/weeks
+            int notDoubleBookedCells = state.PersonWeekGrid.Where(kv => kv.Value == 1).Sum(kv => kv.Value);
+
             double pct;
 
             if (total == 0)
@@ -89,7 +107,7 @@ public class GreedyAlg
                 pct = (double)notDoubleBookedCells / total * 100.0;
             }
 
-            Console.WriteLine("After pass " + pass + ", total: " + total + ", double-booked=" + (total - notDoubleBookedCells) + ", % not double-booked=" + pct.ToString("0.##"));
+            Console.WriteLine($"After pass {pass}, fitness: {scheduleHandler.CalculateFitnessScore(state):0.000000}");
 
             if (!anyShifted) break; //ends if nothing moves so we really could have the passes be pretty high for safety
         }

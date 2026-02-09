@@ -21,7 +21,7 @@ public class Program
     public Program()
     {
 
-        dataPath = Path.Combine(AppContext.BaseDirectory, "Data", "schedule_target75_medium_with_roles_40s.csv");
+        dataPath = Path.Combine(AppContext.BaseDirectory, "Data", "schedule_target75_paired_extreme.csv");
         var originalState = loadData(dataPath);
         Output output = new Output();
         output.ExportToHtml(dataPath, originalState);
@@ -33,7 +33,7 @@ public class Program
         testAlgo(scheduleAfterGreedy, "CP-SAT start");
 
         var cp = new cpsat();
-        var cpResult = cp.OptimizeShifts(scheduleAfterGreedy, 30);
+        var cpResult = cp.OptimizeShifts(scheduleAfterGreedy, 300);
 
         Console.WriteLine($"CP-SAT status: {cpResult.Status}");
 
@@ -85,8 +85,8 @@ public class Program
 
     public void testAlgo(ScheduleState state, string label)
     {
-        int total = state.PersonWeekGrid.Count; //only occupied person/weeks
-        int notDoubleBookedCells = state.PersonWeekGrid.Count(kv => kv.Value == 1);
+        int total = state.PersonWeekGrid.Values.Sum(); //only occupied person/weeks
+        int notDoubleBookedCells = state.PersonWeekGrid.Where(kv => kv.Value == 1).Sum(kv => kv.Value);
         double pct;
 
         if (total == 0)
@@ -106,6 +106,9 @@ public class Program
     {
         new Program();
     }
+
+
+
 
 }
 
