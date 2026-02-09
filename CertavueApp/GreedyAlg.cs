@@ -16,8 +16,9 @@ public class GreedyAlg
     public void BuildGreedySchedule(ScheduleState state)
     {
         const int maxPasses = 10; //seeing if this improves perfornmancesince greedy is cheap.it can be any number really
-        int startTotal = state.PersonWeekGrid.Count; //only occupied person/weeks
-        int startNotDoubleBookedCells = state.PersonWeekGrid.Count(kv => kv.Value == 1);
+        int startTotal = state.PersonWeekGrid.Values.Sum();//only occupied person/weeks
+        int startNotDoubleBookedCells = state.PersonWeekGrid.Where(kv => kv.Value == 1).Sum(kv => kv.Value);
+
         double startPct;
 
         if (startTotal == 0)
@@ -30,7 +31,7 @@ public class GreedyAlg
         }
         Console.WriteLine("Greedy algorithm running: ");
 
-        Console.WriteLine("Start total: " + startTotal + ", double-booked=" + (startTotal-startNotDoubleBookedCells) + ", % not double-booked=" + startPct.ToString("0.##"));
+        Console.WriteLine("Start total: " + startTotal + ", double-booked=" + (startTotal - startNotDoubleBookedCells) + ", % not double-booked=" + startPct.ToString("0.##"));
 
 
         for (int pass = 1; pass <= maxPasses; pass++)
@@ -76,8 +77,9 @@ public class GreedyAlg
                 anyShifted = true;
             }
 
-            int total = state.PersonWeekGrid.Count; //only occupied person/weeks
-            int notDoubleBookedCells = state.PersonWeekGrid.Count(kv => kv.Value == 1);
+            int total = state.PersonWeekGrid.Values.Sum();//only occupied person/weeks
+            int notDoubleBookedCells = state.PersonWeekGrid.Where(kv => kv.Value == 1).Sum(kv => kv.Value);
+
             double pct;
 
             if (total == 0)

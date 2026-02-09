@@ -12,13 +12,15 @@ public class cpsat
         public Dictionary<Project, int> ChosenShiftByProject { get; set; } = new(); //final shift for each prohect
     }
 
-    public SolveResult OptimizeShifts(ScheduleState state, double maxTime = 3000)
+    public SolveResult OptimizeShifts(ScheduleState state, double maxTime = 3600)
     {
         var model = new CpModel();
         var choose = new Dictionary<(Project P, int S), BoolVar>(); //Decision variable that lists what shift is actually chosen and is used to map the final move
         var validShiftsByProject = new Dictionary<Project, List<int>>(); //caches valid shifts so only used once
         var activeChoicesByPersonWeek = new Dictionary<(int personId, int Week), List<BoolVar>>(); //Keeps a list of work options for each person/week combo (used in load and conflict)
-        var movementTerms = new List<LinearExpr>(); //Tracks movement terms and penalties for tiebreaker
+        var movementTerms = new List<LinearExpr>(); //Tracks movement terms for tiebreaker
+        var overages = new List<IntVar>(); //Tracks overage variables for reporting
+        var conflictWeeks = new List<BoolVar>(); //Tracks if a person/week is overloaded
         long maxMovementUpperBound = 0; //Max movement for normalization, used to ensure conflict minimization is the goal
 
 
@@ -50,6 +52,7 @@ public class cpsat
             {
                 int distance = Math.Abs(s - currentShift); //measures how much the shift was
                 maxDistanceForProject = Math.Max(maxDistanceForProject, distance); //bound calculation
+
                 if (distance > 0)//penalty for moving
                 {
                     movementTerms.Add(distance * choose[(p, s)]); //cost paid for moving, penalty tiebreaker like above
@@ -78,60 +81,150 @@ public class cpsat
 
         }
 
-        var conflicts = new List<BoolVar>();
-
-        foreach (var k in activeChoicesByPersonWeek.OrderBy(x => x.Key.personId).ThenBy(x => x.Key.Week))
+        foreach (var k in activeChoicesByPersonWeek)
         {
+            var activeChoices = k.Value;
+            if (activeChoices.Count <= 1) continue;
+
             int personId = k.Key.personId;
             int week = k.Key.Week;
-            var activeChoices = k.Value; //decisions that can place a person into the week
 
-            if (activeChoices.Count <= 1) //if 0/1 possible assignments then conflict can't happen
-            {
-                continue;
-            }
+            var load = LinearExpr.Sum(activeChoices);
 
-            var sum = LinearExpr.Sum(activeChoices); //counts how many decisions in a cell
+            var overage = model.NewIntVar(0, activeChoices.Count - 1, $"overage_{personId}_{week}");
+            model.Add(overage >= load - 1);
+
             var conflict = model.NewBoolVar($"conflict_person{personId}_w{week}");
-            model.Add(sum >= 2).OnlyEnforceIf(conflict); //enforce the conflict ie it is double booked
-            model.Add(sum <= 1).OnlyEnforceIf(conflict.Not()); //do not enforce conflict 
-            conflicts.Add(conflict);//minimizes total conflict
+            model.Add(load >= 2).OnlyEnforceIf(conflict); //enforce the conflict ie it is double booked
+            model.Add(load <= 1).OnlyEnforceIf(conflict.Not()); //do not enforce conflict 
 
-
+            overages.Add(overage); // Save this for reporting later
+            conflictWeeks.Add(conflict); // Save this for reporting later
         }
 
-        long conflictWeight = maxMovementUpperBound + 1; //conflict always worse than movement savings
-        var totalConflictEx = LinearExpr.Sum(conflicts); //total conflict cells
-        var totalMovementEx = LinearExpr.Sum(movementTerms); //total shifts
-        model.Minimize(conflictWeight * totalConflictEx + totalMovementEx); //gives it conflicts first priority and movement as tie breaker
-        var solver = new CpSolver(); //solver finds best assignment
-        int workers = Math.Max(1, Environment.ProcessorCount); //using full core capacity now (hopefully no melting)
-        solver.StringParameters = $"max_time_in_seconds:{maxTime},num_search_workers:{workers}"; //limits solve time and parallel searches
-        var status = solver.Solve(model); //runs the solve and captures its status ie feasilbe, optimal
-        var result = new SolveResult { Status = status };//inspects outcome
+        // This matches your Program.testAlgo metric:
+        // double-booked = sum(load where load >= 2) = sum(overage + conflictWeek)
+        var conflictLoadTerms = new List<LinearExpr>();
+        foreach (var o in overages)
+        {
+            conflictLoadTerms.Add(o);
+        }
+        foreach (var c in conflictWeeks)
+        {
+            conflictLoadTerms.Add(c);
+        }
 
-        if (status == CpSolverStatus.Optimal || status == CpSolverStatus.Feasible) //only decode if feasible or optimal solution
+        LinearExpr totalConflictEx;
+        if (conflictLoadTerms.Count == 0)
+        {
+            totalConflictEx = LinearExpr.Constant(0);
+        }
+        else
+        {
+            totalConflictEx = LinearExpr.Sum(conflictLoadTerms);
+        }
+
+        LinearExpr totalMovementEx;
+        if (movementTerms.Count == 0)
+        {
+            totalMovementEx = LinearExpr.Constant(0);
+        }
+        else
+        {
+            totalMovementEx = LinearExpr.Sum(movementTerms);
+        }
+
+        //Explicit vars so we can read totals and reuse in phase 2
+        var totalConflictVar = model.NewIntVar(0, 1_000_000, "totalConflictVar");
+        model.Add(totalConflictVar == totalConflictEx);
+
+        var totalMovementVar = model.NewIntVar(0, (int)maxMovementUpperBound, "totalMovementVar");
+        model.Add(totalMovementVar == totalMovementEx);
+
+
+        model.Minimize(totalConflictVar);
+
+
+        // long conflictWeight = maxMovementUpperBound + 1; //conflict always worse than movement savings
+        // model.Minimize(conflictWeight * totalConflictEx + totalMovementEx); //gives it conflicts first priority and movement as tie breaker
+
+        var solver = new CpSolver();
+        int workers = Math.Max(1, Environment.ProcessorCount);
+
+        // exact objective solve (remove relative_gap_limit so "Optimal" is true optimal)
+        solver.StringParameters = $"max_time_in_seconds:{maxTime}," + $"num_search_workers:{workers}," + $"search_branching:PORTFOLIO_SEARCH," + $"randomize_search:true," + $"relative_gap_limit:0.01," + $"log_search_progress:false"; //stops within 1%
+
+
+        // var stopCallback = new StopIfNoImprovementCallback(30.0); //30 seconds for improvement
+        // var status = solver.Solve(model, stopCallback);
+        // Stop if you hit 0 conflicts OR no improvement for 30s
+        var stopCallback = new StopOnTargetOrIdleCallback(
+            maxIdleSeconds: 30.0,
+            totalConflictVar: totalConflictVar,
+            targetConflicts: 0
+        );
+
+        var statusA = solver.Solve(model, stopCallback);
+
+
+
+        CpSolver solverToDecode = solver;
+        var statusFinal = statusA;
+
+        if (statusA == CpSolverStatus.Optimal || statusA == CpSolverStatus.Feasible)
+        {
+            long bestConflicts = solver.Value(totalConflictVar);
+
+            // Phase B: lock best conflicts, then minimize movement
+            model.Add(totalConflictVar == bestConflicts);
+            model.Minimize(totalMovementVar);
+
+            var solverB = new CpSolver();
+            solverB.StringParameters =
+                $"max_time_in_seconds:{Math.Max(5, maxTime * 0.25)}," +
+                $"num_search_workers:{workers}," +
+                $"search_branching:PORTFOLIO_SEARCH," +
+                $"randomize_search:true," +
+                $"relative_gap_limit:0.02," +
+                $"log_search_progress:false";
+
+            var statusB = solverB.Solve(model);
+
+            if (statusB == CpSolverStatus.Optimal || statusB == CpSolverStatus.Feasible)
+            {
+                solverToDecode = solverB;
+                statusFinal = statusB;
+            }
+        }
+
+        // CREATE RESULT *AFTER* statusFinal is known
+        var result = new SolveResult { Status = statusFinal };
+
+        // DECODE SOLUTION USING solverToDecode
+        if (statusFinal == CpSolverStatus.Optimal || statusFinal == CpSolverStatus.Feasible)
         {
             foreach (var p in state.Projects)
             {
-                int chosenShift = validShiftsByProject[p][0];//starts at first possible shift in case a person/week only has 1 move ie no moves
+                int chosenShift = validShiftsByProject[p][0];
                 foreach (var s in validShiftsByProject[p])
                 {
-                    if (solver.Value(choose[(p, s)]) == 1) //returns 1 if a move was selected by solver
+                    if (solverToDecode.Value(choose[(p, s)]) == 1)
                     {
                         chosenShift = s;
                         break;
                     }
                 }
-                result.ChosenShiftByProject[p] = chosenShift; //saved decision
-
+                result.ChosenShiftByProject[p] = chosenShift;
             }
-            result.TotalConflicts = conflicts.Count(v => solver.Value(v) == 1); //counts total number of conflicts
+
+            long totalOverage = overages.Sum(v => solverToDecode.Value(v));
+            long totalConflictWeeks = conflictWeeks.Count(v => solverToDecode.Value(v) == 1);
+            result.TotalConflicts = (int)(totalOverage + totalConflictWeeks);
         }
 
         return result;
-
     }
+
 
     public void ApplySolution(ScheduleState state, SolveResult result) //applies the solveronto the state and does the actual updating
     {
@@ -140,4 +233,47 @@ public class cpsat
             state.ApplyShift(k.Key, k.Value);
         }
     }
+
+    public class StopOnTargetOrIdleCallback : CpSolverSolutionCallback
+    {
+        private readonly double _maxIdleSeconds;
+        private readonly IntVar _totalConflictVar;
+        private readonly long _targetConflicts;
+        private DateTime _lastImprovement;
+        private long _bestConflicts = long.MaxValue;
+
+        public StopOnTargetOrIdleCallback(double maxIdleSeconds, IntVar totalConflictVar, long targetConflicts)
+        {
+            _maxIdleSeconds = maxIdleSeconds;
+            _totalConflictVar = totalConflictVar;
+            _targetConflicts = targetConflicts;
+            _lastImprovement = DateTime.Now;
+        }
+
+        public override void OnSolutionCallback()
+        {
+            long conflicts = Value(_totalConflictVar);
+
+            if (conflicts < _bestConflicts)
+            {
+                _bestConflicts = conflicts;
+                _lastImprovement = DateTime.Now;
+                // Console.WriteLine($"[Improvement] conflicts={conflicts}");
+            }
+
+            // Stop immediately if we hit the target (usually 0 conflicts)
+            if (conflicts <= _targetConflicts)
+            {
+                StopSearch();
+                return;
+            }
+
+            // Stop if no improvement recently
+            if ((DateTime.Now - _lastImprovement).TotalSeconds > _maxIdleSeconds)
+            {
+                StopSearch();
+            }
+        }
+    }
+
 }
