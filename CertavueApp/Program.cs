@@ -21,7 +21,7 @@ public class Program
     public Program()
     {
 
-        dataPath = Path.Combine(AppContext.BaseDirectory, "Data", "schedule_target75_paired_extreme.csv");
+        dataPath = Path.Combine(AppContext.BaseDirectory, "Data", "SmallTestSetRoles.csv");
         var originalState = loadData(dataPath);
         Output output = new Output();
         output.ExportToHtml(dataPath, originalState);
@@ -72,7 +72,6 @@ public class Program
         Console.WriteLine("Loaded.");
         return state;
     }
-
 
 
     public void testPrint(ScheduleState state)
