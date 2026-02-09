@@ -29,9 +29,9 @@ public class ConflictDetector
     return report;
   }
 
-
   // This method gives a list of Projects a person is working in a week. 
   private List<string> GetProjectsForPersonInWeek(ScheduleState state, int personId, int week)
+
   {
     var projects = new List<string>();
     var person = state.People.First(p => p.id == personId);
@@ -52,7 +52,9 @@ public class ConflictDetector
     return projects;
   }
 
+
   // This method gives a conflict report for all persons when they are booked more than once in a week. 
+
   public ConflictReport AnalyzeSchedule(ScheduleState state)
   {
     var report = new ConflictReport();
@@ -82,8 +84,8 @@ public class ConflictDetector
     return report;
   }
 }
-
 // This class stores Conflicts, prints them, calculate statistics, counts affected people and groups conflicts by weeks and persons. 
+
 public class ConflictReport
 {
   public List<Conflict> Conflicts { get; set; } = new List<Conflict>();
@@ -116,6 +118,7 @@ public class ConflictReport
     .GroupBy(c => c.PersonName)
     .ToDictionary(g => g.Key, g => g.Count());
     // group conflcits by Weeks.
+
     ConflictsByWeek = Conflicts
         .GroupBy(c => c.Week)
         .ToDictionary(g => g.Key, g => g.Count());

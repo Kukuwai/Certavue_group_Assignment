@@ -8,16 +8,25 @@ public class Project
     public string name {get; set;}
     public HashSet<Person> people { get; } = new();
     public int startDate {get; set;}
-    public int endDate {get; set;}
+    public int endDate {get; set;} 
     public int duration {get; set;}
-    public Dictionary<int, int> totalResource { get; set; }
+    public int hoursNeeded {get; set;}
+
+    public Project(string name, int startDate, int endDate, int hoursNeeded)
+    {
+        id = ++idCounter;
+        this.name = name;
+        this.hoursNeeded = hoursNeeded;
+        this.endDate = endDate;     
+        this.startDate = startDate;
+    }
 
     public Project(string name, int startDate, int endDate)
     {
         id = ++idCounter;
         this.name = name;
-        this.totalResource = new Dictionary<int,int>();
         this.endDate = endDate;     
         this.startDate = startDate;
     }
+    
 }

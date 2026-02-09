@@ -6,174 +6,124 @@ using System.Collections.Generic;
 using System.IO.Pipes;
 using static MoveByConflict;
 using static ScheduleState;
+using System.IO;
+using System.Linq;
+using System.Text;
+
 public class Program
 {
-    public List<Project> projects = new List<Project>();
-    public List<Person> people = new List<Person>();
+    List<Project> projects = new List<Project>();
+    List<Person> people = new List<Person>();
+    private readonly string dataPath;
+
+
 
     public Program()
     {
-        loadData();
 
-        var state = new ScheduleState(people, projects);
-        var finder = new AvailabilityFinder(state);
+        dataPath = Path.Combine(AppContext.BaseDirectory, "Data", "schedule_target75_medium_with_roles_40s.csv");
+        var originalState = loadData(dataPath);
+        Output output = new Output();
+        output.ExportToHtml(dataPath, originalState);
+        //testPrint(originalState);
+        var scheduleAfterGreedy = new GreedyAlg().StartGreedy(people, projects);
+        testAlgo(scheduleAfterGreedy, "After Greedy");
 
-        // Before Greedy algorithm
-        Console.WriteLine("********* Before running Greedy *********");
-        var stateBefore = new ScheduleState(people, projects);
-        var detectorBefore = new ConflictDetector();
-        var reportBefore = detectorBefore.AnalyzeSchedule(stateBefore);
-        reportBefore.CalculateStatistics(stateBefore);
-        reportBefore.PrintReport();
+        testAlgo(scheduleAfterGreedy, "CP-SAT start");
 
-        // Run Greedy algorithm
+        var cp = new cpsat();
+        var cpResult = cp.OptimizeShifts(scheduleAfterGreedy, 30);
 
-        // Console.WriteLine("********* Running Greedy ***************");
-        var stateAfter = new GreedyAlg().StartGreedy(people, projects);
-        var m = new MoveByConflict(stateAfter, projects);
+        Console.WriteLine($"CP-SAT status: {cpResult.Status}");
 
+        if (cpResult.Status == Google.OrTools.Sat.CpSolverStatus.Optimal ||
+            cpResult.Status == Google.OrTools.Sat.CpSolverStatus.Feasible)
+        {
+            cp.ApplySolution(scheduleAfterGreedy, cpResult);
+            testAlgo(scheduleAfterGreedy, "After CP-SAT");
+        }
+        else
+        {
+            Console.WriteLine("No feasible CP-SAT solution; kept Greedy schedule.");
+        }
 
-        // After Greedy algorithm
-        // Console.WriteLine("********* After running Greedy *******");
-        // var detectorAfter = new ConflictDetector();
-        // var reportAfter = detectorAfter.AnalyzeSchedule(stateAfter);
-        // reportAfter.CalculateStatistics(stateAfter);
-        //reportAfter.PrintReport();
+        //var scheduleAfterConflict = new MoveByConflict().start(scheduleAfterGreedy, projects);
+        //testAlgo(scheduleAfterConflict, "After MoveByConflict");
 
-        // Comparison
-        // Console.WriteLine("************ Comparison *************");
-        // Console.WriteLine($"Conflicts before: {reportBefore.TotalConflictWeeks}");
-        // Console.WriteLine($"Conflicts after:  {reportAfter.TotalConflictWeeks}");
-        // Console.WriteLine($"Reduction:        {reportBefore.TotalConflictWeeks - reportAfter.TotalConflictWeeks}");
-        // Console.WriteLine($"% Improvement:    {(1 - (double)reportAfter.TotalConflictWeeks / reportBefore.TotalConflictWeeks) * 100:F1}%");
-        // //testPrint();
-
-        //var beforeGreedy = new ScheduleState(people, projects);
-        // GreedyChecker("Before Greedy", beforeGreedy);
-        //new GreedyAlg().StartGreedy(people, projects);
-        //var afterGreedy = new ScheduleState(people, projects);
-        //  GreedyChecker("After Greedy", afterGreedy);
-        //var state = new ScheduleState(people, projects);
-        //var detector = new ConflictDetector();
-        //var report = detector.AnalyzeSchedule(state);
-        //report.CalculateStatistics(state);
-
-        //Console.WriteLine($"Total conflicts: {report.TotalConflictWeeks}");
-        //Console.WriteLine($"People affected: {report.PeopleAffected}");
-        //Console.WriteLine($"Conflict rate: {report.ConflictPercentage:F2}%");
-
-        // Console.WriteLine("\nTop 3 conflicted people:");
-        // foreach (var person in report.ConflictsByPerson.OrderByDescending(kv => kv.Value).Take(3))
-        // {
-        //     Console.WriteLine($"  {person.Key}: {person.Value} conflicts");
-        // }
     }
 
-    public void loadData()
+    /*public void StartApp()
+    {
+        loadData(); // 加载大数据
+        var stateAfter = new GreedyAlg().StartGreedy(people, projects);
+        string filePath = "Data/schedule_target75_large.csv";
+        ExportToHtml(filePath, stateAfter);
+        //var m = new MoveByConflict(stateAfter);
+    }*/
+
+    public ScheduleState loadData(string path)
     {
         Loader load = new Loader();
-        // (this.people, this.projects) = load.LoadData("Data\\schedule_target75_large.csv");
-        (this.people, this.projects) = load.LoadData("Data/schedule_target75_large.csv"); // For Mac.
+        (var people, var projects) = load.LoadData(path);
+        var state = new ScheduleState(people, projects);
+        this.people = people;
+        this.projects = projects;
         Console.WriteLine("Loaded.");
+        return state;
     }
 
-    //checking in GreedyAlg now
-    // private void GreedyChecker(string label, ScheduleState state)
+
+
+    // public void testPrint(ScheduleState state)
     // {
-    //     int totalAssignments = state.PersonWeekGrid.Values.Sum();
-    //     int nonConflictAssignments = state.PersonWeekGrid
-    //         .Where(kv => kv.Value == 1)
-    //         .Sum(kv => kv.Value);
-    //     int doubleBooked = state.PersonWeekGrid.Count(kv => kv.Value >= 2);
+    //     foreach (var p in state.People)
+    //     {
+    //         Console.WriteLine("Name: " + p.id + " | Role: " + p.role);
+    //     }
+    // }
+    // public void testPrint(List<Person> people)
+    // {
+    //     foreach (var p in people)
+    //     {
 
-    //     double pctNotDoubleBooked = totalAssignments == 0
-    //         ? 100
-    //         : (double)nonConflictAssignments / totalAssignments * 100;
-
-    //     Console.WriteLine(label + " Total assignments=" + totalAssignments
-    //         + " Double-booked weeks=" + doubleBooked
-    //         + " % not double-booked=" + pctNotDoubleBooked.ToString("0.##"));
+    //         Console.WriteLine("Name: " + p.id + " | Role: " + p.role);
+    //     }
     // }
 
-    public void testPrint()
+
+    public void testAlgo(ScheduleState state, string label)
     {
-        // Console.WriteLine("People:");
-        // foreach (var p in people)
-        // {
-        //     Console.WriteLine("- " + p.name);
-        //     foreach (KeyValuePair<Project, List<int>> kvp in p.projects)
-        //     {
-        //         List<int> values = kvp.Value;
-        //         foreach (var v in values)
-        //         {
-        //             Console.WriteLine("Key = {0}, Value = {1}", kvp.Key.name, v);
-        //         }
-        //     }
+        int total = state.PersonWeekGrid.Count; //only occupied person/weeks
+        int notDoubleBookedCells = state.PersonWeekGrid.Count(kv => kv.Value == 1);
+        double pct;
 
-        // }
-        // Console.WriteLine("Count of projects: " + projects.Count);
+        if (total == 0)
+        {
+            pct = 100.0;
+        }
+        else
+        {
+            pct = (double)notDoubleBookedCells / total * 100.0;
+        }
+
+        Console.WriteLine(label + " total: " + total + ", double-booked=" + (total - notDoubleBookedCells) + ", % not double-booked=" + pct.ToString("0.##"));
     }
 
-    // public void test_ConflictClass()
-    // {
-    //     var conflict = new Conflict
-    //     {
-    //         PersonId = 1,
-    //         PersonName = "Person_01",
-    //         Week = 15,
-    //         ProjectCount = 2,
-    //         ProjectNames = new List<string> { "Project_001", "Project_002" }
-    //     };
-    //     Console.WriteLine($"{conflict.PersonName} has {conflict.ProjectCount} projects in week {conflict.Week}");
-    //     Console.WriteLine($"Projects: {string.Join(", ", conflict.ProjectNames)}");
-    // }
-
-    // private void test_Report()
-    // {
-    //     var report = new ConflictReport();
-
-    //     report.Conflicts.Add(new Conflict
-    //     {
-    //         PersonName = "Person_01",
-    //         Week = 15,
-    //         ProjectCount = 2,
-    //         ProjectNames = new List<string> { "Project_001", "Project_002" }
-    //     });
-
-    //     report.Conflicts.Add(new Conflict
-    //     {
-    //         PersonName = "Person_02",
-    //         Week = 20,
-    //         ProjectCount = 3,
-    //         ProjectNames = new List<string> { "Project_003", "Project_004", "Project_005" }
-    //     });
-
-    //     report.PrintReport();
-    // }
-
-    // private void test_SimpleDetector()
-    // {
-
-    //     var detector = new ConflictDetector();
-
-    //     // Create temporary grid data for testing
-    //     var testGrid = new Dictionary<(int, int), int>
-    //     {
-    //         { (1, 15), 2 },  // Person 1, Week 15, 2 projects (conflict)
-    //         { (1, 16), 1 },  // Person 1, Week 16, 1 project (no conflict)
-    //         { (2, 20), 3 },  // Person 2, Week 20, 3 projects (conflict)
-    //         { (3, 25), 1 },  // Person 3, Week 25, 1 project (no conflict)
-    //     };
-
-    //     var report = detector.DetectConflictsSimple(testGrid);
-    //     report.PrintReport();
-
-    //     Console.WriteLine($"Expected 2 conflicts, got {report.Conflicts.Count}");
-    // }
 
     // Temporarily comment the main method when testing. For running the Program, please un-comment it. There is some issue with versions. 
     static void Main(string[] args)
-     {
-         new Program();
+    {
+        new Program();
     }
+
+}
+
+public class AssignmentRow
+{
+    public string PersonName { get; set; }
+    public string ProjectName { get; set; }
+    public int StartWeek { get; set; }
+    public HashSet<int> ActiveWeeks { get; set; }
+    public int Duration { get; set; }
+    public int PeopleCount { get; set; }
 }

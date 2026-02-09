@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using static ScheduleState;
 
 public class AvailabilityFinder
 {
@@ -52,6 +53,7 @@ public class AvailabilityFinder
     }
     return availableWeeks;
   }
+
   // This method gives an ordered list of weeks starting with least number of projects.
   public List<int> FindLeastBusyWeeks(int numberOfWeeks = 5)
   {

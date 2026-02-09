@@ -11,33 +11,32 @@ public class GreedyAlg
         var state = new ScheduleState(people, projects);
         BuildGreedySchedule(state);
 
-        return state; // I added this for to work with finding conflicts. 
+        return state; //I added this for to work with finding conflicts. 
     }
     public void BuildGreedySchedule(ScheduleState state)
     {
-        const int maxPasses = 6; //seeing if this improves perfornmancesince greedy is cheap.it can be any number really
-        //for file 75 large should start with 1036 and 36.39% double booked
-        int startTotal = state.PersonWeekGrid.Values.Sum();
-        int startNonConflict = state.PersonWeekGrid.Where(kv => kv.Value == 1).Sum(kv => kv.Value);
-        int startDouble = state.PersonWeekGrid.Count(kv => kv.Value >= 2);
+        const int maxPasses = 10; //seeing if this improves perfornmancesince greedy is cheap.it can be any number really
+        int startTotal = state.PersonWeekGrid.Count; //only occupied person/weeks
+        int startNotDoubleBookedCells = state.PersonWeekGrid.Count(kv => kv.Value == 1);
         double startPct;
+
         if (startTotal == 0)
         {
             startPct = 100.0;
         }
         else
         {
-            startPct = (double)startNonConflict / startTotal * 100.0;
+            startPct = (double)startNotDoubleBookedCells / startTotal * 100.0;
         }
         Console.WriteLine("Greedy algorithm running: ");
 
-        Console.WriteLine("Start total: " + startTotal + ", double-booked=" + startDouble + ", % not double-booked=" + startPct.ToString("0.##"));
+        Console.WriteLine("Start total: " + startTotal + ", double-booked=" + (startTotal-startNotDoubleBookedCells) + ", % not double-booked=" + startPct.ToString("0.##"));
 
 
         for (int pass = 1; pass <= maxPasses; pass++)
         {
             var ordered = state.Projects
-            .OrderByDescending(p => state.GetDuration(p))   //longest projs first
+            .OrderByDescending(p => state.GetDuration(p))   //longest projs first 
             .ThenByDescending(p => p.people.Count)          //breaks tie by most people on proj
             .ToList();
 
@@ -47,7 +46,7 @@ public class GreedyAlg
             {
                 int currentShift = state.GetShift(project);
                 int bestShift = currentShift;
-                ShiftScore best = EvaluateShift(state, project, currentShift); // baseline
+                ShiftScore best = EvaluateShift(state, project, currentShift); //baseline
 
                 foreach (int candidate in state.GetValidShifts(project)) //all allowed shifts ie within dates
                 {
@@ -72,28 +71,161 @@ public class GreedyAlg
                     anyShifted = true;  //used to make sure changes occurred
                 }
             }
-            int total = state.PersonWeekGrid.Values.Sum();  //all time slots
-            int nonConflict = state.PersonWeekGrid.Where(kv => kv.Value == 1).Sum(kv => kv.Value);  //clean slots aka not double booked
-            int doubleBooked = state.PersonWeekGrid.Count(kv => kv.Value >= 2); //double booked
-            double pct;  //% not double booked
+            if (MoveBetweenRoles(state))
+            {
+                anyShifted = true;
+            }
+
+            int total = state.PersonWeekGrid.Count; //only occupied person/weeks
+            int notDoubleBookedCells = state.PersonWeekGrid.Count(kv => kv.Value == 1);
+            double pct;
+
             if (total == 0)
             {
-                pct = 100;
+                pct = 100.0;
             }
-
             else
             {
-                pct = (double)nonConflict / total * 100;
-
+                pct = (double)notDoubleBookedCells / total * 100.0;
             }
 
-            Console.WriteLine("After pass " + pass + ", total: " + total + ", double-booked=" + doubleBooked + ", % not double-booked=" + pct.ToString("0.##"));
+            Console.WriteLine("After pass " + pass + ", total: " + total + ", double-booked=" + (total - notDoubleBookedCells) + ", % not double-booked=" + pct.ToString("0.##"));
 
             if (!anyShifted) break; //ends if nothing moves so we really could have the passes be pretty high for safety
         }
     }
 
-    // Holds the scoring results for a candidate shift
+    //something to think about on this method is it replaces it with the first available person. Maybe that is fine, maybe not but good to discuss
+    public bool MoveBetweenRoles(ScheduleState state)
+    {
+        var conflictedPersons = new List<ScheduleState.WeekKey>(); //list of over booked persons
+        bool changed = false; //used as the return
+
+
+        foreach (var entry in state.PersonWeekGrid) //if someone has more than 1 proj for the week they are added
+        {
+            if (entry.Value > 1)
+            {
+                conflictedPersons.Add(entry.Key);
+            }
+        }
+
+        foreach (var key in conflictedPersons) //will manage each conflict in the list
+        {
+            Person overloadedPerson = null;
+            foreach (var person in state.People)
+            {
+                if (person.id == key.PersonId) //finds the person object attached to the conflicted person and assigns them
+                {
+                    overloadedPerson = person;
+                    break;
+                }
+            }
+
+            if (overloadedPerson == null)
+            {
+                continue; //nobody found go to next person
+            }
+
+            int week = key.Week;  //the week with conflict
+
+            var weeksProjects = new List<Project>(); //list of persons project for that week
+
+            foreach (var project in state.Projects) //checks projects to see which ones are conflicted
+            {
+                if (!project.people.Contains(overloadedPerson)) //ignores any project a person isn't assigned to
+                {
+                    continue;
+                }
+                int shift = state.GetShift(project);        //decides what shift and grid apply to this project
+                var grid = state.GetGrid(project, shift);
+
+                bool assigned = false;  //used to see if project will be assigned
+
+                foreach (var cell in grid)      //sees if the project is on the actual week of issue
+                {
+                    if (cell.PersonId == overloadedPerson.id && cell.Week == week)
+                    {
+                        assigned = true;
+                        break;
+                    }
+                }
+
+                if (assigned)   //if it is on the weeks issue this it is added to the list
+                {
+                    weeksProjects.Add(project);
+                }
+            }
+
+            foreach (var project in weeksProjects)  //needs to find an open replacement based on role still
+            {
+                Person replacementPerson = null;
+
+                foreach (var person in state.People) //searching for a valid replacement 
+                {
+                    if (person.id == overloadedPerson.id)
+                    {
+                        continue; //can't replace themselves
+                    }
+
+                    if (person.role == overloadedPerson.role)    //roles are equal
+                    {
+                        if (IsPersonFree(state, person, week))   //calls is free method to verify opening
+                        {
+                            replacementPerson = person; //found the person to replace
+                            break;
+                        }
+
+
+                    }
+
+                }
+
+                if (replacementPerson != null)
+                {
+                    MoveWeekToReplacement(state, project, overloadedPerson, replacementPerson, week);
+                    changed = true; //successfully fixed
+                }
+            }
+
+        }
+
+        return changed;
+    }
+
+
+    //we can probably move this method out somewhere else later but just the initial handoff shift logic
+    public static void MoveWeekToReplacement(ScheduleState state, Project project, Person from, Person to, int week)
+    {
+
+        if (!from.projects.ContainsKey(project) || !from.projects[project].Remove(week)) //error was happening if someone was previously removed from a project
+        {
+            return;
+        }
+        if (!to.projects.ContainsKey(project)) //iff the new person doesn't hae this project already add it to their list
+        {
+            to.projects[project] = new List<int>();
+        }
+        to.projects[project].Add(week); //assigns the week being traded 
+
+        project.people.Add(to);
+        if (from.projects[project].Count == 0) //removes old person if their project weeks are 0 aka no longer on project
+        {
+            project.people.Remove(from);
+
+        }
+
+        state.RebuildGrid(); //rebuilds the state with changes
+    }
+
+    //Checking person's schedule for open week
+    public static bool IsPersonFree(ScheduleState state, Person person, int week) //boolean that returns true/false if person is free or not
+    {
+        var key = new ScheduleState.WeekKey(person.id, week); //week key for review
+        return !state.PersonWeekGrid.TryGetValue(key, out var count); //Checks if this person has a project for the week, if they do it returns false which means they cannot be swapped
+    }
+
+    //Holds the scoring results for a candidate shift
     public class ShiftScore
     {
         public int DeltaDoubleBooked { get; set; } //double booked change
@@ -101,7 +233,6 @@ public class GreedyAlg
         public int ShiftDistance { get; set; } //shift size aka smaller may = better
     }
 
-    // Returns a ShiftScore
     public ShiftScore EvaluateShift(ScheduleState state, Project project, int candidateShift)
     {
         int currentShift = state.GetShift(project);
@@ -142,6 +273,12 @@ public class GreedyAlg
                 delta += 1;
                 overlapAfter++;
             }
+            int conflictPenalty = 0;
+            foreach (var kv in state.PersonWeekGrid)
+            {
+                if (kv.Value > 1)
+                    conflictPenalty += (kv.Value - 1);
+            }
         }
 
 
@@ -152,5 +289,5 @@ public class GreedyAlg
             ShiftDistance = Math.Abs(candidateShift)
         };
     }
-   
+
 }
