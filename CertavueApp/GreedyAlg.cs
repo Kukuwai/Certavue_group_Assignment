@@ -31,10 +31,9 @@ public class GreedyAlg
         }
         Console.WriteLine("Greedy algorithm running: ");
 
-        Console.WriteLine($"Start fitness: {GetStateFitness(state):0.000000}");
-
-
         var scheduleHandler = new ScheduleHandler(state);
+        Console.WriteLine($"Start fitness: {scheduleHandler.CalculateFitnessScore(state):0.000000}");
+
 
         int GetConflictScore(Project p)
         {
@@ -108,7 +107,7 @@ public class GreedyAlg
                 pct = (double)notDoubleBookedCells / total * 100.0;
             }
 
-            Console.WriteLine($"After pass {pass}, fitness: {GetStateFitness(state):0.000000}");
+            Console.WriteLine($"After pass {pass}, fitness: {scheduleHandler.CalculateFitnessScore(state):0.000000}");
 
             if (!anyShifted) break; //ends if nothing moves so we really could have the passes be pretty high for safety
         }
@@ -307,17 +306,6 @@ public class GreedyAlg
             OverlapAfter = overlapAfter,
             ShiftDistance = Math.Abs(candidateShift)
         };
-    }
-    private static double GetStateFitness(ScheduleState state)
-    {
-        int doubleBookedLoad = state.PersonWeekGrid
-            .Where(kv => kv.Value >= 2)
-            .Sum(kv => kv.Value);
-
-        int conflictCells = state.PersonWeekGrid.Values.Count(v => v >= 2);
-
-        double penalty = (1000.0 * doubleBookedLoad) + (10.0 * conflictCells);
-        return 1.0 / (1.0 + penalty);
     }
 
 }

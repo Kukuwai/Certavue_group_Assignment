@@ -18,10 +18,10 @@ public class cpsat
         var choose = new Dictionary<(Project P, int S), BoolVar>(); //Decision variable that lists what shift is actually chosen and is used to map the final move
         var validShiftsByProject = new Dictionary<Project, List<int>>(); //caches valid shifts so only used once
         var activeChoicesByPersonWeek = new Dictionary<(int personId, int Week), List<BoolVar>>(); //Keeps a list of work options for each person/week combo (used in load and conflict)
-        var movementTerms = new List<LinearExpr>(); //Tracks movement terms for tiebreaker
-        var overages = new List<IntVar>(); //Tracks overage variables for reporting
-        var conflictWeeks = new List<BoolVar>(); //Tracks if a person/week is overloaded
-        long maxMovementUpperBound = 0; //Max movement for normalization, used to ensure conflict minimization is the goal
+        var movementTerms = new List<LinearExpr>();
+        var conflictVars = new List<BoolVar>();  // ← ADD THIS
+        var conflictLoads = new Dictionary<BoolVar, LinearExpr>();  // ← ADD THIS
+        long maxMovementUpperBound = 0;
 
 
         foreach (var p in state.Projects)
@@ -89,39 +89,26 @@ public class cpsat
             int personId = k.Key.personId;
             int week = k.Key.Week;
 
-            var load = LinearExpr.Sum(activeChoices);
-
-            var overage = model.NewIntVar(0, activeChoices.Count - 1, $"overage_{personId}_{week}");
-            model.Add(overage >= load - 1);
-
+            var sum = LinearExpr.Sum(activeChoices);
             var conflict = model.NewBoolVar($"conflict_person{personId}_w{week}");
-            model.Add(load >= 2).OnlyEnforceIf(conflict); //enforce the conflict ie it is double booked
-            model.Add(load <= 1).OnlyEnforceIf(conflict.Not()); //do not enforce conflict 
 
-            overages.Add(overage); // Save this for reporting later
-            conflictWeeks.Add(conflict); // Save this for reporting later
+            model.Add(sum >= 2).OnlyEnforceIf(conflict);
+            model.Add(sum <= 1).OnlyEnforceIf(conflict.Not());
+
+            conflictVars.Add(conflict);
+            conflictLoads[conflict] = sum; // Save for reporting only
         }
 
         // This matches your Program.testAlgo metric:
         // double-booked = sum(load where load >= 2) = sum(overage + conflictWeek)
-        var conflictLoadTerms = new List<LinearExpr>();
-        foreach (var o in overages)
-        {
-            conflictLoadTerms.Add(o);
-        }
-        foreach (var c in conflictWeeks)
-        {
-            conflictLoadTerms.Add(c);
-        }
-
         LinearExpr totalConflictEx;
-        if (conflictLoadTerms.Count == 0)
+        if (conflictVars.Count == 0)
         {
             totalConflictEx = LinearExpr.Constant(0);
         }
         else
         {
-            totalConflictEx = LinearExpr.Sum(conflictLoadTerms);
+            totalConflictEx = LinearExpr.Sum(conflictVars);
         }
 
         LinearExpr totalMovementEx;
@@ -216,10 +203,18 @@ public class cpsat
                 }
                 result.ChosenShiftByProject[p] = chosenShift;
             }
-
-            long totalOverage = overages.Sum(v => solverToDecode.Value(v));
-            long totalConflictWeeks = conflictWeeks.Count(v => solverToDecode.Value(v) == 1);
-            result.TotalConflicts = (int)(totalOverage + totalConflictWeeks);
+            // Calculate total conflicts from conflict vars directly
+            int totalConflictCount = 0;
+            foreach (var conflictVar in conflictVars)
+            {
+                if (solverToDecode.Value(conflictVar) == 1)
+                {
+                    // This week has a conflict
+                    long load = solverToDecode.Value(conflictLoads[conflictVar]);
+                    totalConflictCount += (int)load; // Total assignments in conflicted week
+                }
+            }
+            result.TotalConflicts = totalConflictCount;
         }
 
         return result;
