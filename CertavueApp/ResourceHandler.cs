@@ -14,8 +14,104 @@ public class ScheduleHandler
         _finder = new AvailabilityFinder(_state);
     }
 
-    // --- First stage : get newest state ---
+//---------add fitness socre logic
+    public class FitnessScore
+    {
+    public double ConflictWeight = 0.40;      // conflicts sorce
+    public double MovementWeight = 0.20;      // movement sorce： measure weather a project move frequently to different time axis in order to reduce conflicts
+    public double FocusWeight = 0.20;         // measure weather a person be shifted frequently
+    public double ContinuityWeight = 0.10;    // measure weather 
+    public double DurationWeight = 0.10;      // project duration
+    }
 
+//-------method of calculate fitness score
+    public double CalculateFitnessScore(ScheduleState state)
+   {
+    double conflictScore = GetConflictScore(state);     
+    double movementScore = GetMovementScore(state);
+    double focusScore = GetFocusScore(state);
+    double continuityScore = GetContinuityScore(state);
+    double durationScore = GetDurationScore(state);
+
+    // Final weighted sum
+    return (conflictScore * 0.4) + 
+           (movementScore * 0.2) + 
+           (focusScore * 0.2) + 
+           (continuityScore * 0.1) + 
+           (durationScore * 0.1);
+    }
+
+    private double GetConflictScore(ScheduleState state) {
+    int totalSlots = state.PersonWeekGrid.Count;
+    if (totalSlots == 0) return 1.0;
+    // find conflicts grid
+    int conflicts = state.PersonWeekGrid.Values.Count(v => v > 1);
+    // normalization 
+    return Math.Max(0, 1.0 - ((double)conflicts / totalSlots * 5)); // make sure punlish is outstanding
+    }
+
+    private double GetMovementScore(ScheduleState state) {
+    // sum shift
+    double totalShift = state.Projects.Sum(p => Math.Abs(state.GetShift(p)));
+    // normalization socre
+    double avgShift = totalShift / state.Projects.Count;
+    return Math.Max(0, 1.0 - (avgShift / 4.0)); // if it near with 4 it will be 0
+    }
+
+    private double GetFocusScore(ScheduleState state) {
+    // sum on average, how much projects each person takes on every week
+    var multiTaskWeeks = state.PersonWeekGrid.Values.Count(v => v > 1);
+    // normalization
+    return Math.Max(0, 1.0 - ((double)multiTaskWeeks / state.PersonWeekGrid.Count));
+   }
+
+   private double GetContinuityScore(ScheduleState state) {
+    double totalPenalty = 0;
+    foreach(var p in state.Projects) {
+        // count how many people in a project
+        int peopleCount = p.people.Distinct().Count(); 
+        if(peopleCount > 1) totalPenalty += (peopleCount - 1);
+    }
+    return Math.Max(0, 1.0 - (totalPenalty / state.Projects.Count));
+   }  
+
+   private double GetDurationScore(ScheduleState state)
+  {
+    double totalEfficiency = 0;
+
+    foreach (var project in state.Projects)
+    {
+        // 1. 获取该项目在当前状态下的实际开始和结束周
+        var grid = state.GetGrid(project, state.GetShift(project));
+        if (!grid.Any()) continue;
+
+        int actualStart = grid.Min(c => c.Week);
+        int actualEnd = grid.Max(c => c.Week);
+        int actualSpan = (actualEnd - actualStart) + 1;
+
+        // 2. 获取该项目最少需要多少周（假设满负荷工作）
+        // 这里的 logic 取决于你的 HoursNeeded 和项目人数
+        // 简单处理：可以用原计划的持续时间作为基准
+        int plannedSpan = project.endDate - project.startDate + 1;
+
+        // 3. 计算得分：如果实际跨度 = 计划跨度，得分为 1.0；如果拉长了，分数下降
+        double projectScore = (double)plannedSpan / actualSpan;
+        totalEfficiency += Math.Min(1.0, projectScore); 
+    }
+
+    return state.Projects.Count > 0 ? totalEfficiency / state.Projects.Count : 1.0;
+   }
+
+
+
+
+
+
+
+
+
+
+//-------------------
     public ScheduleState GetCurrentState() => _state;
     public AvailabilityFinder GetFinder() => _finder;
 
@@ -140,7 +236,6 @@ public class ScheduleHandler
         List<int> overloads = new List<int>();
         for (int w = 1; w <= 52; w++)
         {
-            // 注意这里要加 _finder.
             if (_finder.GetPersonWorkload(personName, w) > 1)
             {
                 overloads.Add(w);
