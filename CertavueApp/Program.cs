@@ -172,8 +172,8 @@ public class Program
     // }
 
     // Temporarily comment the main method when testing. For running the Program, please un-comment it. There is some issue with versions. 
-    // static void Main(string[] args)
-    // {
-    //     new Program();
-    // }
+    static void Main(string[] args)
+     {
+         new Program();
+    }
 }
