@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Diagnostics;
 using System.Text;
+using static Output;
 
 public class TestOutput
 {
@@ -43,6 +44,7 @@ public void TestAlgorithmToCsvAndHtml()
         .OrderByDescending(a => a.Duration)
         .ThenByDescending(a => a.PeopleCount)
         .ToList();
+
 
     var program = new Program();
     program.ExportToHtml(csvPath, state); 

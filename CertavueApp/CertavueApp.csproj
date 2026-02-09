@@ -8,7 +8,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-  </ItemGroup>
+  <PackageReference Include="Google.OrTools" Version="*"/>
+</ItemGroup>
+
 
   <ItemGroup>
     <None Update="Data\*.csv">
