@@ -33,7 +33,7 @@ public class ScheduleHandler
         foreach (var p in _state.People)
         {
             List<int> freeWeeks = _finder.GetAvailableWeeksForPerson(p.name);
-            report[p.name] = FormatWeeksIntoRanges(freeWeeks); 
+            report[p.name] = FormatWeeksIntoRanges(freeWeeks);
         }
         return report;
     }
@@ -41,14 +41,15 @@ public class ScheduleHandler
     public ShiftScore EvaluateMove(Project p, int candidateShift)
     {
         int currentShift = _state.GetShift(p);
-        
-       
+
+
         if (candidateShift == currentShift)
         {
-            return new ShiftScore { DeltaDoubleBooked = 0, OverlapAfter = 0, ShiftDistance = 0 };
+            return new ShiftScore { DeltaDoubleBooked = 0, OverlapAfter = 0, ShiftDistance = 0, Fitness = 0 };
+
         }
 
-        
+
         var currentCells = _state.GetGrid(p, currentShift);
         var candidateCells = _state.GetGrid(p, candidateShift);
 
@@ -68,43 +69,54 @@ public class ScheduleHandler
             bool isOccupiedInCandidate = candidateCells.Any(c => c.Equals(key));
             int newCountWithCandidate = isOccupiedInCandidate ? baseCountWithoutProject + 1 : baseCountWithoutProject;
 
-            if (currentTotalCount >= 2) delta -= 1; 
+            if (currentTotalCount >= 2) delta -= 1;
             if (newCountWithCandidate >= 2)
             {
-                delta += 1; 
-                overlapAfter++; 
+                delta += 1;
+                overlapAfter++;
             }
         }
+        int distance = Math.Abs(candidateShift - currentShift);
+
+        int currentDoubleBooked = _state.PersonWeekGrid
+            .Where(kv => kv.Value >= 2)
+            .Sum(kv => kv.Value);
+
+        int projectedDoubleBooked = Math.Max(0, currentDoubleBooked + delta);
+
+        double fitness = -(1000 * projectedDoubleBooked + 10 * overlapAfter + distance);
 
         return new ShiftScore
         {
             DeltaDoubleBooked = delta,
             OverlapAfter = overlapAfter,
-            ShiftDistance = Math.Abs(candidateShift - currentShift)
+            ShiftDistance = distance,
+            Fitness = fitness
         };
+
     }
 
 
 
-   //----return conflicts detail: exist conflict in which project whose overloap and which week overloap
+    //----return conflicts detail: exist conflict in which project whose overloap and which week overloap
     public List<string> GetDetailedConflictList()
-{
-    var details = new List<string>();
-    
-    foreach (var entry in _state.PersonWeekGrid.Where(kv => kv.Value >= 2))
     {
-        var key = entry.Key; 
-        var person = _state.People.First(p => p.id == key.PersonId);
-        
-        var conflictingProjects = _state.Projects
-            .Where(proj => _state.GetGrid(proj, _state.GetShift(proj))
-            .Any(cell => cell.PersonId == key.PersonId && cell.Week == key.Week))
-            .Select(proj => proj.name)
-            .ToList();
+        var details = new List<string>();
 
-        details.Add($"Week {key.Week} | {person.name} | Projects: {string.Join(" & ", conflictingProjects)}");
-    }
-    return details;
+        foreach (var entry in _state.PersonWeekGrid.Where(kv => kv.Value >= 2))
+        {
+            var key = entry.Key;
+            var person = _state.People.First(p => p.id == key.PersonId);
+
+            var conflictingProjects = _state.Projects
+                .Where(proj => _state.GetGrid(proj, _state.GetShift(proj))
+                .Any(cell => cell.PersonId == key.PersonId && cell.Week == key.Week))
+                .Select(proj => proj.name)
+                .ToList();
+
+            details.Add($"Week {key.Week} | {person.name} | Projects: {string.Join(" & ", conflictingProjects)}");
+        }
+        return details;
     }
 
 
@@ -126,7 +138,7 @@ public class ScheduleHandler
     {
         if (weeks == null || !weeks.Any()) return "None";
         var sortedWeeks = weeks.Distinct().OrderBy(w => w).ToList();
-        
+
         var ranges = new List<string>();
         int start = sortedWeeks[0];
         int end = sortedWeeks[0];
@@ -156,50 +168,57 @@ public class ScheduleHandler
 
 
 
-public string GenerateSummary()
-{
-    // 1. Calculations
-    int conflictCells = _state.PersonWeekGrid.Values.Count(v => v >= 2);
-    int totalOccupiedCells = _state.PersonWeekGrid.Count;
-    double successPct = totalOccupiedCells == 0 ? 100 : (double)_state.PersonWeekGrid.Values.Count(v => v == 1) / totalOccupiedCells * 100;
+    public string GenerateSummary()
+    {
+        // 1. Calculations
+        int conflictCells = _state.PersonWeekGrid.Values.Count(v => v >= 2);
+        int totalOccupiedCells = _state.PersonWeekGrid.Count;
+        double successPct = totalOccupiedCells == 0 ? 100 : (double)_state.PersonWeekGrid.Values.Count(v => v == 1) / totalOccupiedCells * 100;
 
-    StringBuilder sb = new StringBuilder();
-    sb.AppendLine("======= 📅 PROJECT SCHEDULE DIAGNOSTIC REPORT =======");
-    sb.AppendLine($"[Status] Total Conflicts: {conflictCells} | Success Rate: {successPct:0.##}%");
-    
-    // 2. Critical Overloads (Who is busy)
-    sb.AppendLine("\n[Critical Overloads]");
-    var overloadedStaff = _state.People
-        .Select(p => new { p.name, Weeks = GetOverloadWeeksList(p.name) })
-        .Where(x => x.Weeks.Any())
-        .ToList();
+        StringBuilder sb = new StringBuilder();
+        sb.AppendLine("======= 📅 PROJECT SCHEDULE DIAGNOSTIC REPORT =======");
+        sb.AppendLine($"[Status] Total Conflicts: {conflictCells} | Success Rate: {successPct:0.##}%");
 
-    if (overloadedStaff.Any()) {
-        foreach (var s in overloadedStaff) 
-            sb.AppendLine($"  ⚠️ {s.name}: {s.Weeks.Count} weeks conflicted ({FormatWeeksIntoRanges(s.Weeks)})");
-    } else {
-        sb.AppendLine("  ✅ No resource overloads detected.");
+        // 2. Critical Overloads (Who is busy)
+        sb.AppendLine("\n[Critical Overloads]");
+        var overloadedStaff = _state.People
+            .Select(p => new { p.name, Weeks = GetOverloadWeeksList(p.name) })
+            .Where(x => x.Weeks.Any())
+            .ToList();
+
+        if (overloadedStaff.Any())
+        {
+            foreach (var s in overloadedStaff)
+                sb.AppendLine($"  ⚠️ {s.name}: {s.Weeks.Count} weeks conflicted ({FormatWeeksIntoRanges(s.Weeks)})");
+        }
+        else
+        {
+            sb.AppendLine("  ✅ No resource overloads detected.");
+        }
+
+        // 3. Conflict Breakdown ( What is happening)
+        sb.AppendLine("\n[Conflict Breakdown - Project Overlaps]");
+        var conflictDetails = GetDetailedConflictList();
+        if (conflictDetails.Any())
+        {
+            foreach (var line in conflictDetails) sb.AppendLine($"  ❌ {line}");
+        }
+        else
+        {
+            sb.AppendLine("  ✅ All project assignments are isolated.");
+        }
+
+        // 4. Resource Capacity (Future planning)
+        sb.AppendLine("\n[Resource Capacity / Gaps]");
+        foreach (var p in _state.People)
+        {
+            var gaps = _finder.GetAvailableWeeksForPerson(p.name);
+            sb.AppendLine($"  💡 {p.name}: {gaps.Count} weeks free (Windows: {FormatWeeksIntoRanges(gaps)})");
+        }
+
+        sb.AppendLine("\n====================================================");
+        return sb.ToString();
     }
-
-    // 3. Conflict Breakdown ( What is happening)
-    sb.AppendLine("\n[Conflict Breakdown - Project Overlaps]");
-    var conflictDetails = GetDetailedConflictList(); 
-    if (conflictDetails.Any()) {
-        foreach (var line in conflictDetails) sb.AppendLine($"  ❌ {line}");
-    } else {
-        sb.AppendLine("  ✅ All project assignments are isolated.");
-    }
-
-    // 4. Resource Capacity (Future planning)
-    sb.AppendLine("\n[Resource Capacity / Gaps]");
-    foreach (var p in _state.People) {
-        var gaps = _finder.GetAvailableWeeksForPerson(p.name);
-        sb.AppendLine($"  💡 {p.name}: {gaps.Count} weeks free (Windows: {FormatWeeksIntoRanges(gaps)})");
-    }
-
-    sb.AppendLine("\n====================================================");
-    return sb.ToString();
-}
 
 
     public ScheduleState Finalize()
@@ -211,9 +230,11 @@ public string GenerateSummary()
 
 public class ShiftScore
 {
-    public int DeltaDoubleBooked { get; set; } 
-    public int OverlapAfter { get; set; }     
-    public int ShiftDistance { get; set; }     
+    public int DeltaDoubleBooked { get; set; }
+    public int OverlapAfter { get; set; }
+    public int ShiftDistance { get; set; }
+    public double Fitness { get; set; }
+
 }
 
 

@@ -31,8 +31,10 @@ public class GreedyAlg
         }
         Console.WriteLine("Greedy algorithm running: ");
 
-        Console.WriteLine("Start total: " + startTotal + ", double-booked=" + (startTotal - startNotDoubleBookedCells) + ", % not double-booked=" + startPct.ToString("0.##"));
+        Console.WriteLine($"Start fitness: {GetStateFitness(state):0.000000}");
 
+
+        var scheduleHandler = new ScheduleHandler(state);
 
         for (int pass = 1; pass <= maxPasses; pass++)
         {
@@ -47,17 +49,15 @@ public class GreedyAlg
             {
                 int currentShift = state.GetShift(project);
                 int bestShift = currentShift;
-                ShiftScore best = EvaluateShift(state, project, currentShift); //baseline
+                var best = scheduleHandler.EvaluateMove(project, currentShift); //baseline
 
                 foreach (int candidate in state.GetValidShifts(project)) //all allowed shifts ie within dates
                 {
-                    ShiftScore test = EvaluateShift(state, project, candidate);
+                    var test = scheduleHandler.EvaluateMove(project, candidate);
 
-                    //goes in order fewer double booked, overlap and then shortest move
                     bool better =
-                        test.DeltaDoubleBooked < best.DeltaDoubleBooked ||
-                        (test.DeltaDoubleBooked == best.DeltaDoubleBooked && test.OverlapAfter < best.OverlapAfter) ||
-                        (test.DeltaDoubleBooked == best.DeltaDoubleBooked && test.OverlapAfter == best.OverlapAfter && test.ShiftDistance < best.ShiftDistance);
+                        test.Fitness > best.Fitness ||
+                        (test.Fitness == best.Fitness && test.ShiftDistance < best.ShiftDistance);
 
                     if (better)
                     {
@@ -91,7 +91,7 @@ public class GreedyAlg
                 pct = (double)notDoubleBookedCells / total * 100.0;
             }
 
-            Console.WriteLine("After pass " + pass + ", total: " + total + ", double-booked=" + (total - notDoubleBookedCells) + ", % not double-booked=" + pct.ToString("0.##"));
+            Console.WriteLine($"After pass {pass}, fitness: {GetStateFitness(state):0.000000}");
 
             if (!anyShifted) break; //ends if nothing moves so we really could have the passes be pretty high for safety
         }
@@ -291,5 +291,15 @@ public class GreedyAlg
             ShiftDistance = Math.Abs(candidateShift)
         };
     }
+    private static double GetStateFitness(ScheduleState state)
+    {
+        int doubleBookedLoad = state.PersonWeekGrid
+            .Where(kv => kv.Value >= 2)
+            .Sum(kv => kv.Value);
 
+        int conflictCells = state.PersonWeekGrid.Values.Count(v => v >= 2);
+
+        double penalty = (1000.0 * doubleBookedLoad) + (10.0 * conflictCells);
+        return 1.0 / (1.0 + penalty);
+    }
 }

@@ -32,7 +32,7 @@ public class Program
         testAlgo(scheduleAfterGreedy, "CP-SAT start");
 
         var cp = new cpsat();
-        var cpResult = cp.OptimizeShifts(scheduleAfterGreedy, 300);
+        var cpResult = cp.OptimizeShifts(scheduleAfterGreedy, 3);
 
         Console.WriteLine($"CP-SAT status: {cpResult.Status}");
 
@@ -114,6 +114,9 @@ public class Program
     {
         new Program();
     }
+
+
+
 
 }
 
