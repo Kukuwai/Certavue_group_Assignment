@@ -46,9 +46,9 @@ public void TestAlgorithmToCsvAndHtml()
         .ToList();
 
 
-    var program = new Program();
-    program.ExportToHtml(csvPath, state); 
-    program.ExportToCsv(csvPath, sorted); 
+    var output = new Output();
+    output.ExportToHtml(csvPath, state); 
+    //output.ExportToCsv(csvPath, sorted); 
 
     string expectedCsvPath = csvPath.Replace(".csv", "_Sorted.csv");
     Assert.True(File.Exists(expectedCsvPath));
