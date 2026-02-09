@@ -10,8 +10,8 @@ public class ConflictDetectorTests
   {
     var people = new List<Person>
         {
-            new Person("Person_01"),
-            new Person("Person_02")
+            new Person("Person_01", "Developer"),
+            new Person("Person_02", "Designer")
         };
 
     var projects = new List<Project>

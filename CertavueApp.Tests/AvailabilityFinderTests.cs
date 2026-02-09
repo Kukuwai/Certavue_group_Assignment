@@ -10,9 +10,9 @@ public class AvailabilityFinderTests
   {
     var people = new List<Person>
         {
-            new Person("Person_01"),  // Will be free
-            new Person("Person_02"),  // Will have 1 project
-            new Person("Person_03")   // Will have 2 projects (overloaded)
+            new Person("Person_01", "Developer"),   // Will be free
+            new Person("Person_02", "Designer"),  // Will have 1 project
+            new Person("Person_03", "Tester")   // Will have 2 projects (overloaded)
         };
 
     var projects = new List<Project>
@@ -50,6 +50,8 @@ public class AvailabilityFinderTests
 
     Assert.Equal(0, workload);
 
+    Console.WriteLine("Test1: GetPersonWorkload returns zero when person is free - PASSED");
+
 
   }
 
@@ -67,6 +69,7 @@ public class AvailabilityFinderTests
 
     Assert.Equal(1, workload1);
     Assert.Equal(2, workload2);
+    Console.WriteLine("Test2: GetPersonWorkload returns correct count when busy - PASSED");
   }
 
   [Fact]
@@ -78,6 +81,7 @@ public class AvailabilityFinderTests
     int workload = finder.GetPersonWorkload("NonExistent", 15);
 
     Assert.Equal(-1, workload);
+    Console.WriteLine("Test3: GetPersonWorkload returns -1 when person not found - PASSED");
   }
 
   [Fact]
@@ -92,6 +96,7 @@ public class AvailabilityFinderTests
     Assert.Equal(2, availablePeople.Count);  // Person_01 and Person_03
     Assert.Contains(availablePeople, p => p.name == "Person_01");
     Assert.Contains(availablePeople, p => p.name == "Person_03");
+    Console.WriteLine("Test4: GetAvailablePeopleInWeek returns free people - PASSED");
   }
 
   [Fact]
@@ -109,6 +114,7 @@ public class AvailabilityFinderTests
     Assert.DoesNotContain(17, freeWeeks);
     Assert.Contains(1, freeWeeks);
     Assert.Contains(50, freeWeeks);
+    Console.WriteLine("Test5: GetAvailableWeeksForPerson returns correct weeks - PASSED");
   }
 
   [Fact]
