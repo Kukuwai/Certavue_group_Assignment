@@ -30,23 +30,23 @@ public class Program
         testPrint(scheduleAfterGreedy);
         testAlgo(scheduleAfterGreedy, "After Greedy");
 
-        testAlgo(scheduleAfterGreedy, "CP-SAT start");
+        // testAlgo(scheduleAfterGreedy, "CP-SAT start");
 
-        var cp = new cpsat();
-        var cpResult = cp.OptimizeShifts(scheduleAfterGreedy, 300);
+        // var cp = new cpsat();
+        // var cpResult = cp.OptimizeShifts(scheduleAfterGreedy, 300);
 
-        Console.WriteLine($"CP-SAT status: {cpResult.Status}");
+        // Console.WriteLine($"CP-SAT status: {cpResult.Status}");
 
-        if (cpResult.Status == Google.OrTools.Sat.CpSolverStatus.Optimal ||
-            cpResult.Status == Google.OrTools.Sat.CpSolverStatus.Feasible)
-        {
-            cp.ApplySolution(scheduleAfterGreedy, cpResult);
-            testAlgo(scheduleAfterGreedy, "After CP-SAT");
-        }
-        else
-        {
-            Console.WriteLine("No feasible CP-SAT solution; kept Greedy schedule.");
-        }
+        // if (cpResult.Status == Google.OrTools.Sat.CpSolverStatus.Optimal ||
+        //     cpResult.Status == Google.OrTools.Sat.CpSolverStatus.Feasible)
+        // {
+        //     cp.ApplySolution(scheduleAfterGreedy, cpResult);
+        //     testAlgo(scheduleAfterGreedy, "After CP-SAT");
+        // }
+        // else
+        // {
+        //     Console.WriteLine("No feasible CP-SAT solution; kept Greedy schedule.");
+        // }
 
         //var scheduleAfterConflict = new MoveByConflict().start(scheduleAfterGreedy, projects);
         //testAlgo(scheduleAfterConflict, "After MoveByConflict");
