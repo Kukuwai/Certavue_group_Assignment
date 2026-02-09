@@ -139,9 +139,9 @@ public class AvailabilityFinder
 
           // Check if person works on this project this week;
           var shift = _state.GetShift(project);
-          var footprint = _state.GetFootprintForShift(project, shift);
+          var footprint = _state.GetGrid(project, shift);
 
-          if (footprint.Any(f => f.personId == person.id && f.week == week))
+          if (footprint.Any(f => f.PersonId == person.id && f.Week == week))
           {
             // This project needs help this week;
             if (!opportunitiesByProject.ContainsKey(project.name))
