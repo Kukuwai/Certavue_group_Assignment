@@ -94,4 +94,118 @@ public class AvailabilityFinder
     }
     return overloadedWeeks;
   }
+  // Find what work a new person could take on;
+  public NewPersonWorkResult FindWorkForNewPerson(string personName, int availableWeeks = 52)
+  {
+    var result = new NewPersonWorkResult
+    {
+      PersonName = personName,
+      AvailableWeeks = availableWeeks
+
+    };
+
+    // Find weeks where people are overloaded (2+ projects);
+
+    var overloadedWeeks = new Dictionary<int, List<Person>>();
+
+    for (int week = 1; week <= 52; week++)
+    {
+      var overloadedPeople = _state.People
+          .Where(p =>
+          {
+            var key = new ScheduleState.WeekKey(p.id, week);
+            return _state.PersonWeekGrid.ContainsKey(key) && _state.PersonWeekGrid[key] > 1;
+          })
+          .ToList();
+
+      if (overloadedPeople.Count > 0)
+      {
+        overloadedWeeks[week] = overloadedPeople;
+      }
+
+    }
+
+    // Find projects during overloaded weeks that new person could help with;
+    var opportunitiesByProject = new Dictionary<string, List<int>>();
+
+    foreach (var (week, overloadedPeople) in overloadedWeeks)
+    {
+      // Find projects these overloaded people are working on;
+      foreach (var person in overloadedPeople)
+      {
+        foreach (var project in _state.Projects)
+        {
+          if (!project.people.Contains(person)) continue;
+
+          // Check if person works on this project this week;
+          var shift = _state.GetShift(project);
+          var footprint = _state.GetGrid(project, shift);
+
+          if (footprint.Any(f => f.PersonId == person.id && f.Week == week))
+          {
+            // This project needs help this week;
+            if (!opportunitiesByProject.ContainsKey(project.name))
+            {
+              opportunitiesByProject[project.name] = new List<int>();
+            }
+
+            if (!opportunitiesByProject[project.name].Contains(week))
+            {
+              opportunitiesByProject[project.name].Add(week);
+            }
+          }
+        }
+      }
+    }
+
+    // Sort projects by number of weeks they need help
+    result.WorkOpportunities = opportunitiesByProject
+        .OrderByDescending(kvp => kvp.Value.Count)
+        .Take(10)  // Top 10 projects that need most help
+        .ToDictionary(kvp => kvp.Key, kvp => kvp.Value.OrderBy(w => w).ToList());
+
+    result.TotalWeeksAvailable = result.WorkOpportunities.Values.Sum(weeks => weeks.Count);
+    result.ProjectsNeedingHelp = result.WorkOpportunities.Count;
+
+    return result;
+  }
+}
+public class NewPersonWorkResult
+{
+  public string PersonName { get; set; } = string.Empty;
+  public int AvailableWeeks { get; set; }
+  public Dictionary<string, List<int>> WorkOpportunities { get; set; } = new Dictionary<string, List<int>>();
+  public int TotalWeeksAvailable { get; set; }
+  public int ProjectsNeedingHelp { get; set; }
+
+  public void PrintSummary()
+  {
+    Console.WriteLine($"\n******* WORK OPPORTUNITIES FOR {PersonName} *******");
+    Console.WriteLine($"Available for: {AvailableWeeks} weeks");
+    Console.WriteLine($"Projects needing help: {ProjectsNeedingHelp}");
+    Console.WriteLine($"Total work opportunities: {TotalWeeksAvailable} person-weeks");
+
+   if (WorkOpportunities.Count > 0)
+    {
+      Console.WriteLine($"\nTop projects where {PersonName} could help:");
+      foreach (var (projectName, weeks) in WorkOpportunities.Take(5))
+      {
+        Console.WriteLine($"\n  {projectName}:");
+        Console.WriteLine($"    Weeks needed: {string.Join(", ", weeks.Take(10))}");
+        Console.WriteLine($"    Total: {weeks.Count} weeks");
+      }
+
+       if (WorkOpportunities.Count > 5)
+       {
+        Console.WriteLine($"\n  ... and {WorkOpportunities.Count - 5} more projects");
+       }
+      
+    }
+    else
+    {
+      Console.WriteLine("\n  No overloaded projects found - schedule is well balanced!");
+    }
+
+    Console.WriteLine("****************\n");
+  }
 }
