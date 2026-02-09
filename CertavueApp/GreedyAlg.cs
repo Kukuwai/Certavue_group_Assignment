@@ -36,12 +36,29 @@ public class GreedyAlg
 
         var scheduleHandler = new ScheduleHandler(state);
 
+        int GetConflictScore(Project p)
+        {
+            int shift = state.GetShift(p);
+            var grid = state.GetGrid(p, shift);
+
+            int score = 0;
+            foreach (var cell in grid)
+            {
+                if (state.PersonWeekGrid.TryGetValue(cell, out var count))
+                    score += Math.Max(0, count - 1);
+            }
+            return score;
+        }
+
+
         for (int pass = 1; pass <= maxPasses; pass++)
         {
             var ordered = state.Projects
-            .OrderByDescending(p => state.GetDuration(p))   //longest projs first 
-            .ThenByDescending(p => p.people.Count)          //breaks tie by most people on proj
-            .ToList();
+     .OrderByDescending(p => GetConflictScore(p))
+     .ThenByDescending(p => state.GetDuration(p))
+     .ThenByDescending(p => p.people.Count)
+     .ToList();
+
 
             bool anyShifted = false; //track if any schedules are moved 
 
@@ -302,4 +319,5 @@ public class GreedyAlg
         double penalty = (1000.0 * doubleBookedLoad) + (10.0 * conflictCells);
         return 1.0 / (1.0 + penalty);
     }
+
 }

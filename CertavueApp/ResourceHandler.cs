@@ -42,12 +42,26 @@ public class ScheduleHandler
     {
         int currentShift = _state.GetShift(p);
 
-
+        int currentDoubleBooked = _state.PersonWeekGrid
+                       .Where(kv => kv.Value >= 2)
+                       .Sum(kv => kv.Value);
         if (candidateShift == currentShift)
         {
-            return new ShiftScore { DeltaDoubleBooked = 0, OverlapAfter = 0, ShiftDistance = 0, Fitness = 0 };
 
+
+            int currentConflictCells = _state.PersonWeekGrid.Values.Count(v => v >= 2);
+
+            double currentPenalty = (1000.0 * currentDoubleBooked) + (10.0 * currentConflictCells);
+
+            return new ShiftScore
+            {
+                DeltaDoubleBooked = 0,
+                OverlapAfter = currentConflictCells,
+                ShiftDistance = 0,
+                Fitness = 1.0 / (1.0 + currentPenalty)
+            };
         }
+
 
 
         var currentCells = _state.GetGrid(p, currentShift);
@@ -78,13 +92,14 @@ public class ScheduleHandler
         }
         int distance = Math.Abs(candidateShift - currentShift);
 
-        int currentDoubleBooked = _state.PersonWeekGrid
+        currentDoubleBooked = _state.PersonWeekGrid
             .Where(kv => kv.Value >= 2)
             .Sum(kv => kv.Value);
 
         int projectedDoubleBooked = Math.Max(0, currentDoubleBooked + delta);
 
-        double fitness = -(1000 * projectedDoubleBooked + 10 * overlapAfter + distance);
+        double penalty = (1000.0 * projectedDoubleBooked) + (10.0 * overlapAfter) + distance;
+        double fitness = 1.0 / (1.0 + penalty);
 
         return new ShiftScore
         {
@@ -164,9 +179,6 @@ public class ScheduleHandler
     {
         _state.ApplyShift(p, newShift);
     }
-
-
-
 
     public string GenerateSummary()
     {
