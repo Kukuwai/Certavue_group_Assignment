@@ -20,7 +20,7 @@ public class ScheduleHandler
     public double ConflictWeight = 0.40;      // conflicts sorce
     public double MovementWeight = 0.20;      // movement sorce： measure weather a project move frequently to different time axis in order to reduce conflicts
     public double FocusWeight = 0.20;         // measure weather a person be shifted frequently
-    public double ContinuityWeight = 0.10;    // measure weather 
+    public double ContinuityWeight = 0.10;    // measure weather a project has most continuity 
     public double DurationWeight = 0.10;      // project duration
     }
 
@@ -75,33 +75,30 @@ public class ScheduleHandler
     return Math.Max(0, 1.0 - (totalPenalty / state.Projects.Count));
    }  
 
-   private double GetDurationScore(ScheduleState state)
-  {
-    double totalEfficiency = 0;
 
+   private double GetDurationScore(ScheduleState state)
+{
+    double totalScore = 0;
     foreach (var project in state.Projects)
     {
-        // 1. 获取该项目在当前状态下的实际开始和结束周
-        var grid = state.GetGrid(project, state.GetShift(project));
-        if (!grid.Any()) continue;
-
-        int actualStart = grid.Min(c => c.Week);
-        int actualEnd = grid.Max(c => c.Week);
+        // Get the current shift (offset) applied to this project by the algorithm
+        int currentShift = state.GetShift(project);
+        // Retrieve all occupied cells (person-weeks) for this project at its current position
+        var projectCells = state.GetGrid(project, currentShift);
+        
+        if (!projectCells.Any()) continue;
+        // Calculate the actual timeline span by finding the earliest start and latest end across all team members assigned to this project.
+        int actualStart = projectCells.Min(c => c.Week);
+        int actualEnd = projectCells.Max(c => c.Week);
         int actualSpan = (actualEnd - actualStart) + 1;
-
-        // 2. 获取该项目最少需要多少周（假设满负荷工作）
-        // 这里的 logic 取决于你的 HoursNeeded 和项目人数
-        // 简单处理：可以用原计划的持续时间作为基准
-        int plannedSpan = project.endDate - project.startDate + 1;
-
-        // 3. 计算得分：如果实际跨度 = 计划跨度，得分为 1.0；如果拉长了，分数下降
-        double projectScore = (double)plannedSpan / actualSpan;
-        totalEfficiency += Math.Min(1.0, projectScore); 
+        // Determine the original planned duration as the socre for efficiency
+        int plannedSpan = (project.endDate - project.startDate) + 1;
+        // A score of 1.0 means the project is perfectly compact.
+        double score = (double)plannedSpan / actualSpan;
+        totalScore += Math.Min(1.0, score);
     }
-
-    return state.Projects.Count > 0 ? totalEfficiency / state.Projects.Count : 1.0;
-   }
-
+    return state.Projects.Count > 0 ? totalScore / state.Projects.Count : 1.0;
+}
 
 
 
@@ -111,7 +108,8 @@ public class ScheduleHandler
 
 
 
-//-------------------
+
+//----------------------------------------
     public ScheduleState GetCurrentState() => _state;
     public AvailabilityFinder GetFinder() => _finder;
 
