@@ -84,59 +84,7 @@ public class RoleOptimizer
         GreedyAlg.MoveWeekToReplacement(state, task.Project, task.OverloadedPerson, replacement, rawWeek);
         return replacement.projects.TryGetValue(task.Project, out List<int> replacementWeeks) && replacementWeeks.Contains(rawWeek);
     }
-    private AssignmentSnapshot CaptureSnapshot(ScheduleState state)
-    {
-        var personAssignments = new Dictionary<Person, Dictionary<Project, List<int>>>();
-        foreach (Person person in state.People)
-        {
-            var byProject = new Dictionary<Project, List<int>>();
-            foreach (KeyValuePair<Project, List<int>> kv in person.projects)
-            {
-                byProject[kv.Key] = new List<int>(kv.Value);
-            }
-            personAssignments[person] = byProject;
-        }
-        var projectPeople = new Dictionary<Project, HashSet<Person>>();
-        foreach (Project project in state.Projects)
-        {
-            projectPeople[project] = new HashSet<Person>(project.people);
-        }
-        return new AssignmentSnapshot
-        {
-            PersonAssignments = personAssignments,
-            ProjectPeople = projectPeople
-        };
-    }
-    private void RestoreSnapshot(ScheduleState state, AssignmentSnapshot snapshot)
-    {
-        foreach (Person person in state.People)
-        {
-            person.projects.Clear();
-            if (!snapshot.PersonAssignments.TryGetValue(person, out Dictionary<Project, List<int>> byProject))
-            {
-                continue;
-            }
-            foreach (KeyValuePair<Project, List<int>> kv in byProject)
-            {
-                person.projects[kv.Key] = new List<int>(kv.Value);
-            }
-        }
-        foreach (Project project in state.Projects)
-        {
-            project.people.Clear();
-            if (!snapshot.ProjectPeople.TryGetValue(project, out HashSet<Person> people))
-            {
-                continue;
-            }
-
-            foreach (Person person in people)
-            {
-                project.people.Add(person);
-            }
-        }
-
-        state.RebuildGrid();
-    }
+    
     private class ConflictTask
     {
         public int Week { get; set; }
