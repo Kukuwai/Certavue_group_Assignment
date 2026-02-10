@@ -33,9 +33,9 @@ public class Program
             printStats("Original Data", originalState, file);
 
             // moveByConflict method (manual optimisation)
-            var scheduleAfterConflict = new MoveByConflict().start(originalState, projects);
-            output.ExportToHtml(file, scheduleAfterConflict, "after_conflict");
-            printStats("Conflict Moving Data", scheduleAfterConflict, file);
+            // var scheduleAfterConflict = new MoveByConflict().start(originalState, projects);
+            // output.ExportToHtml(file, scheduleAfterConflict, "after_conflict");
+            // printStats("Conflict Moving Data", scheduleAfterConflict, file);
 
             // greedy algorithm starts, inluding export of output to html
             var scheduleAfterGreedy = new GreedyAlg().StartGreedy(people, projects);
