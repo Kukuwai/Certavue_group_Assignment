@@ -198,7 +198,7 @@ public class Output
             // 5. write to file
             string exportPath = Path.Combine(dataDirectory, Path.GetFileName(exportFileName));
             File.WriteAllText(exportPath, sb.ToString());
-            Console.WriteLine($"\n[Success] The sorted heatmap has been saved: {exportPath}");
+            //Console.WriteLine($"\n[Success] The sorted heatmap has been saved: {exportPath}");
         }
         catch (Exception ex)
         {

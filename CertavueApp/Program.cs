@@ -23,12 +23,12 @@ public class Program
 
         dataPath = Path.Combine(AppContext.BaseDirectory, "Data", "schedule_target75_paired_extreme.csv");
         var originalState = loadData(dataPath);
+
         Output output = new Output();
         output.ExportToHtml(dataPath, originalState, "Original");
-        testPrint(originalState);
+
         var scheduleAfterGreedy = new GreedyAlg().StartGreedy(people, projects);
         output.ExportToHtml(dataPath, scheduleAfterGreedy, "after_greedy");
-        testPrint(scheduleAfterGreedy);
         testAlgo(scheduleAfterGreedy, "After Greedy");
 
 
@@ -41,16 +41,8 @@ public class Program
         var state = new ScheduleState(people, projects);
         this.people = people;
         this.projects = projects;
-        Console.WriteLine("Loaded.");
+        Console.WriteLine("Loaded.\n");
         return state;
-    }
-
-
-    public void testPrint(ScheduleState state)
-    {
-        var handler = new ScheduleHandler(state);
-        var score = handler.CalculateFitnessScore(state);
-        Console.WriteLine("Fitness score: " + score);
     }
 
 
