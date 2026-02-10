@@ -46,6 +46,8 @@ public class Program
             var roleResult = roleOpt.Optimize(scheduleAfterGreedy, maxPasses: 999999999);
             output.ExportToHtml(file, scheduleAfterGreedy, "After Role Checks");
             printStats("Role optimiser Data", roleResult.BestState, file, true);
+
+            projects[0].printPeopleOnProject();
         }
     }
     public ScheduleState loadData(string path)

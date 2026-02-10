@@ -91,5 +91,24 @@ public class Project
     }
 
    }
+
+   public List<Person> getPeopleOnProject()
+    {
+        List<Person> peopleOnProject = new List<Person>();
+        foreach (Person p in this.people)
+        {
+            peopleOnProject.Add(p);
+        }
+        return peopleOnProject;
+    }
+
+    public void printPeopleOnProject()
+    {
+        foreach (Person p in people)
+        {
+            List<int> weeksAssigned = p.projects.GetValueOrDefault(this);
+            Console.WriteLine($"{p.name} | {p.role} | {this.name} | {string.Join(", ", weeksAssigned)}");
+        }
+    }
     
 }
