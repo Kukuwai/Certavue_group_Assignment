@@ -14,7 +14,6 @@ public class Program
 {
     List<Project> projects = new List<Project>();
     List<Person> people = new List<Person>();
-    private readonly string dataPath;
 
 
 
@@ -30,27 +29,23 @@ public class Program
             // export original data to html output
             Output output = new Output();
             output.ExportToHtml(file, originalState, "Original");
-            printStats("Original Data", originalState, file);
+            printStats("Original Data", originalState, file, false);
 
             // moveByConflict method (manual optimisation)
-            var scheduleAfterConflict = new MoveByConflict().start(originalState, projects);
-            output.ExportToHtml(file, scheduleAfterConflict, "after_conflict");
-            printStats("Conflict Moving Data", scheduleAfterConflict, file);
+            //var scheduleAfterConflict = new MoveByConflict().start(originalState, projects);
+            //output.ExportToHtml(file, scheduleAfterConflict, "after_conflict");
+            //printStats("Conflict Moving Data", scheduleAfterConflict, file);
 
             // greedy algorithm starts, inluding export of output to html
+            Console.WriteLine($"Greeding Running File - {System.IO.Path.GetFileName(file)}\n");
             var scheduleAfterGreedy = new GreedyAlg().StartGreedy(people, projects);
             output.ExportToHtml(file, scheduleAfterGreedy, "after_greedy");
 
-            //testPrint(scheduleAfterGreedy);
-            //testAlgo(scheduleAfterGreedy, "After Greedy");
+
             var roleOpt = new RoleOptimizer();
             var roleResult = roleOpt.Optimize(scheduleAfterGreedy, maxPasses: 999999999);
-
-            //testPrint(scheduleAfterGreedy);
-            //testAlgo(scheduleAfterGreedy, "After_RoleOptimizer");
-
-            Output output2 = new Output();
-            output2.ExportToHtml(file, originalState, "After Role Checks");
+            output.ExportToHtml(file, scheduleAfterGreedy, "After Role Checks");
+            printStats("Role optimiser Data", scheduleAfterGreedy, file, true);
         }
     }
     public ScheduleState loadData(string path)
@@ -60,7 +55,7 @@ public class Program
         var state = new ScheduleState(people, projects);
         this.people = people;
         this.projects = projects;
-        Console.WriteLine("Loaded.\n");
+        Console.WriteLine($"Loaded {System.IO.Path.GetFileName(path)}\n");
         return state;
     }
 
@@ -70,7 +65,7 @@ public class Program
         new Program();
     }
 
-    public void printStats(string dataName, ScheduleState state, string path)
+    public void printStats(string dataName, ScheduleState state, string path, bool end)
     {
         ScheduleHandler handler = new ScheduleHandler(state);
         var conflictScore = handler.GetConflictScore(state);
@@ -79,9 +74,12 @@ public class Program
         var continuityScore = handler.GetContinuityScore(state);
         var durationScore = handler.GetDurationScore(state);
         var fitnessScore = handler.CalculateFitnessScore(state);
-        Console.WriteLine($"|-----{dataName} : {path} -----|");
-        Console.WriteLine($"Finess Score - {fitnessScore}\nBreakdown - Conflict Score: {conflictScore} || Movement Score: {movementScore} || Focus Score: {focusScore} || Continuity Score: {continuityScore} || Duration Score: {durationScore}\n");
-        Console.WriteLine("------------------------------------------------------------------\n");
+        Console.WriteLine($"|-----{dataName}-----|");
+        Console.WriteLine($"Finess Score - {fitnessScore.ToString("F2")}\nBreakdown - Conflict Score: {conflictScore.ToString("F2")} || Movement Score: {movementScore.ToString("F2")} || Focus Score: {focusScore.ToString("F2")} || Continuity Score: {continuityScore.ToString("F2")} || Duration Score: {durationScore.ToString("F2")}\n");
+        if (end)
+        {
+           Console.WriteLine("------------------------------------------------------------------\n"); 
+        }
     }
 }
 
