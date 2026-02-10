@@ -29,7 +29,6 @@ public class GreedyAlg
         {
             startPct = (double)startNotDoubleBookedCells / startTotal * 100.0;
         }
-        Console.WriteLine("Greedy algorithm running: ");
 
         var scheduleHandler = new ScheduleHandler(state);
 
@@ -318,8 +317,7 @@ public class GreedyAlg
         var durationScore = handler.GetDurationScore(state);
         var fitnessScore = handler.CalculateFitnessScore(state);
         Console.WriteLine($"|----- {dataName} -----|");
-        Console.WriteLine($"Finess Score - {fitnessScore}\nBreakdown - Conflict Score: {conflictScore} || Movement Score: {movementScore} || Focus Score: {focusScore} || Continuity Score: {continuityScore} || Duration Score: {durationScore}\n");
-        Console.WriteLine("------------------------------------------------------------------\n");
+        Console.WriteLine($"Finess Score - {fitnessScore.ToString("F2")}\nBreakdown - Conflict Score: {conflictScore.ToString("F2")} || Movement Score: {movementScore.ToString("F2")} || Focus Score: {focusScore.ToString("F2")} || Continuity Score: {continuityScore.ToString("F2")} || Duration Score: {durationScore.ToString("F2")}\n");
     }
 
 }
