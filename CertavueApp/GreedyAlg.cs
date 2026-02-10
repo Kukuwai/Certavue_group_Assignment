@@ -71,9 +71,7 @@ public class GreedyAlg
                 {
                     var test = scheduleHandler.EvaluateMoveDelta(project, candidate);
 
-                    bool better =
-                        test.Fitness > best.Fitness ||
-                        (test.Fitness == best.Fitness && test.ShiftDistance < best.ShiftDistance);
+                    bool better = test > best || (Math.Abs(test - best) < 0.0001 && Math.Abs(candidate) < Math.Abs(bestShift));
 
                     if (better)
                     {

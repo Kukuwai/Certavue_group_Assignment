@@ -21,7 +21,7 @@ public class Program
     public Program()
     {
 
-        dataPath = Path.Combine(AppContext.BaseDirectory, "Data", "SmallTestSetRoles.csv");
+        dataPath = Path.Combine(AppContext.BaseDirectory, "Data", "schedule_target75_paired_moderate.csv");
         var originalState = loadData(dataPath);
         Output output = new Output();
         output.ExportToHtml(dataPath, originalState, "Original");
