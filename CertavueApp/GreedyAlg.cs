@@ -107,7 +107,11 @@ public class GreedyAlg
                 pct = (double)notDoubleBookedCells / total * 100.0;
             }
 
+<<<<<<< HEAD
             printStats($"Greedy Pass {pass}", state);
+=======
+          //  Console.WriteLine($"After pass {pass}, fitness: {scheduleHandler.CalculateFitnessScore(state):0.000000}");
+>>>>>>> f4f35d5f294dab95edace2d8c9fada9ae274f5e6
 
             if (!anyShifted) break; //ends if nothing moves so we really could have the passes be pretty high for safety
         }

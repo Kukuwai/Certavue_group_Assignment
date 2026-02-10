@@ -25,26 +25,35 @@ public class Program
         // loading data in
         foreach (string file in files)
         {
-          dataPath = Path.Combine(AppContext.BaseDirectory, "Data", "schedule_target75_medium_with_roles_40s.csv");
-        var originalState = loadData(dataPath);
+            dataPath = Path.Combine(AppContext.BaseDirectory, "Data", "schedule_target75_medium_with_roles_40s.csv");
+            var originalState = loadData(dataPath);
 
-        // export original data to html output
-        Output output = new Output();
-        output.ExportToHtml(dataPath, originalState, "Original");
-        printStats("Original Data", originalState);
+            // export original data to html output
+            Output output = new Output();
+            output.ExportToHtml(dataPath, originalState, "Original");
+            printStats("Original Data", originalState);
 
-        // moveByConflict method (manual optimisation)
-        var scheduleAfterConflict = new MoveByConflict().start(originalState, projects);
-        output.ExportToHtml(dataPath, scheduleAfterConflict, "after_conflict");
-        printStats("Conflict Moving Data", scheduleAfterConflict);
+            // moveByConflict method (manual optimisation)
+            var scheduleAfterConflict = new MoveByConflict().start(originalState, projects);
+            output.ExportToHtml(dataPath, scheduleAfterConflict, "after_conflict");
+            printStats("Conflict Moving Data", scheduleAfterConflict);
 
-        // greedy algorithm starts, inluding export of output to html
-        var scheduleAfterGreedy = new GreedyAlg().StartGreedy(people, projects);
-        output.ExportToHtml(dataPath, scheduleAfterGreedy, "after_greedy");
+            // greedy algorithm starts, inluding export of output to html
+            var scheduleAfterGreedy = new GreedyAlg().StartGreedy(people, projects);
+            output.ExportToHtml(dataPath, scheduleAfterGreedy, "after_greedy");
+
+            //testPrint(scheduleAfterGreedy);
+            //testAlgo(scheduleAfterGreedy, "After Greedy");
+            var roleOpt = new RoleOptimizer();
+            var roleResult = roleOpt.Optimize(scheduleAfterGreedy, maxPasses: 999999999);
+
+            //testPrint(scheduleAfterGreedy);
+            //testAlgo(scheduleAfterGreedy, "After_RoleOptimizer");
+
+            Output output2 = new Output();
+            output2.ExportToHtml(dataPath, originalState, "After Role Checks");
         }
-
     }
-
     public ScheduleState loadData(string path)
     {
         Loader load = new Loader();
