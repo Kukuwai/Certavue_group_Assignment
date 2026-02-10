@@ -31,6 +31,9 @@ public class Program
         output.ExportToHtml(dataPath, scheduleAfterGreedy, "after_greedy");
         testAlgo(scheduleAfterGreedy, "After Greedy");
 
+        // Testing here the FindPeopleForNewProject method. 
+        TestFindPeopleForNewProject();
+
 
     }
 
@@ -44,7 +47,6 @@ public class Program
         Console.WriteLine("Loaded.\n");
         return state;
     }
-
 
     public void testAlgo(ScheduleState state, string label)
     {
@@ -62,6 +64,24 @@ public class Program
         }
 
         Console.WriteLine(label + " total: " + total + ", double-booked=" + (total - notDoubleBookedCells) + ", % not double-booked=" + pct.ToString("0.##"));
+    }
+
+    public void TestFindPeopleForNewProject()
+    {
+        Console.WriteLine("\n********Testing FindPeopleForNewProject method****** \n");
+
+        var state = new ScheduleState(people, projects);
+        var finder = new AvailabilityFinder(state);
+
+        // Find Developers for weeks 20-25 (6 weeks), need 2 people
+        var result = finder.FindPeopleForNewProject(
+            startWeek: 20,
+            duration: 6,
+            peopleNeeded: 2,
+            requiredRole: "Developer"
+        );
+
+        result.PrintSummary();
     }
 
 

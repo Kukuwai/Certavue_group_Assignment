@@ -170,44 +170,72 @@ public class AvailabilityFinder
     return result;
   }
   // Find available people for a new project
-  public NewProjectStaffingResult FindPeopleForNewProject(int startWeek, int duration, int peopleNeeded)
+  public NewProjectStaffingResult FindPeopleForNewProject(int startWeek, int duration, int peopleNeeded, string requiredRole = "")
   {
     var result = new NewProjectStaffingResult
     {
       StartWeek = startWeek,
       Duration = duration,
       PeopleNeeded = peopleNeeded,
-      EndWeek = startWeek + duration - 1
+      EndWeek = startWeek + duration - 1,
+      RequiredRole = requiredRole
     };
 
-    // Find people who are free for ALL weeks of the project
-    var availableForAllWeeks = new List<Person>();
+    // Filter by role if specified
+    var peopleToCheck = string.IsNullOrEmpty(requiredRole)
+        ? _state.People
+        : _state.People.Where(p => p.role == requiredRole).ToList();
 
-    foreach (var person in _state.People)
+    // Check each person's availability
+    foreach (var person in peopleToCheck)
     {
       bool isFreeForAllWeeks = true;
+      var availableWeeks = new List<int>();
 
-      // Check each week of the project
       for (int week = startWeek; week < startWeek + duration; week++)
       {
         var key = new ScheduleState.WeekKey(person.id, week);
 
-        // If person is busy in ANY week, they can't do the full project
-        if (_state.PersonWeekGrid.ContainsKey(key) && _state.PersonWeekGrid[key] > 0)
+        if (!_state.PersonWeekGrid.ContainsKey(key) || _state.PersonWeekGrid[key] == 0)
+        {
+          availableWeeks.Add(week);
+        }
+        else
         {
           isFreeForAllWeeks = false;
-          break;
         }
       }
 
       if (isFreeForAllWeeks)
       {
-        availableForAllWeeks.Add(person);
+        result.FullyAvailablePeople.Add(person);
+      }
+
+      if (availableWeeks.Any())
+      {
+        result.PartiallyAvailablePeople[person] = availableWeeks;
       }
     }
 
-    result.AvailablePeople = availableForAllWeeks;
-    result.CanBeFulfilled = availableForAllWeeks.Count >= peopleNeeded;
+    // Calculate coverage
+    var coveredWeeksSet = new HashSet<int>();
+    foreach (var weeksList in result.PartiallyAvailablePeople.Values)
+    {
+      foreach (var week in weeksList)
+      {
+        coveredWeeksSet.Add(week);
+      }
+    }
+
+    result.CoveredWeeks = coveredWeeksSet.OrderBy(w => w).ToList();
+    result.UncoveredWeeks = Enumerable.Range(startWeek, duration)
+        .Except(coveredWeeksSet)
+        .ToList();
+
+    // Determine if can be fulfilled
+    result.CanBeFulfilled =
+        (result.FullyAvailablePeople.Count >= peopleNeeded) ||
+        (result.CoveredWeeks.Count == duration && result.PartiallyAvailablePeople.Count >= peopleNeeded);
 
     return result;
   }
@@ -259,35 +287,39 @@ public class NewProjectStaffingResult
   public int Duration { get; set; }
   public int EndWeek { get; set; }
   public int PeopleNeeded { get; set; }
-  public List<Person> AvailablePeople { get; set; } = new List<Person>();
+  public string RequiredRole { get; set; } = string.Empty;
+  public List<Person> FullyAvailablePeople { get; set; } = new List<Person>();
+  public Dictionary<Person, List<int>> PartiallyAvailablePeople { get; set; } = new Dictionary<Person, List<int>>();
+  public List<int> CoveredWeeks { get; set; } = new List<int>();
+  public List<int> UncoveredWeeks { get; set; } = new List<int>();
   public bool CanBeFulfilled { get; set; }
 
   public void PrintSummary()
   {
     Console.WriteLine($"\n********** NEW PROJECT STAFFING ********");
     Console.WriteLine($"Project: Weeks {StartWeek}-{EndWeek} ({Duration} weeks)");
+    Console.WriteLine($"Role: {(string.IsNullOrEmpty(RequiredRole) ? "Any" : RequiredRole)}");
     Console.WriteLine($"People needed: {PeopleNeeded}");
-    Console.WriteLine($"People available: {AvailablePeople.Count}");
     Console.WriteLine($"Can be fulfilled: {(CanBeFulfilled ? " YES" : "NO")}");
 
-
-
-    if (AvailablePeople.Count > 0)
+    Console.WriteLine($"\nFully available: {FullyAvailablePeople.Count}");
+    foreach (var person in FullyAvailablePeople.Take(5))
     {
-      Console.WriteLine($"\nAvailable people:");
-      foreach (var person in AvailablePeople.Take(10))
-      {
-        Console.WriteLine($"  - {person.name}");
-      }
-      if (AvailablePeople.Count > 10)
-      {
-        Console.WriteLine($"  ... and {AvailablePeople.Count - 10} more");
-      }
+      Console.WriteLine($"  - {person.name}");
     }
-    else
+
+    Console.WriteLine($"\nPartially available: {PartiallyAvailablePeople.Count}");
+    foreach (var (person, weeks) in PartiallyAvailablePeople.Take(5))
     {
-      Console.WriteLine("\n  No people available for this timeframe.");
+      Console.WriteLine($"  - {person.name}: {weeks.Count} weeks");
     }
+
+    Console.WriteLine($"\nCoverage: {CoveredWeeks.Count}/{Duration} weeks");
+    if (UncoveredWeeks.Any())
+    {
+      Console.WriteLine($"Uncovered: {string.Join(", ", UncoveredWeeks)}");
+    }
+
     Console.WriteLine("***************************\n");
   }
 }
