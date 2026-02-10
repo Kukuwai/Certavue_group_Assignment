@@ -29,7 +29,7 @@ public class ScheduleHandler
 public class RoleGapReport
     {
         public double Saturation { get; set; }      
-        public int MissingWeekHours { get; set; }   
+        public int MissingHours { get; set; }   
         public double RecommendedStaff { get; set; } 
         public string Status => Saturation > 1.0 ? "Critical" : "Healthy";
     }
@@ -271,6 +271,7 @@ public int GetBestMoveForProject(Project p)
 public Person DetermineBestReplacement(Project project, Person currentPerson)
 {
     // Identify all eligible candidates who possess the same professional Role.
+<<<<<<< HEAD
     var candidates = new List<Person>();
      foreach (Project p in _state.Projects)
         {
@@ -282,6 +283,9 @@ public Person DetermineBestReplacement(Project project, Person currentPerson)
                 }
             }
         }
+=======
+    var candidates = _finder.FindPeopleByRole(currentPerson.role);
+>>>>>>> 268ac0cbade1d05a684b6d6a394ef15b8d29a216
     
     Person bestCandidate = currentPerson;
     
@@ -375,42 +379,40 @@ public List<ShiftPerformance> GetScoreTrendForProject(Project p)
 
 
 
-// // 
-// public Dictionary<string, RoleGapReport> GetRoleSaturation(int startWeek, int endWeek)
-// {
-//     var report = new Dictionary<string, RoleGapReport>();
-//     var allRoles = _state.People.Select(p => p.Role).Distinct();
+// a method to help adding new projetc since we need to find optimal resouce with same role
+public Dictionary<string, RoleGapReport> GetRoleSaturation(int startWeek, int endWeek)
+{
+    var report = new Dictionary<string, RoleGapReport>();
+    var allRoles = _state.People.Select(p => p.role).Distinct();
 
-//     foreach (var role in allRoles)
-//     {
-//         int supplyWeeks = _state.People.Count(p => p.Role == role) * (endWeek - startWeek + 1);
+    foreach (var role in allRoles)
+    {
+        int supplyWeeks = _state.People.Count(p => p.role == role) * (endWeek - startWeek + 1);
         
-//         // 2. 需求：统计所有项目在该时段分配给该 Role 的总周数
-//         int demandWeeks = 0;
-//         foreach (var proj in _state.Projects)
-//         {
-//             var shift = _state.GetShift(proj);
-//             var cells = _state.GetGrid(proj, shift)
-//                              .Where(c => c.Week >= startWeek && c.Week <= endWeek);
+        int demandWeeks = 0;
+        foreach (var proj in _state.Projects)
+        {
+            var shift = _state.GetShift(proj);
+            var cells = _state.GetGrid(proj, shift)
+                             .Where(c => c.Week >= startWeek && c.Week <= endWeek);
             
-//             // 检查这些 cell 对应的人是否是这个 Role
-//             foreach(var cell in cells)
-//             {
-//                 var person = _state.People.First(p => p.id == cell.PersonId);
-//                 if (person.Role == role) demandWeeks++;
-//             }
-//         }
+            foreach(var cell in cells)
+            {
+                var person = _state.People.First(p => p.id == cell.PersonId);
+                if (person.role == role) demandWeeks++;
+            }
+        }
 
-//         double saturation = supplyWeeks == 0 ? 0 : (double)demandWeeks / supplyWeeks;
+        double saturation = supplyWeeks == 0 ? 0 : (double)demandWeeks / supplyWeeks;
         
-//         report[role] = new RoleGapReport {
-//             Saturation = saturation,
-//             MissingHours = (demandWeeks > supplyWeeks) ? (demandWeeks - supplyWeeks) * 40 : 0,
-//             RecommendedStaff = Math.Max(0, Math.Ceiling((double)(demandWeeks - supplyWeeks) / (endWeek - startWeek + 1)))
-//         };
-//     }
-//     return report;
-// }
+        report[role] = new RoleGapReport {
+            Saturation = saturation,
+            MissingHours = (demandWeeks > supplyWeeks) ? (demandWeeks - supplyWeeks) * 40 : 0,
+            RecommendedStaff = Math.Max(0, Math.Ceiling((double)(demandWeeks - supplyWeeks) / (endWeek - startWeek + 1)))
+        };
+    }
+    return report;
+}
 
 
 
