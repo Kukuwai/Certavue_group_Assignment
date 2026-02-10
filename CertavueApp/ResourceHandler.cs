@@ -271,7 +271,17 @@ public int GetBestMoveForProject(Project p)
 public Person DetermineBestReplacement(Project project, Person currentPerson)
 {
     // Identify all eligible candidates who possess the same professional Role.
-    var candidates = _finder.FindPeopleByRole(currentPerson.Role);
+    var candidates = new List<Person>();
+     foreach (Project p in _state.Projects)
+        {
+            foreach (Person person in p.people)
+            {
+                if (person.role.Equals(currentPerson.role))
+                {
+                    candidates.Add(person);
+                }
+            }
+        }
     
     Person bestCandidate = currentPerson;
     
@@ -442,30 +452,30 @@ public List<ShiftPerformance> GetScoreTrendForProject(Project p)
     //     return overloads;
     // }
 
-    // private string FormatWeeksIntoRanges(List<int> weeks)
-    // {
-    //     if (weeks == null || !weeks.Any()) return "None";
-    //     var sortedWeeks = weeks.Distinct().OrderBy(w => w).ToList();
+    private string FormatWeeksIntoRanges(List<int> weeks)
+    {
+        if (weeks == null || !weeks.Any()) return "None";
+        var sortedWeeks = weeks.Distinct().OrderBy(w => w).ToList();
 
-    //     var ranges = new List<string>();
-    //     int start = sortedWeeks[0];
-    //     int end = sortedWeeks[0];
+        var ranges = new List<string>();
+        int start = sortedWeeks[0];
+        int end = sortedWeeks[0];
 
-    //     for (int i = 1; i < sortedWeeks.Count; i++)
-    //     {
-    //         if (sortedWeeks[i] == end + 1)
-    //         {
-    //             end = sortedWeeks[i];
-    //         }
-    //         else
-    //         {
-    //             ranges.Add(start == end ? $"{start}" : $"{start}-{end}");
-    //             start = end = sortedWeeks[i];
-    //         }
-    //     }
-    //     ranges.Add(start == end ? $"{start}" : $"{start}-{end}");
-    //     return string.Join(", ", ranges);
-    // }
+        for (int i = 1; i < sortedWeeks.Count; i++)
+        {
+            if (sortedWeeks[i] == end + 1)
+            {
+                end = sortedWeeks[i];
+            }
+            else
+            {
+                ranges.Add(start == end ? $"{start}" : $"{start}-{end}");
+                start = end = sortedWeeks[i];
+            }
+        }
+        ranges.Add(start == end ? $"{start}" : $"{start}-{end}");
+        return string.Join(", ", ranges);
+     }
 
 
 
