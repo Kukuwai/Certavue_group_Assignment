@@ -7,6 +7,7 @@ public class Project
     public int id {get;}
     public string name {get; set;}
     public HashSet<Person> people { get; } = new();
+    public HashSet<int> originalPeopleIds { get; } = new();
     public int startDate {get; set;}
     public int endDate {get; set;} 
     public int duration {get; set;}

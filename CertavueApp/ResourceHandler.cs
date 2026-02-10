@@ -87,13 +87,36 @@ public class RoleGapReport
    }
 
    public double GetContinuityScore(ScheduleState state) {
-    double totalPenalty = 0;
-    foreach(var p in state.Projects) {
-        // count how many people in a project
-        int peopleCount = p.people.Distinct().Count(); 
-        if(peopleCount > 1) totalPenalty += (peopleCount - 1);
+    if (state.Projects.Count == 0) return 1.0;
+
+    double totalScore = 0;
+
+    foreach (var project in state.Projects)
+    {
+        int originalCount = project.originalPeopleIds.Count;
+
+        // If no baseline team exists, guess treat it as perfect for this project???
+        if (originalCount == 0)
+        {
+            totalScore += 1.0;
+            continue;
+        }
+
+        int overlap = 0;
+        foreach (var person in project.people)
+        {
+            // Count how many current people were in the original team
+            if (project.originalPeopleIds.Contains(person.id))
+                overlap++;
+        }
+
+        // Score is the share of original people still on the project.
+        double projectScore = (double)overlap / originalCount;
+        totalScore += projectScore;
     }
-    return Math.Max(0, 1.0 - (totalPenalty / state.Projects.Count));
+
+    // Average continuity across all projects.
+    return totalScore / state.Projects.Count;
    }  
 
 

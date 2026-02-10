@@ -58,6 +58,7 @@ public class Loader
 
             person.projects.Add(project, weeksAssigned);
             project.people.Add(person);
+            project.originalPeopleIds.Add(person.id);
             project.updateCapacity();
             
         }
