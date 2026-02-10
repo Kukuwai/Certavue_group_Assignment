@@ -16,7 +16,6 @@ public class Loader
         var peopleByName = new Dictionary<string, Person>();
         var projectsByName = new Dictionary<string, Project>();
         var header = lines[0].Split(',');
-        int counter = 0;
         // searches the index for the headers i.e people name and project name (this should always be 0 and 1)
         int personHeader = Array.IndexOf(header, "Person");
         int projectHeader = Array.IndexOf(header, "Project");
@@ -54,15 +53,14 @@ public class Loader
                     if (cells[i].Contains("40"))
                     {
                         weeksAssigned.Add(i-2);
-                        counter ++;
                     }
                 }
 
             person.projects.Add(project, weeksAssigned);
             project.people.Add(person);
+            project.updateCapacity();
             
         }
-        Console.WriteLine(counter);
         return (peopleByName.Values.ToList(), projectsByName.Values.ToList());
     }
 }

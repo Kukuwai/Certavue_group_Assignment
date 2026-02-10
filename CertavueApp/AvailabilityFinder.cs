@@ -169,6 +169,49 @@ public class AvailabilityFinder
 
     return result;
   }
+  // Find available people for a new project
+  public NewProjectStaffingResult FindPeopleForNewProject(int startWeek, int duration, int peopleNeeded)
+  {
+    var result = new NewProjectStaffingResult
+    {
+      StartWeek = startWeek,
+      Duration = duration,
+      PeopleNeeded = peopleNeeded,
+      EndWeek = startWeek + duration - 1
+    };
+
+    // Find people who are free for ALL weeks of the project
+    var availableForAllWeeks = new List<Person>();
+
+    foreach (var person in _state.People)
+    {
+      bool isFreeForAllWeeks = true;
+
+      // Check each week of the project
+      for (int week = startWeek; week < startWeek + duration; week++)
+      {
+        var key = new ScheduleState.WeekKey(person.id, week);
+
+        // If person is busy in ANY week, they can't do the full project
+        if (_state.PersonWeekGrid.ContainsKey(key) && _state.PersonWeekGrid[key] > 0)
+        {
+          isFreeForAllWeeks = false;
+          break;
+        }
+      }
+
+      if (isFreeForAllWeeks)
+      {
+        availableForAllWeeks.Add(person);
+      }
+    }
+
+    result.AvailablePeople = availableForAllWeeks;
+    result.CanBeFulfilled = availableForAllWeeks.Count >= peopleNeeded;
+
+    return result;
+  }
+
 }
 public class NewPersonWorkResult
 {
@@ -185,7 +228,7 @@ public class NewPersonWorkResult
     Console.WriteLine($"Projects needing help: {ProjectsNeedingHelp}");
     Console.WriteLine($"Total work opportunities: {TotalWeeksAvailable} person-weeks");
 
-   if (WorkOpportunities.Count > 0)
+    if (WorkOpportunities.Count > 0)
     {
       Console.WriteLine($"\nTop projects where {PersonName} could help:");
       foreach (var (projectName, weeks) in WorkOpportunities.Take(5))
@@ -195,17 +238,56 @@ public class NewPersonWorkResult
         Console.WriteLine($"    Total: {weeks.Count} weeks");
       }
 
-       if (WorkOpportunities.Count > 5)
-       {
+      if (WorkOpportunities.Count > 5)
+      {
         Console.WriteLine($"\n  ... and {WorkOpportunities.Count - 5} more projects");
-       }
-      
+      }
+
     }
     else
     {
       Console.WriteLine("\n  No overloaded projects found - schedule is well balanced!");
+
     }
 
     Console.WriteLine("****************\n");
+  }
+}
+public class NewProjectStaffingResult
+{
+  public int StartWeek { get; set; }
+  public int Duration { get; set; }
+  public int EndWeek { get; set; }
+  public int PeopleNeeded { get; set; }
+  public List<Person> AvailablePeople { get; set; } = new List<Person>();
+  public bool CanBeFulfilled { get; set; }
+
+  public void PrintSummary()
+  {
+    Console.WriteLine($"\n********** NEW PROJECT STAFFING ********");
+    Console.WriteLine($"Project: Weeks {StartWeek}-{EndWeek} ({Duration} weeks)");
+    Console.WriteLine($"People needed: {PeopleNeeded}");
+    Console.WriteLine($"People available: {AvailablePeople.Count}");
+    Console.WriteLine($"Can be fulfilled: {(CanBeFulfilled ? " YES" : "NO")}");
+
+
+
+    if (AvailablePeople.Count > 0)
+    {
+      Console.WriteLine($"\nAvailable people:");
+      foreach (var person in AvailablePeople.Take(10))
+      {
+        Console.WriteLine($"  - {person.name}");
+      }
+      if (AvailablePeople.Count > 10)
+      {
+        Console.WriteLine($"  ... and {AvailablePeople.Count - 10} more");
+      }
+    }
+    else
+    {
+      Console.WriteLine("\n  No people available for this timeframe.");
+    }
+    Console.WriteLine("***************************\n");
   }
 }

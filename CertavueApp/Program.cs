@@ -21,46 +21,18 @@ public class Program
     public Program()
     {
 
-        dataPath = Path.Combine(AppContext.BaseDirectory, "Data", "schedule_target75_paired_extreme.csv");
+        dataPath = Path.Combine(AppContext.BaseDirectory, "Data", "SmallTestSetRoles.csv");
         var originalState = loadData(dataPath);
         Output output = new Output();
-        output.ExportToHtml(dataPath, originalState);
+        output.ExportToHtml(dataPath, originalState, "Original");
         testPrint(originalState);
         var scheduleAfterGreedy = new GreedyAlg().StartGreedy(people, projects);
+        output.ExportToHtml(dataPath, scheduleAfterGreedy, "after_greedy");
         testPrint(scheduleAfterGreedy);
         testAlgo(scheduleAfterGreedy, "After Greedy");
 
-        // testAlgo(scheduleAfterGreedy, "CP-SAT start");
-
-        // var cp = new cpsat();
-        // var cpResult = cp.OptimizeShifts(scheduleAfterGreedy, 300);
-
-        // Console.WriteLine($"CP-SAT status: {cpResult.Status}");
-
-        // if (cpResult.Status == Google.OrTools.Sat.CpSolverStatus.Optimal ||
-        //     cpResult.Status == Google.OrTools.Sat.CpSolverStatus.Feasible)
-        // {
-        //     cp.ApplySolution(scheduleAfterGreedy, cpResult);
-        //     testAlgo(scheduleAfterGreedy, "After CP-SAT");
-        // }
-        // else
-        // {
-        //     Console.WriteLine("No feasible CP-SAT solution; kept Greedy schedule.");
-        // }
-
-        //var scheduleAfterConflict = new MoveByConflict().start(scheduleAfterGreedy, projects);
-        //testAlgo(scheduleAfterConflict, "After MoveByConflict");
 
     }
-
-    /*public void StartApp()
-    {
-        loadData(); // 加载大数据
-        var stateAfter = new GreedyAlg().StartGreedy(people, projects);
-        string filePath = "Data/schedule_target75_large.csv";
-        ExportToHtml(filePath, stateAfter);
-        //var m = new MoveByConflict(stateAfter);
-    }*/
 
     public ScheduleState loadData(string path)
     {
@@ -72,7 +44,6 @@ public class Program
         Console.WriteLine("Loaded.");
         return state;
     }
-
 
 
     public void testPrint(ScheduleState state)
@@ -120,4 +91,5 @@ public class AssignmentRow
     public HashSet<int> ActiveWeeks { get; set; }
     public int Duration { get; set; }
     public int PeopleCount { get; set; }
+    public string PersonRole { get; internal set; }
 }
