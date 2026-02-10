@@ -4,7 +4,70 @@ using System.Linq;
 
 public class RoleOptimizer
 {
+   
+    private WeekOptimizationResult OptimizeWeek(ScheduleState state, int week, double baselineFitness, ScheduleHandler handler) //method checks one week at a time and optimizes it
+    {
+        List<ConflictTask> tasks = BuildConflictTasks(state, week); //each task is one overloaded person on one project in that week
+        if (tasks.Count == 0)
+        {
+            return new WeekOptimizationResult
+            {
+                Improved = false,
+                BestFitness = baselineFitness,
+                CombinationsChecked = 0
+            };
+        }
+        AssignmentSnapshot baseline = CaptureSnapshot(state);  //saves state before changes are made
+        AssignmentSnapshot bestSnapshot = null; //will be stored with best state as changes happen
+        double bestFitness = baselineFitness; //best fitness score
+        int combinationsChecked = 0; //counter for how many checks have been done
+        void Search(int taskIndex) //recursive search for each tasks and checks to keep current assignment or replace staff
+        {
+            if (taskIndex == tasks.Count)
+            {
+                combinationsChecked++;
+                double score = handler.CalculateFitnessScore(state); //score this new state
 
+                if (score > bestFitness)
+                {
+                    bestFitness = score;
+                    bestSnapshot = CaptureSnapshot(state); //better and now "best" state
+                }
+
+                return;
+            }
+            Search(taskIndex + 1); //does not change task
+            ConflictTask task = tasks[taskIndex]; //attempts to replace task
+            List<Person> candidates = GetReplacementCandidates(state, task); //filters canidates by same role and responsibility
+            foreach (Person replacement in candidates) //tries each available dcanidate one by one
+            {
+                AssignmentSnapshot beforeMove = CaptureSnapshot(state); //saves state before a change is made
+                if (TryMove(state, task, replacement)) //attempts to make the move
+                {
+                    Search(taskIndex + 1);
+                }
+                RestoreSnapshot(state, beforeMove); //restores so canidate is back at same point
+            }
+        }
+        Search(0); //starts recursion from first task
+        RestoreSnapshot(state, baseline); //restores original
+        if (bestSnapshot != null) //better schedule is found so apply it
+        {
+            RestoreSnapshot(state, bestSnapshot);
+            return new WeekOptimizationResult
+            {
+                Improved = true,
+                BestFitness = bestFitness,
+                CombinationsChecked = combinationsChecked
+            };
+        }
+        return new WeekOptimizationResult //if not found then return what we had before
+        {
+            Improved = false,
+            BestFitness = baselineFitness,
+            CombinationsChecked = combinationsChecked
+        };
+    }
     private List<ConflictTask> BuildConflictTasks(ScheduleState state, int week)
     {
         List<int> overloadedIds = state.PersonWeekGrid.Where(kv => kv.Key.Week == week && kv.Value > 1).Select(kv => kv.Key.PersonId).Distinct().ToList(); //list of person IDs that are over 40 hours for the week
