@@ -32,8 +32,6 @@ public class GreedyAlg
         Console.WriteLine("Greedy algorithm running: ");
 
         var scheduleHandler = new ScheduleHandler(state);
-        Console.WriteLine($"Start fitness: {scheduleHandler.CalculateFitnessScore(state):0.000000}");
-
 
         int GetConflictScore(Project p)
         {

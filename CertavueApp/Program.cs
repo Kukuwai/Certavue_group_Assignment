@@ -20,17 +20,22 @@ public class Program
 
     public Program()
     {
-
+        // loading data in
         dataPath = Path.Combine(AppContext.BaseDirectory, "Data", "schedule_target75_paired_extreme.csv");
         var originalState = loadData(dataPath);
 
+        // export original data to html output
         Output output = new Output();
         output.ExportToHtml(dataPath, originalState, "Original");
+        printStats("Original Data");
 
+        // greedy algorithm starts, inluding export of output to html
         var scheduleAfterGreedy = new GreedyAlg().StartGreedy(people, projects);
         output.ExportToHtml(dataPath, scheduleAfterGreedy, "after_greedy");
-        testAlgo(scheduleAfterGreedy, "After Greedy");
 
+        // moveByConflict method (manual optimisation)
+        var scheduleAfterConflict = new MoveByConflict().start(scheduleAfterGreedy, projects);
+        output.ExportToHtml(dataPath, scheduleAfterConflict, "after_conflict");
 
     }
 
@@ -46,33 +51,10 @@ public class Program
     }
 
 
-    public void testAlgo(ScheduleState state, string label)
-    {
-        int total = state.PersonWeekGrid.Values.Sum(); //only occupied person/weeks
-        int notDoubleBookedCells = state.PersonWeekGrid.Where(kv => kv.Value == 1).Sum(kv => kv.Value);
-        double pct;
-
-        if (total == 0)
-        {
-            pct = 100.0;
-        }
-        else
-        {
-            pct = (double)notDoubleBookedCells / total * 100.0;
-        }
-
-        Console.WriteLine(label + " total: " + total + ", double-booked=" + (total - notDoubleBookedCells) + ", % not double-booked=" + pct.ToString("0.##"));
-    }
-
-
     static void Main(string[] args)
     {
         new Program();
     }
-
-
-
-
 }
 
 public class AssignmentRow
