@@ -271,7 +271,21 @@ public int GetBestMoveForProject(Project p)
 public Person DetermineBestReplacement(Project project, Person currentPerson)
 {
     // Identify all eligible candidates who possess the same professional Role.
+<<<<<<< HEAD
+    var candidates = new List<Person>();
+     foreach (Project p in _state.Projects)
+        {
+            foreach (Person person in p.people)
+            {
+                if (person.role.Equals(currentPerson.role))
+                {
+                    candidates.Add(person);
+                }
+            }
+        }
+=======
     var candidates = _finder.FindPeopleByRole(currentPerson.role);
+>>>>>>> 268ac0cbade1d05a684b6d6a394ef15b8d29a216
     
     Person bestCandidate = currentPerson;
     
@@ -463,7 +477,7 @@ public Dictionary<string, RoleGapReport> GetRoleSaturation(int startWeek, int en
         }
         ranges.Add(start == end ? $"{start}" : $"{start}-{end}");
         return string.Join(", ", ranges);
-    }
+     }
 
 
 
