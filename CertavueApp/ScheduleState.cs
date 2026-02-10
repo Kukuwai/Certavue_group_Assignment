@@ -170,7 +170,8 @@ public class ScheduleState
     public void SwapPersonInProject(Project p, Person oldPerson, Person newPerson)
 {
     RemoveProjectFromGrid(p); 
-    p.ReplaceStaff(oldPerson, newPerson); 
+
+    p.ReplaceStaff(oldPerson, newPerson);
     AddProjectToGrid(p);
 } 
 }

@@ -65,15 +65,17 @@ public class GreedyAlg
             {
                 int currentShift = state.GetShift(project);
                 int bestShift = currentShift;
-                var best = scheduleHandler.EvaluateMove(project, currentShift); //baseline
+                var best = scheduleHandler.EvaluateMoveDelta(project, currentShift); //baseline
 
                 foreach (int candidate in state.GetValidShifts(project)) //all allowed shifts ie within dates
                 {
-                    var test = scheduleHandler.EvaluateMove(project, candidate);
+                    var test = scheduleHandler.EvaluateMoveDelta(project, candidate);
 
-                    bool better =
-                        test.Fitness > best.Fitness ||
-                        (test.Fitness == best.Fitness && test.ShiftDistance < best.ShiftDistance);
+                    bool better = false;
+                    if (test > best)
+                    {
+                        better = true;
+                    }
 
                     if (better)
                     {

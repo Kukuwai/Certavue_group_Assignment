@@ -23,4 +23,5 @@ public class Person
         this.capacity = capacity;
         this.role = role;
     }
+
 }
