@@ -271,51 +271,33 @@ public int GetBestMoveForProject(Project p)
 public Person DetermineBestReplacement(Project project, Person currentPerson)
 {
     // Identify all eligible candidates who possess the same professional Role.
-<<<<<<< HEAD
-    var candidates = new List<Person>();
-     foreach (Project p in _state.Projects)
-        {
-            foreach (Person person in p.people)
-            {
-                if (person.role.Equals(currentPerson.role))
-                {
-                    candidates.Add(person);
-                }
-            }
-        }
-=======
     var candidates = _finder.FindPeopleByRole(currentPerson.role);
->>>>>>> 268ac0cbade1d05a684b6d6a394ef15b8d29a216
-    
     Person bestCandidate = currentPerson;
-    
-    //  Establish the baseline score to compare against during simulation.
-    double maxScore = CalculateFitnessScore(_state); 
+    double maxScore = CalculateFitnessScore(_state);
 
-    foreach (var candidate in candidates)
+     foreach (var candidate in candidates)
     {
-        // Optimization: Skip evaluation if the candidate is already assigned.
+        // Optimization: Skip evaluation if the candidate is already the person assigned.
         if (candidate.id == currentPerson.id) continue;
 
         // Simulation: Tentatively swap the resource in the project to test the impact.
         _state.SwapPersonInProject(project, currentPerson, candidate);
 
         // Assess how this specific swap affects the global Fitness Score.
-        // It primarily impacts Focus Score (20%) and Conflict Score (40%).
         double newScore = CalculateFitnessScore(_state);
 
-        // Comparison: Update the "bestCandidate" if this resource swap improves overall schedule health.
+        // Comparison: If the new candidate provides a better overall score, they become the top choice.
         if (newScore > maxScore)
         {
             maxScore = newScore;
             bestCandidate = candidate;
         } 
 
-        // Rollback: Revert the project assignment to its original state for the next iteration.
+        // 6. Rollback: CRITICAL! Revert the project assignment to the original state for the next iteration.
         _state.SwapPersonInProject(project, candidate, currentPerson);
     }
 
-    // Return the candidate that yields the highest efficiency without changing the project timeline.
+    // Return the candidate that yields the highest efficiency.
     return bestCandidate; 
 }
 
