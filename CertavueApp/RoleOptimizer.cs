@@ -4,7 +4,47 @@ using System.Linq;
 
 public class RoleOptimizer
 {
-   
+    public OptimizationResult Optimize(ScheduleState state, int maxPasses = 99999999) //I set this ridicuously high to test speed first. I think this shouldn't have speed concerns but good to be safe?0
+    {
+        var handler = new ScheduleHandler(state); //will be used to measure fitness of schedules
+        double currentFitness = handler.CalculateFitnessScore(state); //initial score and then best as of now score
+
+        bool improvedAny = false;
+        int weeksImproved = 0;
+        int combinationsChecked = 0; //counter for speed checking
+
+        for (int pass = 0; pass < maxPasses; pass++)
+        {
+            bool improvedThisPass = false; //resets each time to recheck
+            List<int> conflictWeeks = state.PersonWeekGrid.Where(kv => kv.Value > 1).Select(kv => kv.Key.Week).Distinct().OrderBy(w => w).ToList(); //builds list of overbooked weeks
+            foreach (int week in conflictWeeks) //goes through each week individually
+            {
+                WeekOptimizationResult weekResult = OptimizeWeek(state, week, currentFitness, handler); //optimizes week and returns stas
+                combinationsChecked += weekResult.CombinationsChecked; //counts combos checked
+
+                if (weekResult.Improved) //updates global best if it improved 
+                {
+                    improvedAny = true;
+                    improvedThisPass = true;
+                    weeksImproved++;
+                    currentFitness = weekResult.BestFitness;
+                }
+            }
+
+            if (!improvedThisPass) //performance piece to stop loop if no improvement found 
+            {
+                break;
+            }
+        }
+        return new OptimizationResult   //can be used to print on output @Millar
+        {
+            Improved = improvedAny,
+            FinalFitness = currentFitness,
+            WeeksImproved = weeksImproved,
+            CombinationsChecked = combinationsChecked
+        };
+
+    }
     private WeekOptimizationResult OptimizeWeek(ScheduleState state, int week, double baselineFitness, ScheduleHandler handler) //method checks one week at a time and optimizes it
     {
         List<ConflictTask> tasks = BuildConflictTasks(state, week); //each task is one overloaded person on one project in that week
@@ -38,7 +78,7 @@ public class RoleOptimizer
             }
             Search(taskIndex + 1); //does not change task
             ConflictTask task = tasks[taskIndex]; //attempts to replace task
-            List<Person> candidates = GetReplacementCandidates(state, task); //filters canidates by same role and responsibility
+            List<Person> candidates = GetReplacementCandidates(state, task); //filters canidates by same role and availabiliy
             foreach (Person replacement in candidates) //tries each available dcanidate one by one
             {
                 AssignmentSnapshot beforeMove = CaptureSnapshot(state); //saves state before a change is made
@@ -108,7 +148,7 @@ public class RoleOptimizer
         var candidates = new List<Person>();
         foreach (Person person in state.People)
         {
-            if (person.id == task.OverloadedPerson.id) //avoids dups
+            if (person.id == task.OverloadedPerson.id) //avoids replacing self
             {
                 continue;
             }
