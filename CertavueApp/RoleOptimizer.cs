@@ -38,6 +38,7 @@ public class RoleOptimizer
         }
         return new OptimizationResult   //can be used to print on output @Millar
         {
+            BestState = state,
             Improved = improvedAny,
             FinalFitness = currentFitness,
             WeeksImproved = weeksImproved,
@@ -258,6 +259,7 @@ public class RoleOptimizer
 
     public class OptimizationResult //returned best result
     {
+        public ScheduleState BestState { get; set; }
         public bool Improved { get; set; }
         public double FinalFitness { get; set; }
         public int WeeksImproved { get; set; }

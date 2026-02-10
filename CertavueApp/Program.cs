@@ -32,9 +32,9 @@ public class Program
             printStats("Original Data", originalState, file, false);
 
             // moveByConflict method (manual optimisation)
-            //var scheduleAfterConflict = new MoveByConflict().start(originalState, projects);
-            //output.ExportToHtml(file, scheduleAfterConflict, "after_conflict");
-            //printStats("Conflict Moving Data", scheduleAfterConflict, file);
+            // var scheduleAfterConflict = new MoveByConflict().start(originalState, projects);
+            // output.ExportToHtml(file, scheduleAfterConflict, "after_conflict");
+            // printStats("Conflict Moving Data", scheduleAfterConflict, file);
 
             // greedy algorithm starts, inluding export of output to html
             Console.WriteLine($"Greeding Running File - {System.IO.Path.GetFileName(file)}\n");
@@ -45,7 +45,7 @@ public class Program
             var roleOpt = new RoleOptimizer();
             var roleResult = roleOpt.Optimize(scheduleAfterGreedy, maxPasses: 999999999);
             output.ExportToHtml(file, scheduleAfterGreedy, "After Role Checks");
-            printStats("Role optimiser Data", scheduleAfterGreedy, file, true);
+            printStats("Role optimiser Data", roleResult.BestState, file, true);
         }
     }
     public ScheduleState loadData(string path)
