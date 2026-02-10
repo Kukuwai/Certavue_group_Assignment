@@ -20,8 +20,12 @@ public class Program
 
     public Program()
     {
+        var dataDirectory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Data"));
+        string[] files = Directory.GetFiles(dataDirectory, "*.csv");
         // loading data in
-        dataPath = Path.Combine(AppContext.BaseDirectory, "Data", "schedule_target75_medium_with_roles_40s.csv");
+        foreach (string file in files)
+        {
+          dataPath = Path.Combine(AppContext.BaseDirectory, "Data", "schedule_target75_medium_with_roles_40s.csv");
         var originalState = loadData(dataPath);
 
         // export original data to html output
@@ -37,6 +41,7 @@ public class Program
         // greedy algorithm starts, inluding export of output to html
         var scheduleAfterGreedy = new GreedyAlg().StartGreedy(people, projects);
         output.ExportToHtml(dataPath, scheduleAfterGreedy, "after_greedy");
+        }
 
     }
 
