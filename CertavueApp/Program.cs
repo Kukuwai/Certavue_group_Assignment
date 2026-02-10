@@ -21,7 +21,7 @@ public class Program
     public Program()
     {
 
-        dataPath = Path.Combine(AppContext.BaseDirectory, "Data", "schedule_target75_nearly_optimal_misleading.csv");
+        dataPath = Path.Combine(AppContext.BaseDirectory, "Data", "schedule_project_contiguous_varSE_high_conflict_improvable.csv");
         var originalState = loadData(dataPath);
         Output output = new Output();
         output.ExportToHtml(dataPath, originalState, "Original");
@@ -34,7 +34,7 @@ public class Program
         var roleResult = roleOpt.Optimize(scheduleAfterGreedy, maxPasses: 999999999);
 
         testPrint(scheduleAfterGreedy);
-        testAlgo(scheduleAfterGreedy, "After RoleOptimizer");
+        testAlgo(scheduleAfterGreedy, "After_RoleOptimizer");
 
         Console.WriteLine("finalFitness=" + roleResult.FinalFitness.ToString("0.000000") + ", combinationsChecked=" + roleResult.CombinationsChecked);
         Output output2 = new Output();
