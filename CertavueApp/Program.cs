@@ -21,21 +21,23 @@ public class Program
     public Program()
     {
         // loading data in
-        dataPath = Path.Combine(AppContext.BaseDirectory, "Data", "schedule_target75_paired_extreme.csv");
+        dataPath = Path.Combine(AppContext.BaseDirectory, "Data", "schedule_target75_medium_with_roles_40s.csv");
         var originalState = loadData(dataPath);
 
         // export original data to html output
         Output output = new Output();
         output.ExportToHtml(dataPath, originalState, "Original");
-        printStats("Original Data");
+        printStats("Original Data", originalState);
 
         // greedy algorithm starts, inluding export of output to html
         var scheduleAfterGreedy = new GreedyAlg().StartGreedy(people, projects);
         output.ExportToHtml(dataPath, scheduleAfterGreedy, "after_greedy");
+        printStats("Greedy Data", scheduleAfterGreedy);
 
         // moveByConflict method (manual optimisation)
         var scheduleAfterConflict = new MoveByConflict().start(scheduleAfterGreedy, projects);
         output.ExportToHtml(dataPath, scheduleAfterConflict, "after_conflict");
+        printStats("Conflict Moving Data", scheduleAfterConflict);
 
     }
 
@@ -54,6 +56,19 @@ public class Program
     static void Main(string[] args)
     {
         new Program();
+    }
+
+    public void printStats(string dataName, ScheduleState state)
+    {
+        ScheduleHandler handler = new ScheduleHandler(state);
+        var conflictScore = handler.GetConflictScore(state);
+        var movementScore = handler.GetMovementScore(state);
+        var focusScore = handler.GetFocusScore(state);
+        var continuityScore = handler.GetContinuityScore(state);
+        var durationScore = handler.GetDurationScore(state);
+        var fitnessScore = handler.CalculateFitnessScore(state);
+        Console.WriteLine($"|-----{dataName}-----|");
+        Console.WriteLine($"Finess Score: {fitnessScore}\n Fitness Score Breakdown: {conflictScore} || Movement Score: {movementScore} || Focus Score: {focusScore} || Continuity Score: {continuityScore} || Duration Score: {durationScore}\n");
     }
 }
 

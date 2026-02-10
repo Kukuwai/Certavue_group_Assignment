@@ -62,16 +62,16 @@ public class RoleGapReport
            (durationScore * 0.1);
     }
 
-    private double GetConflictScore(ScheduleState state) {
+    public double GetConflictScore(ScheduleState state) {
     int totalSlots = state.PersonWeekGrid.Count;
     if (totalSlots == 0) return 1.0;
     // find conflicts grid
     int conflicts = state.PersonWeekGrid.Values.Count(v => v > 1);
     // normalization 
-    return Math.Max(0, 1.0 - ((double)conflicts / totalSlots * 5)); // make sure punlish is outstanding
+    return Math.Max(0, 1.0 - ((double)conflicts / totalSlots)); // make sure punlish is outstanding
     }
 
-    private double GetMovementScore(ScheduleState state) {
+    public double GetMovementScore(ScheduleState state) {
     // sum shift
     double totalShift = state.Projects.Sum(p => Math.Abs(state.GetShift(p)));
     // normalization socre
@@ -79,14 +79,14 @@ public class RoleGapReport
     return Math.Max(0, 1.0 - (avgShift / 4.0)); // if it near with 4 it will be 0
     }
 
-    private double GetFocusScore(ScheduleState state) {
+    public double GetFocusScore(ScheduleState state) {
     // sum on average, how much projects each person takes on every week
     var multiTaskWeeks = state.PersonWeekGrid.Values.Count(v => v > 1);
     // normalization
     return Math.Max(0, 1.0 - ((double)multiTaskWeeks / state.PersonWeekGrid.Count));
    }
 
-   private double GetContinuityScore(ScheduleState state) {
+   public double GetContinuityScore(ScheduleState state) {
     double totalPenalty = 0;
     foreach(var p in state.Projects) {
         // count how many people in a project
@@ -97,7 +97,7 @@ public class RoleGapReport
    }  
 
 
-   private double GetDurationScore(ScheduleState state)
+   public double GetDurationScore(ScheduleState state)
 {
     double totalScore = 0;
     foreach (var project in state.Projects)
