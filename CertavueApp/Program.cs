@@ -25,22 +25,21 @@ public class Program
         // loading data in
         foreach (string file in files)
         {
-            dataPath = Path.Combine(AppContext.BaseDirectory, "Data", "schedule_target75_medium_with_roles_40s.csv");
-            var originalState = loadData(dataPath);
+            var originalState = loadData(file);
 
             // export original data to html output
             Output output = new Output();
-            output.ExportToHtml(dataPath, originalState, "Original");
-            printStats("Original Data", originalState);
+            output.ExportToHtml(file, originalState, "Original");
+            printStats("Original Data", originalState, file);
 
             // moveByConflict method (manual optimisation)
             var scheduleAfterConflict = new MoveByConflict().start(originalState, projects);
-            output.ExportToHtml(dataPath, scheduleAfterConflict, "after_conflict");
-            printStats("Conflict Moving Data", scheduleAfterConflict);
+            output.ExportToHtml(file, scheduleAfterConflict, "after_conflict");
+            printStats("Conflict Moving Data", scheduleAfterConflict, file);
 
             // greedy algorithm starts, inluding export of output to html
             var scheduleAfterGreedy = new GreedyAlg().StartGreedy(people, projects);
-            output.ExportToHtml(dataPath, scheduleAfterGreedy, "after_greedy");
+            output.ExportToHtml(file, scheduleAfterGreedy, "after_greedy");
 
             //testPrint(scheduleAfterGreedy);
             //testAlgo(scheduleAfterGreedy, "After Greedy");
@@ -51,7 +50,7 @@ public class Program
             //testAlgo(scheduleAfterGreedy, "After_RoleOptimizer");
 
             Output output2 = new Output();
-            output2.ExportToHtml(dataPath, originalState, "After Role Checks");
+            output2.ExportToHtml(file, originalState, "After Role Checks");
         }
     }
     public ScheduleState loadData(string path)
@@ -71,7 +70,7 @@ public class Program
         new Program();
     }
 
-    public void printStats(string dataName, ScheduleState state)
+    public void printStats(string dataName, ScheduleState state, string path)
     {
         ScheduleHandler handler = new ScheduleHandler(state);
         var conflictScore = handler.GetConflictScore(state);
@@ -80,8 +79,9 @@ public class Program
         var continuityScore = handler.GetContinuityScore(state);
         var durationScore = handler.GetDurationScore(state);
         var fitnessScore = handler.CalculateFitnessScore(state);
-        Console.WriteLine($"|-----{dataName}-----|");
+        Console.WriteLine($"|-----{dataName} : {path} -----|");
         Console.WriteLine($"Finess Score - {fitnessScore}\nBreakdown - Conflict Score: {conflictScore} || Movement Score: {movementScore} || Focus Score: {focusScore} || Continuity Score: {continuityScore} || Duration Score: {durationScore}\n");
+        Console.WriteLine("------------------------------------------------------------------\n");
     }
 }
 

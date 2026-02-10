@@ -317,8 +317,9 @@ public class GreedyAlg
         var continuityScore = handler.GetContinuityScore(state);
         var durationScore = handler.GetDurationScore(state);
         var fitnessScore = handler.CalculateFitnessScore(state);
-        Console.WriteLine($"|-----{dataName}-----|");
+        Console.WriteLine($"|----- {dataName} -----|");
         Console.WriteLine($"Finess Score - {fitnessScore}\nBreakdown - Conflict Score: {conflictScore} || Movement Score: {movementScore} || Focus Score: {focusScore} || Continuity Score: {continuityScore} || Duration Score: {durationScore}\n");
+        Console.WriteLine("------------------------------------------------------------------\n");
     }
 
 }
