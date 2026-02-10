@@ -166,4 +166,12 @@ public class ScheduleState
             PersonWeekGrid[key] = PersonWeekGrid.GetValueOrDefault(key) + 1;
         }
     }
+
+    public void SwapPersonInProject(Project p, Person oldPerson, Person newPerson)
+{
+    RemoveProjectFromGrid(p); 
+
+    p.ReplaceStaff(oldPerson, newPerson);
+    AddProjectToGrid(p);
+} 
 }

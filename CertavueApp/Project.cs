@@ -77,5 +77,18 @@ public class Project
             capacity = capacityEndWeek - capacityStartWeek + 1;
         }
     }
+
+   public void ReplaceStaff(Person person, Person oldperson){
+
+    foreach(Person p in people)
+    {
+        if (p.Equals(person))
+        {
+            this.people.Remove(oldperson);
+            this.people.Add(person);
+        }
+    }
+
+   }
     
 }
