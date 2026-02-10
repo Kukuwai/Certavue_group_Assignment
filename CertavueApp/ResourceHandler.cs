@@ -62,16 +62,16 @@ public class RoleGapReport
            (durationScore * 0.1);
     }
 
-    private double GetConflictScore(ScheduleState state) {
+    public double GetConflictScore(ScheduleState state) {
     int totalSlots = state.PersonWeekGrid.Count;
     if (totalSlots == 0) return 1.0;
     // find conflicts grid
     int conflicts = state.PersonWeekGrid.Values.Count(v => v > 1);
     // normalization 
-    return Math.Max(0, 1.0 - ((double)conflicts / totalSlots * 5)); // make sure punlish is outstanding
+    return Math.Max(0, 1.0 - ((double)conflicts / totalSlots)); // make sure punlish is outstanding
     }
 
-    private double GetMovementScore(ScheduleState state) {
+    public double GetMovementScore(ScheduleState state) {
     // sum shift
     double totalShift = state.Projects.Sum(p => Math.Abs(state.GetShift(p)));
     // normalization socre
@@ -79,25 +79,48 @@ public class RoleGapReport
     return Math.Max(0, 1.0 - (avgShift / 4.0)); // if it near with 4 it will be 0
     }
 
-    private double GetFocusScore(ScheduleState state) {
+    public double GetFocusScore(ScheduleState state) {
     // sum on average, how much projects each person takes on every week
     var multiTaskWeeks = state.PersonWeekGrid.Values.Count(v => v > 1);
     // normalization
     return Math.Max(0, 1.0 - ((double)multiTaskWeeks / state.PersonWeekGrid.Count));
    }
 
-   private double GetContinuityScore(ScheduleState state) {
-    double totalPenalty = 0;
-    foreach(var p in state.Projects) {
-        // count how many people in a project
-        int peopleCount = p.people.Distinct().Count(); 
-        if(peopleCount > 1) totalPenalty += (peopleCount - 1);
+   public double GetContinuityScore(ScheduleState state) {
+    if (state.Projects.Count == 0) return 1.0;
+
+    double totalScore = 0;
+
+    foreach (var project in state.Projects)
+    {
+        int originalCount = project.originalPeopleIds.Count;
+
+        // If no baseline team exists, guess treat it as perfect for this project???
+        if (originalCount == 0)
+        {
+            totalScore += 1.0;
+            continue;
+        }
+
+        int overlap = 0;
+        foreach (var person in project.people)
+        {
+            // Count how many current people were in the original team
+            if (project.originalPeopleIds.Contains(person.id))
+                overlap++;
+        }
+
+        // Score is the share of original people still on the project.
+        double projectScore = (double)overlap / originalCount;
+        totalScore += projectScore;
     }
-    return Math.Max(0, 1.0 - (totalPenalty / state.Projects.Count));
+
+    // Average continuity across all projects.
+    return totalScore / state.Projects.Count;
    }  
 
 
-   private double GetDurationScore(ScheduleState state)
+   public double GetDurationScore(ScheduleState state)
 {
     double totalScore = 0;
     foreach (var project in state.Projects)

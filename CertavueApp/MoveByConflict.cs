@@ -88,7 +88,6 @@ public class MoveByConflict
         }
         Search(0);
         applyBest();
-        Console.WriteLine(bestPct);
         return state;
     }
 

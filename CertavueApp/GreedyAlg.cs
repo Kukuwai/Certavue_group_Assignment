@@ -32,8 +32,6 @@ public class GreedyAlg
         Console.WriteLine("Greedy algorithm running: ");
 
         var scheduleHandler = new ScheduleHandler(state);
-        Console.WriteLine($"Start fitness: {scheduleHandler.CalculateFitnessScore(state):0.000000}");
-
 
         int GetConflictScore(Project p)
         {
@@ -109,7 +107,11 @@ public class GreedyAlg
                 pct = (double)notDoubleBookedCells / total * 100.0;
             }
 
-            Console.WriteLine($"After pass {pass}, fitness: {scheduleHandler.CalculateFitnessScore(state):0.000000}");
+<<<<<<< HEAD
+            printStats($"Greedy Pass {pass}", state);
+=======
+          //  Console.WriteLine($"After pass {pass}, fitness: {scheduleHandler.CalculateFitnessScore(state):0.000000}");
+>>>>>>> f4f35d5f294dab95edace2d8c9fada9ae274f5e6
 
             if (!anyShifted) break; //ends if nothing moves so we really could have the passes be pretty high for safety
         }
@@ -308,6 +310,19 @@ public class GreedyAlg
             OverlapAfter = overlapAfter,
             ShiftDistance = Math.Abs(candidateShift)
         };
+    }
+
+    public void printStats(string dataName, ScheduleState state)
+    {
+        ScheduleHandler handler = new ScheduleHandler(state);
+        var conflictScore = handler.GetConflictScore(state);
+        var movementScore = handler.GetMovementScore(state);
+        var focusScore = handler.GetFocusScore(state);
+        var continuityScore = handler.GetContinuityScore(state);
+        var durationScore = handler.GetDurationScore(state);
+        var fitnessScore = handler.CalculateFitnessScore(state);
+        Console.WriteLine($"|-----{dataName}-----|");
+        Console.WriteLine($"Finess Score - {fitnessScore}\nBreakdown - Conflict Score: {conflictScore} || Movement Score: {movementScore} || Focus Score: {focusScore} || Continuity Score: {continuityScore} || Duration Score: {durationScore}\n");
     }
 
 }
