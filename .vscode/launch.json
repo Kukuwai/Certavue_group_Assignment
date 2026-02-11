@@ -9,7 +9,7 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/CertavueApp/Program.cs",
+            "program": "${workspaceFolder}/CertavueApp/bin/Debug/net10.0/CertavueApp.dll",
             "args": [],
             "cwd": "${workspaceFolder}/CertavueApp",
             "stopAtEntry": false,
