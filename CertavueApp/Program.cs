@@ -24,8 +24,12 @@ public class Program
     {
         var dataDirectory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Data"));
         string[] files = Directory.GetFiles(dataDirectory, "*.csv");
+<<<<<<< HEAD
         ScheduleState finalState = null;
 
+=======
+        ScheduleState ? endState = null;
+>>>>>>> 7ba575ec6582e130b666c9f09fad179f8dbf2dde
         // loading data in
         foreach (string file in files)
         {
@@ -37,15 +41,23 @@ public class Program
             printStats("Original Data", originalState, file, false);
 
             // moveByConflict method (manual optimisation)
+<<<<<<< HEAD
             // var scheduleAfterConflict = new MoveByConflict().start(originalState, projects);
             // output.ExportToHtml(file, scheduleAfterConflict, "after_conflict");
             // printStats("Conflict Moving Data", scheduleAfterConflict, file);
+=======
+            /*Console.WriteLine("start move conflict");
+            var scheduleAfterConflict = new MoveByConflict().start(originalState, projects);
+            output.ExportToHtml(file, scheduleAfterConflict, "after_conflict");
+            printStats("Conflict Moving Data", scheduleAfterConflict, file);*/
+>>>>>>> 7ba575ec6582e130b666c9f09fad179f8dbf2dde
 
             // greedy algorithm starts, inluding export of output to html
             Console.WriteLine($"Greeding Running File - {System.IO.Path.GetFileName(file)}\n");
             var scheduleAfterGreedy = new GreedyAlg().StartGreedy(people, projects);
             output.ExportToHtml(file, scheduleAfterGreedy, "after_greedy");
 
+<<<<<<< HEAD
 
             var roleOpt = new RoleOptimizer();
             var roleResult = roleOpt.Optimize(scheduleAfterGreedy, maxPasses: 999999999);
@@ -53,6 +65,24 @@ public class Program
             output.ExportToHtml(file, scheduleAfterGreedy, "After Role Checks");
             printStats("Role optimiser Data", roleResult.BestState, file, true);
 
+=======
+            //testPrint(scheduleAfterGreedy);
+            //testAlgo(scheduleAfterGreedy, "After Greedy");
+            Console.WriteLine("start optimal role");
+            var roleResult = new RoleOptimizer().Optimize(scheduleAfterGreedy,maxPasses: 999999);
+            
+
+            Output output2 = new Output();
+            output2.ExportToHtml(file, originalState, "After Role Checks");
+            endState = roleResult.BestState;
+        }
+
+        if (includeNewProject)
+        {
+            Console.WriteLine("\n[FINAL CONSOLIDATION] All files processed. Running global greedy on FULL data...");
+
+            ProcessNewProjectInsertion(endState);
+>>>>>>> 7ba575ec6582e130b666c9f09fad179f8dbf2dde
             projects[0].printPeopleOnProject();
             Console.WriteLine("-------");
             people[0].printProjectsForPerson();
