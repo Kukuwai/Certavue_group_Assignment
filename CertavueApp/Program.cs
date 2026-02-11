@@ -78,23 +78,21 @@ public class Program
             return;
         }
 
-        // 2. 确定存放“待添加项目”的路径
         var newProjectDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "AddNewProject"));
-        Console.WriteLine($"\n[ACTION] 正在搜索新项目文件: {newProjectDir}");
+        Console.WriteLine($"\n[ACTION] is searching new project: {newProjectDir}");
 
         if (!Directory.Exists(newProjectDir))
         {
-            Console.WriteLine("[Error] 找不到 AddNewProject 文件夹。");
+            Console.WriteLine("[Error] can not find AddNewProject folder。");
             return;
         }
 
-        // 3. 初始化处理器（它会基于当前的 currentState 进行打分）
         ScheduleHandler handler = new ScheduleHandler(currentState);
         string[] newFiles = Directory.GetFiles(newProjectDir, "*.csv");
 
         foreach (var file in newFiles)
         {
-            Console.WriteLine($"[File] 正在处理: {Path.GetFileName(file)}");
+            Console.WriteLine($"[File] is processing: {Path.GetFileName(file)}");
 
             List<Project> newProjects = LoadNewProjectsOnly(file);
 
@@ -106,22 +104,23 @@ public class Program
 
                 if (scoreDelta >= 0)
                 {
-                    Console.WriteLine($"   ✅ [Success] 项目 '{project.name}' 已插入。分数提升/变化: {scoreDelta:F4}");
+                    Console.WriteLine($"   ✅ [Success] project '{project.name}' had insert sucessful。score change: {scoreDelta:F4}");
                 }
                 else
                 {
-                    Console.WriteLine($"   ⚠️ [Warning] 项目 '{project.name}' 插入后分数下降 ({scoreDelta:F4})，请检查资源冲突。");
+                    Console.WriteLine($"   ⚠️ [Warning] project '{project.name}' after insert,score change: ({scoreDelta:F4})，please check conflicts。");
                 }
             }
+            Output finalOutput = new Output();
+            finalOutput.ExportToHtml("Global_Final_Schedule", currentState, "With_New_Projects.html");
         }
 
-        printStats("FINAL SCHEDULE (After New Project Insertion)", currentState, "Global_Result", true);
+        Console.WriteLine("[SYSTEM] The final shift schedule has been exported to an HTML file.");
     }
 
     public List<Project> LoadNewProjectsOnly(string path)
     {
         Loader load = new Loader();
-        // 只取返回元组的第二个值（Projects）
         (_, var newProjects) = load.LoadData(path);
         return newProjects;
     }
