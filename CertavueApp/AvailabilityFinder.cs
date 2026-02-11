@@ -183,6 +183,8 @@ public class AvailabilityFinder
     // Find people who are free for ALL weeks of the project
     var availableForAllWeeks = new List<Person>();
 
+
+
     foreach (var person in _state.People)
     {
       bool isFreeForAllWeeks = true;
@@ -282,6 +284,8 @@ public class NewProjectStaffingResult
       if (AvailablePeople.Count > 10)
       {
         Console.WriteLine($"  ... and {AvailablePeople.Count - 10} more");
+        
+
       }
     }
     else
