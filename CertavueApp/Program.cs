@@ -22,6 +22,7 @@ public class Program
     {
         var dataDirectory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Data"));
         string[] files = Directory.GetFiles(dataDirectory, "*.csv");
+        ScheduleState ? endState = null;
         // loading data in
         foreach (string file in files)
         {
@@ -34,10 +35,10 @@ public class Program
             printStats("Original Data", originalState, file);
 
             // moveByConflict method (manual optimisation)
-            Console.WriteLine("start move conflict");
+            /*Console.WriteLine("start move conflict");
             var scheduleAfterConflict = new MoveByConflict().start(originalState, projects);
             output.ExportToHtml(file, scheduleAfterConflict, "after_conflict");
-            printStats("Conflict Moving Data", scheduleAfterConflict, file);
+            printStats("Conflict Moving Data", scheduleAfterConflict, file);*/
 
             // greedy algorithm starts, inluding export of output to html
             Console.WriteLine("start greedy");
@@ -47,21 +48,19 @@ public class Program
             //testPrint(scheduleAfterGreedy);
             //testAlgo(scheduleAfterGreedy, "After Greedy");
             Console.WriteLine("start optimal role");
-            var roleOpt = new RoleOptimizer();
-            var roleResult = roleOpt.Optimize(scheduleAfterGreedy, maxPasses: 1);
+            var roleResult = new RoleOptimizer().Optimize(scheduleAfterGreedy,maxPasses: 999999);
+            
 
             Output output2 = new Output();
             output2.ExportToHtml(file, originalState, "After Role Checks");
+            endState = roleResult.BestState;
         }
 
         if (includeNewProject)
         {
             Console.WriteLine("\n[FINAL CONSOLIDATION] All files processed. Running global greedy on FULL data...");
-            
-            var finalOptimizedState = new GreedyAlg().StartGreedy(this.people, this.projects);
-            new RoleOptimizer().Optimize(finalOptimizedState, 1);
 
-            ProcessNewProjectInsertion(finalOptimizedState);
+            ProcessNewProjectInsertion(endState);
             projects[0].printPeopleOnProject();
             Console.WriteLine("-------");
             people[0].printProjectsForPerson();
