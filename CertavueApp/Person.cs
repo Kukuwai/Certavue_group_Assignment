@@ -21,7 +21,7 @@ public class Person
         id = ++idCounter;
         this.name = name;
         this.capacity = capacity;
-        this.role = role;
+        this.role = role; 
     }
 
 }
