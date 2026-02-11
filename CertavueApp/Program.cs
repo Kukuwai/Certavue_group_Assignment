@@ -10,177 +10,129 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
+
 public class Program
 {
     List<Project> projects = new List<Project>();
     List<Person> people = new List<Person>();
-    private readonly string dataPath;
+
+    public static ScheduleState LatestState;
 
 
 
-    public Program(bool includeNewProject)
+    public Program()
     {
         var dataDirectory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Data"));
         string[] files = Directory.GetFiles(dataDirectory, "*.csv");
+        ScheduleState finalState = null;
+
         // loading data in
         foreach (string file in files)
         {
             var originalState = loadData(file);
-            
+
             // export original data to html output
-            Console.WriteLine("start main progress");
             Output output = new Output();
             output.ExportToHtml(file, originalState, "Original");
-            printStats("Original Data", originalState, file);
+            printStats("Original Data", originalState, file, false);
 
             // moveByConflict method (manual optimisation)
-            Console.WriteLine("start move conflict");
-            var scheduleAfterConflict = new MoveByConflict().start(originalState, projects);
-            output.ExportToHtml(file, scheduleAfterConflict, "after_conflict");
-            printStats("Conflict Moving Data", scheduleAfterConflict, file);
+            // var scheduleAfterConflict = new MoveByConflict().start(originalState, projects);
+            // output.ExportToHtml(file, scheduleAfterConflict, "after_conflict");
+            // printStats("Conflict Moving Data", scheduleAfterConflict, file);
 
             // greedy algorithm starts, inluding export of output to html
-            Console.WriteLine("start greedy");
+            Console.WriteLine($"Greeding Running File - {System.IO.Path.GetFileName(file)}\n");
             var scheduleAfterGreedy = new GreedyAlg().StartGreedy(people, projects);
             output.ExportToHtml(file, scheduleAfterGreedy, "after_greedy");
 
-            //testPrint(scheduleAfterGreedy);
-            //testAlgo(scheduleAfterGreedy, "After Greedy");
-            Console.WriteLine("start optimal role");
+
             var roleOpt = new RoleOptimizer();
-            var roleResult = roleOpt.Optimize(scheduleAfterGreedy, maxPasses: 1);
+            var roleResult = roleOpt.Optimize(scheduleAfterGreedy, maxPasses: 999999999);
+            Program.LatestState = roleResult.BestState;// * add newest state
+            output.ExportToHtml(file, scheduleAfterGreedy, "After Role Checks");
+            printStats("Role optimiser Data", roleResult.BestState, file, true);
 
-            Output output2 = new Output();
-            output2.ExportToHtml(file, originalState, "After Role Checks");
-        }
-
-        if (includeNewProject)
-        {
-            Console.WriteLine("\n[FINAL CONSOLIDATION] All files processed. Running global greedy on FULL data...");
-            
-            var finalOptimizedState = new GreedyAlg().StartGreedy(this.people, this.projects);
-            new RoleOptimizer().Optimize(finalOptimizedState, 1);
-
-            ProcessNewProjectInsertion(finalOptimizedState);
             projects[0].printPeopleOnProject();
             Console.WriteLine("-------");
             people[0].printProjectsForPerson();
+
+            finalState = roleResult.BestState;
+            
         }
+        ProcessNewProjectInsertion(finalState);
     }
 
-
-    // public Program(bool includeNewProject)
-    // {
-    //     var dataDirectory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Data"));
-        
-    //     if (!Directory.Exists(dataDirectory))
-    //     {
-    //         Console.WriteLine("Data directory not found!");
-    //         return;
-    //     }
-
-    //     string[] files = Directory.GetFiles(dataDirectory, "*.csv");
-    //     Console.WriteLine("Loading all baseline files...");
-    //     foreach (string file in files)
-    //     {
-    //         loadData(file);
-    //     }
-    //     Console.WriteLine($"\n[SYSTEM] Total Projects: {projects.Count} | Total Staff: {people.Count}");
-    //     Console.WriteLine("Starting Global Greedy Optimization on FULL data...");
-
-    //     var finalState = new ScheduleState(this.people, this.projects);
-        
-    //     var finalOptimizedState = new GreedyAlg().StartGreedy(this.people, this.projects);
-        
-    //     Console.WriteLine($"[DEBUG] start roleOpt");
-    //     var roleOpt = new RoleOptimizer();
-    //     roleOpt.Optimize(finalOptimizedState, maxPasses: 99);
-
-    //     printStats("GLOBAL BASELINE (All Data Combined)", finalOptimizedState, "All_Baseline_Files");
-
-
-    //     if (includeNewProject)
-    //     {
-    //         Console.WriteLine("\n[ACTION] Inserting new projects into the global optimized schedule...");
-    //         ProcessNewProjectInsertion(finalOptimizedState);
-    //     }
-    // }
-
-
-
-    public ScheduleState loadData(string path)
-   {
-    Loader load = new Loader();
-    (var newPeople, var newProjects) = load.LoadData(path);
-    
-    //* Add the newly read data to the global pool
-    this.people.AddRange(newPeople);
-    this.projects.AddRange(newProjects);
-    var state = new ScheduleState(this.people, this.projects);
-    return state;
-   }
-
-
-
-// show does new projects could be insert 
-    private void ProcessNewProjectInsertion(ScheduleState currentState)
-    {//make sure pass from right file path
-     Console.WriteLine($"[DEBUG] start passing new file");
-    var newProjectDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "AddNewProject"));
-    Console.WriteLine($"[DEBUG] Searching for new projects in: {newProjectDir}");
-
-
-    if (!Directory.Exists(newProjectDir)) return;
-
-    string[] newFiles = Directory.GetFiles(newProjectDir, "*.csv");
-    ScheduleHandler handler = new ScheduleHandler(currentState);
-
-    foreach (var f in newFiles)
+    private void ProcessNewProjectInsertion(ScheduleState currentState){
+     if (currentState == null)
     {
-        List<Project> newProjects = LoadNewProjectsOnly(f);
-        foreach (var p in newProjects)
+        Console.WriteLine("[Error] 没有找到可用的全局优化状态，无法插入新项目。");
+        return;
+    }
+
+    // 2. 确定存放“待添加项目”的路径
+    var newProjectDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "AddNewProject"));
+    Console.WriteLine($"\n[ACTION] 正在搜索新项目文件: {newProjectDir}");
+
+    if (!Directory.Exists(newProjectDir))
+    {
+        Console.WriteLine("[Error] 找不到 AddNewProject 文件夹。");
+        return;
+    }
+
+    // 3. 初始化处理器（它会基于当前的 currentState 进行打分）
+    ScheduleHandler handler = new ScheduleHandler(currentState);
+    string[] newFiles = Directory.GetFiles(newProjectDir, "*.csv");
+
+    foreach (var file in newFiles)
+    {
+        Console.WriteLine($"[File] 正在处理: {Path.GetFileName(file)}");
+        
+        List<Project> newProjects = LoadNewProjectsOnly(file);
+
+        foreach (var project in newProjects)
         {
-            AddNewProjectToSystem(p, handler, currentState);
+            double scoreDelta = handler.EvaluateNewProjectInsertion(project);
+
+            if (scoreDelta >= 0)
+            {
+                Console.WriteLine($"   ✅ [Success] 项目 '{project.name}' 已插入。分数提升/变化: {scoreDelta:F4}");
+            }
+            else
+            {
+                Console.WriteLine($"   ⚠️ [Warning] 项目 '{project.name}' 插入后分数下降 ({scoreDelta:F4})，请检查资源冲突。");
+            }
         }
     }
-    
-    printStats("Final Stats (With New Projects)", currentState, "New Project Insertion"); 
-    }   
 
-
+    printStats("FINAL SCHEDULE (After New Project Insertion)", currentState, "Global_Result", true);
+    }
 
     public List<Project> LoadNewProjectsOnly(string path)
     {
         Loader load = new Loader();
+        // 只取返回元组的第二个值（Projects）
         (_, var newProjects) = load.LoadData(path); 
         return newProjects;
     }
 
-
-
-    public void AddNewProjectToSystem(Project incomingProject, ScheduleHandler handler, ScheduleState currentState)
+    public ScheduleState loadData(string path)
     {
-        double scoreDelta = handler.EvaluateNewProjectInsertion(incomingProject);
-        if (scoreDelta >= 0)
-        {
-           Console.WriteLine($"[Success] Name: {incomingProject.name} inserted. Delta: {scoreDelta}");
-        }
-        else
-        {
-            Console.WriteLine($"[Warning] Project {incomingProject.name} insertion skipped (Delta: {scoreDelta})");
-        }
+        Loader load = new Loader();
+        (var people, var projects) = load.LoadData(path);
+        var state = new ScheduleState(people, projects);
+        this.people = people;
+        this.projects = projects;
+        Console.WriteLine($"Loaded {System.IO.Path.GetFileName(path)}\n");
+        return state;
     }
-
-
 
     static void Main(string[] args)
     {
-        bool shouldAddNew = args.Contains("add-new");
-        Console.WriteLine($"[DEBUG] shouldAddNew is: {shouldAddNew}");
-        new Program(shouldAddNew);
+        new Program();
     }
 
-    public void printStats(string dataName, ScheduleState state, string path)
+    public void printStats(string dataName, ScheduleState state, string path, bool end)
     {
         ScheduleHandler handler = new ScheduleHandler(state);
         var conflictScore = handler.GetConflictScore(state);
@@ -189,9 +141,12 @@ public class Program
         var continuityScore = handler.GetContinuityScore(state);
         var durationScore = handler.GetDurationScore(state);
         var fitnessScore = handler.CalculateFitnessScore(state);
-        Console.WriteLine($"|-----{dataName} : {path} -----|");
-        Console.WriteLine($"Finess Score - {fitnessScore}\nBreakdown - Conflict Score: {conflictScore} || Movement Score: {movementScore} || Focus Score: {focusScore} || Continuity Score: {continuityScore} || Duration Score: {durationScore}\n");
-        Console.WriteLine("------------------------------------------------------------------\n");
+        Console.WriteLine($"|-----{dataName}-----|");
+        Console.WriteLine($"Finess Score - {fitnessScore.ToString("F2")}\nBreakdown - Conflict Score: {conflictScore.ToString("F2")} || Movement Score: {movementScore.ToString("F2")} || Focus Score: {focusScore.ToString("F2")} || Continuity Score: {continuityScore.ToString("F2")} || Duration Score: {durationScore.ToString("F2")}\n");
+        if (end)
+        {
+           Console.WriteLine("------------------------------------------------------------------\n"); 
+        }
     }
 }
 
