@@ -50,9 +50,6 @@ public class Program
             var roleOpt = new RoleOptimizer();
             var roleResult = roleOpt.Optimize(scheduleAfterGreedy, maxPasses: 1);
 
-            //testPrint(scheduleAfterGreedy);
-            //testAlgo(scheduleAfterGreedy, "After_RoleOptimizer");
-
             Output output2 = new Output();
             output2.ExportToHtml(file, originalState, "After Role Checks");
         }
@@ -65,6 +62,9 @@ public class Program
             new RoleOptimizer().Optimize(finalOptimizedState, 1);
 
             ProcessNewProjectInsertion(finalOptimizedState);
+            projects[0].printPeopleOnProject();
+            Console.WriteLine("-------");
+            people[0].printProjectsForPerson();
         }
     }
 
