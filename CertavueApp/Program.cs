@@ -48,6 +48,8 @@ public class Program
             printStats("Role optimiser Data", roleResult.BestState, file, true);
 
             projects[0].printPeopleOnProject();
+            Console.WriteLine("-------");
+            people[0].printProjectsForPerson();
         }
     }
     public ScheduleState loadData(string path)
