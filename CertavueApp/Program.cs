@@ -48,7 +48,7 @@ public class Program
             //testAlgo(scheduleAfterGreedy, "After Greedy");
             Console.WriteLine("start optimal role");
             var roleOpt = new RoleOptimizer();
-            var roleResult = roleOpt.Optimize(scheduleAfterGreedy, maxPasses: 999999999);
+            var roleResult = roleOpt.Optimize(scheduleAfterGreedy, maxPasses: 1);
 
             //testPrint(scheduleAfterGreedy);
             //testAlgo(scheduleAfterGreedy, "After_RoleOptimizer");
@@ -62,7 +62,7 @@ public class Program
             Console.WriteLine("\n[FINAL CONSOLIDATION] All files processed. Running global greedy on FULL data...");
             
             var finalOptimizedState = new GreedyAlg().StartGreedy(this.people, this.projects);
-            new RoleOptimizer().Optimize(finalOptimizedState, 99999);
+            new RoleOptimizer().Optimize(finalOptimizedState, 1);
 
             ProcessNewProjectInsertion(finalOptimizedState);
         }
