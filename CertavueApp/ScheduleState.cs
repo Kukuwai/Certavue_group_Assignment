@@ -72,6 +72,17 @@ public class ScheduleState
         _shift[p] = shift;
     }
 
+    public void AddProject(Project p)  //added this to fix it @Luca your project wasn't stored anywhere 
+    { 
+        if (Projects.Contains(p)) return;
+
+        Projects.Add(p);
+        _window[p] = new Window(p.startDate, p.endDate);
+        _shift[p] = 0;
+        AddProjectToGrid(p);
+    }
+
+
     //finds all valid shifts for each project 
     public List<int> GetValidShifts(Project p)
     {
@@ -168,10 +179,10 @@ public class ScheduleState
     }
 
     public void SwapPersonInProject(Project p, Person oldPerson, Person newPerson)
-{
-    RemoveProjectFromGrid(p); 
+    {
+        RemoveProjectFromGrid(p);
 
-    p.ReplaceStaff(oldPerson, newPerson);
-    AddProjectToGrid(p);
-} 
+        p.ReplaceStaff(oldPerson, newPerson);
+        AddProjectToGrid(p);
+    }
 }

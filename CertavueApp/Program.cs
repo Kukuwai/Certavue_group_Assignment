@@ -24,12 +24,9 @@ public class Program
     {
         var dataDirectory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Data"));
         string[] files = Directory.GetFiles(dataDirectory, "*.csv");
-<<<<<<< HEAD
+
         ScheduleState finalState = null;
 
-=======
-        ScheduleState ? endState = null;
->>>>>>> 7ba575ec6582e130b666c9f09fad179f8dbf2dde
         // loading data in
         foreach (string file in files)
         {
@@ -41,23 +38,21 @@ public class Program
             printStats("Original Data", originalState, file, false);
 
             // moveByConflict method (manual optimisation)
-<<<<<<< HEAD
             // var scheduleAfterConflict = new MoveByConflict().start(originalState, projects);
             // output.ExportToHtml(file, scheduleAfterConflict, "after_conflict");
             // printStats("Conflict Moving Data", scheduleAfterConflict, file);
-=======
+
             /*Console.WriteLine("start move conflict");
             var scheduleAfterConflict = new MoveByConflict().start(originalState, projects);
             output.ExportToHtml(file, scheduleAfterConflict, "after_conflict");
             printStats("Conflict Moving Data", scheduleAfterConflict, file);*/
->>>>>>> 7ba575ec6582e130b666c9f09fad179f8dbf2dde
+
 
             // greedy algorithm starts, inluding export of output to html
             Console.WriteLine($"Greeding Running File - {System.IO.Path.GetFileName(file)}\n");
             var scheduleAfterGreedy = new GreedyAlg().StartGreedy(people, projects);
             output.ExportToHtml(file, scheduleAfterGreedy, "after_greedy");
 
-<<<<<<< HEAD
 
             var roleOpt = new RoleOptimizer();
             var roleResult = roleOpt.Optimize(scheduleAfterGreedy, maxPasses: 999999999);
@@ -65,84 +60,69 @@ public class Program
             output.ExportToHtml(file, scheduleAfterGreedy, "After Role Checks");
             printStats("Role optimiser Data", roleResult.BestState, file, true);
 
-=======
-            //testPrint(scheduleAfterGreedy);
-            //testAlgo(scheduleAfterGreedy, "After Greedy");
-            Console.WriteLine("start optimal role");
-            var roleResult = new RoleOptimizer().Optimize(scheduleAfterGreedy,maxPasses: 999999);
-            
-
-            Output output2 = new Output();
-            output2.ExportToHtml(file, originalState, "After Role Checks");
-            endState = roleResult.BestState;
-        }
-
-        if (includeNewProject)
-        {
-            Console.WriteLine("\n[FINAL CONSOLIDATION] All files processed. Running global greedy on FULL data...");
-
-            ProcessNewProjectInsertion(endState);
->>>>>>> 7ba575ec6582e130b666c9f09fad179f8dbf2dde
             projects[0].printPeopleOnProject();
             Console.WriteLine("-------");
             people[0].printProjectsForPerson();
 
             finalState = roleResult.BestState;
-            
+
         }
         ProcessNewProjectInsertion(finalState);
     }
 
-    private void ProcessNewProjectInsertion(ScheduleState currentState){
-     if (currentState == null)
+    private void ProcessNewProjectInsertion(ScheduleState currentState)
     {
-        Console.WriteLine("[Error] 没有找到可用的全局优化状态，无法插入新项目。");
-        return;
-    }
-
-    // 2. 确定存放“待添加项目”的路径
-    var newProjectDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "AddNewProject"));
-    Console.WriteLine($"\n[ACTION] 正在搜索新项目文件: {newProjectDir}");
-
-    if (!Directory.Exists(newProjectDir))
-    {
-        Console.WriteLine("[Error] 找不到 AddNewProject 文件夹。");
-        return;
-    }
-
-    // 3. 初始化处理器（它会基于当前的 currentState 进行打分）
-    ScheduleHandler handler = new ScheduleHandler(currentState);
-    string[] newFiles = Directory.GetFiles(newProjectDir, "*.csv");
-
-    foreach (var file in newFiles)
-    {
-        Console.WriteLine($"[File] 正在处理: {Path.GetFileName(file)}");
-        
-        List<Project> newProjects = LoadNewProjectsOnly(file);
-
-        foreach (var project in newProjects)
+        if (currentState == null)
         {
-            double scoreDelta = handler.EvaluateNewProjectInsertion(project);
+            Console.WriteLine("[Error] 没有找到可用的全局优化状态，无法插入新项目。");
+            return;
+        }
 
-            if (scoreDelta >= 0)
+        // 2. 确定存放“待添加项目”的路径
+        var newProjectDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "AddNewProject"));
+        Console.WriteLine($"\n[ACTION] 正在搜索新项目文件: {newProjectDir}");
+
+        if (!Directory.Exists(newProjectDir))
+        {
+            Console.WriteLine("[Error] 找不到 AddNewProject 文件夹。");
+            return;
+        }
+
+        // 3. 初始化处理器（它会基于当前的 currentState 进行打分）
+        ScheduleHandler handler = new ScheduleHandler(currentState);
+        string[] newFiles = Directory.GetFiles(newProjectDir, "*.csv");
+
+        foreach (var file in newFiles)
+        {
+            Console.WriteLine($"[File] 正在处理: {Path.GetFileName(file)}");
+
+            List<Project> newProjects = LoadNewProjectsOnly(file);
+
+            foreach (var project in newProjects)
             {
-                Console.WriteLine($"   ✅ [Success] 项目 '{project.name}' 已插入。分数提升/变化: {scoreDelta:F4}");
-            }
-            else
-            {
-                Console.WriteLine($"   ⚠️ [Warning] 项目 '{project.name}' 插入后分数下降 ({scoreDelta:F4})，请检查资源冲突。");
+                currentState.AddProject(project);           //fixed these 2 lines
+                double scoreDelta = handler.EvaluateNewProjectInsertion(project);  //fixed these 2 lines
+
+
+                if (scoreDelta >= 0)
+                {
+                    Console.WriteLine($"   ✅ [Success] 项目 '{project.name}' 已插入。分数提升/变化: {scoreDelta:F4}");
+                }
+                else
+                {
+                    Console.WriteLine($"   ⚠️ [Warning] 项目 '{project.name}' 插入后分数下降 ({scoreDelta:F4})，请检查资源冲突。");
+                }
             }
         }
-    }
 
-    printStats("FINAL SCHEDULE (After New Project Insertion)", currentState, "Global_Result", true);
+        printStats("FINAL SCHEDULE (After New Project Insertion)", currentState, "Global_Result", true);
     }
 
     public List<Project> LoadNewProjectsOnly(string path)
     {
         Loader load = new Loader();
         // 只取返回元组的第二个值（Projects）
-        (_, var newProjects) = load.LoadData(path); 
+        (_, var newProjects) = load.LoadData(path);
         return newProjects;
     }
 
@@ -175,7 +155,7 @@ public class Program
         Console.WriteLine($"Finess Score - {fitnessScore.ToString("F2")}\nBreakdown - Conflict Score: {conflictScore.ToString("F2")} || Movement Score: {movementScore.ToString("F2")} || Focus Score: {focusScore.ToString("F2")} || Continuity Score: {continuityScore.ToString("F2")} || Duration Score: {durationScore.ToString("F2")}\n");
         if (end)
         {
-           Console.WriteLine("------------------------------------------------------------------\n"); 
+            Console.WriteLine("------------------------------------------------------------------\n");
         }
     }
 }
