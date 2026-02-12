@@ -60,18 +60,26 @@ public class Program
             output.ExportToHtml(file, scheduleAfterGreedy, "After Role Checks");
             printStats("Role optimiser Data", roleResult.BestState, file, true);
 
+
             projects[0].printPeopleOnProject();
             Console.WriteLine("-------");
             people[0].printProjectsForPerson();
 
             finalState = roleResult.BestState;
 
-        }
+
+            Console.WriteLine("Find project by person test");
+            foreach (Project p in projects)
+            {
+                p.printPeopleOnProject();
+            }
+
         ProcessNewProjectInsertion(finalState);
     }
+    }
 
-    private void ProcessNewProjectInsertion(ScheduleState currentState)
-    {
+        private void ProcessNewProjectInsertion(ScheduleState currentState)
+        {
         if (currentState == null)
         {
             Console.WriteLine("[Error] No available global optimization state was found, and a new project could not be inserted.");
