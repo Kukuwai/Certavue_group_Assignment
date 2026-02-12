@@ -23,16 +23,16 @@ public class Program
     public Program()
     {
         var dataDirectory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Data"));
-        // string[] files = Directory.GetFiles(dataDirectory, "*.csv");
+       //string[] files = Directory.GetFiles(dataDirectory, "*.csv");
        //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_spectacular_fitness_mixedD_varied40s.csv") };
        //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_spectacular_fitness_mixedC_varied40s.csv") };
        //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_spectacular_fitness_mixedB_varied40s.csv") };
-       //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_spectacular_fitness_mixedA_varied40s.csv") };
+        //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_spectacular_fitness_mixedA_varied40s.csv") };
       // string[] files = new string[] { Path.Combine(dataDirectory, "schedule_role_optimizer_hits_100_after_greedy_stuck_varied40s.csv") };
-       //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_requires_role_optimizer_greedy_stuck_B_varied40s.csv") };
+       string[] files = new string[] { Path.Combine(dataDirectory, "schedule_requires_role_optimizer_greedy_stuck_B_varied40s.csv") };
        //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_requires_role_optimizer_greedy_stuck_A_varied40s.csv") };
        //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_project_contiguous_fitness_medium_improvable_varied40s.csv") };
-       string[] files = new string[] { Path.Combine(dataDirectory, "schedule_project_contiguous_fitness_low_improvable_varied40s.csv") };
+       //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_project_contiguous_fitness_low_improvable_varied40s.csv") };
        //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_project_contiguous_fitness_high_improvable_varied40s.csv") };
        //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_project_contiguous_fitness_extreme_improvable_varied40s.csv") };
       
@@ -105,57 +105,50 @@ public class Program
             // }
              }
 
-        //ProcessNewProjectInsertion(finalState);
+     ProcessNewProjectInsertion(finalState);
     }
     
 
-    //     private void ProcessNewProjectInsertion(ScheduleState currentState)
-    //     {
-    //     if (currentState == null)
-    //     {
-    //         Console.WriteLine("[Error] No available global optimization state was found, and a new project could not be inserted.");
-    //         return;
-    //     }
+private void ProcessNewProjectInsertion(ScheduleState currentState)
+{
 
-    //     var newProjectDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "AddNewProject"));
-    //     Console.WriteLine($"\n[ACTION] is searching new project: {newProjectDir}");
+    var newProjectDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "AddNewProject"));
+    if (!Directory.Exists(newProjectDir))
+    {
+        Console.WriteLine("[Error] can not find AddNewProject folder.");
+        return;
+    }
 
-    //     if (!Directory.Exists(newProjectDir))
-    //     {
-    //         Console.WriteLine("[Error] can not find AddNewProject folder。");
-    //         return;
-    //     }
+    ScheduleHandler handler = new ScheduleHandler(currentState);
+    string[] newFiles = Directory.GetFiles(newProjectDir, "*.csv");
 
-    //     ScheduleHandler handler = new ScheduleHandler(currentState);
-    //     string[] newFiles = Directory.GetFiles(newProjectDir, "*.csv");
+    foreach (var file in newFiles)
+    {
+        Console.WriteLine($"\n[File] is processing: {Path.GetFileName(file)}");
+        List<Project> newProjects = LoadNewProjectsOnly(file);
 
-    //     foreach (var file in newFiles)
-    //     {
-    //         Console.WriteLine($"[File] is processing: {Path.GetFileName(file)}");
+        foreach (var project in newProjects)
+        {
+            double insertionResult = handler.EvaluateNewProjectInsertion(project);
 
-    //         List<Project> newProjects = LoadNewProjectsOnly(file);
+            if (insertionResult >= 1.0)
+            {
 
-    //         foreach (var project in newProjects)
-    //         {
-    //             currentState.AddProject(project);           //fixed these 2 lines
-    //             double scoreDelta = handler.EvaluateNewProjectInsertion(project);  //fixed these 2 lines
+                Console.WriteLine($"   ✅ [INSERT SUCCESSFUL] Project '{project.name}' find avalible time，no extrac conflicts。");
+            }
+            else
+            {
+                int conflictCount = (int)Math.Abs(insertionResult);
+                Console.WriteLine($"   ⚠️ [FORCE INSERT] Project '{project.name}' can not avoid conflicts，lead to add new {conflictCount} conflicts。");
+            }
+        }
+        
+        Output finalOutput = new Output();
+        finalOutput.ExportToHtml("Global_Final_Schedule", currentState, "With_New_Projects.html");
+    }
 
-
-    //             if (scoreDelta >= 0)
-    //             {
-    //                 Console.WriteLine($"   ✅ [Success] project '{project.name}' had insert sucessful。score change: {scoreDelta:F4}");
-    //             }
-    //             else
-    //             {
-    //                 Console.WriteLine($"   ⚠️ [Warning] project '{project.name}' after insert,score change: ({scoreDelta:F4})，please check conflicts。");
-    //             }
-    //         }
-    //         Output finalOutput = new Output();
-    //         finalOutput.ExportToHtml("Global_Final_Schedule",currentState, "With_New_Projects.html");
-    //     }
-
-    //     Console.WriteLine("[SYSTEM] The final shift schedule has been exported to an HTML file.");
-    // }
+    Console.WriteLine("\n[SYSTEM] finish insert，final output alreay generate。");
+}
 
     public List<Project> LoadNewProjectsOnly(string path)
     {

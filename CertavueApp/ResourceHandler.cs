@@ -208,7 +208,7 @@ public double GetConflictScore(ScheduleState state)
         foreach (int shift in _state.GetValidShifts(p)) //Looping to compare each delta
         {
             double delta = EvaluateMoveDelta(p, shift);//Evaluation using Delta
-            Console.WriteLine($"Project {p.name} try Shift {shift} | Delta: {delta}");
+            //Console.WriteLine($"Project {p.name} try Shift {shift} | Delta: {delta}");
             if (delta > maxDelta)
             {
                 maxDelta = delta;
@@ -271,99 +271,41 @@ public double GetConflictScore(ScheduleState state)
 
 
 
-    //--------------evaluate if add a new project what is the ideal time and optimal resource------
-    public double EvaluateNewProjectInsertion(Project newProject)
+//--------------evaluate if add a new project what is the ideal time and optimal resource------
+public double EvaluateNewProjectInsertion(Project newProject)
+{  
+    _state.AddProject(newProject);
+    // Grab the baseline for physical overloads
+    int baseExtraTasks = _state.GetTotalExtraTasks();
+
+    // where this project fits best geographically/temporally 
+    int bestShift = GetBestMoveForProject(newProject);
+    _state.ApplyShift(newProject, bestShift);
+
+    // Goal: minimize the "ExtraTasks" delta for the week
+    foreach (var person in newProject.people.ToList())
     {
-        // record the socre when if without new project 
-        double originalScore = CalculateFitnessScore(_state);
-
-        // find the ideal time windo
-        int bestShift = GetBestMoveForProject(newProject);
-        _state.ApplyShift(newProject, bestShift);
-
-        // find the ideal huamn resouce
-        foreach (var person in newProject.people.ToList())
+        Person betterStaff = DetermineBestReplacement(newProject, person);
+        if (betterStaff.id != person.id)
         {
-            Person betterStaff = DetermineBestReplacement(newProject, person); //The DetermineBestReplacement method automatically filters candidates 
-                                                                               // based on role and selects the one with the highest Fitness Score.
-            if (betterStaff.id != person.id)
-            {
-                _state.SwapPersonInProject(newProject, person, betterStaff);
-            }
+            _state.SwapPersonInProject(newProject, person, betterStaff);
         }
-
-        // evaluate if insert new project , what socre of it
-        double newScore = CalculateFitnessScore(_state);
-
-        // returen delta socre to evaluate does insert successs, if score is positive it present success
-        return newScore - originalScore;
     }
 
-
-    // Returns a comprehensive "Search Map" of how moving this project (p) 
-    // to different weeks impacts the global schedule's Fitness Score.
-    // This might be useful for the Analyzer to determine if a project is "un-placeable" 
-    // due to time constraints or resource shortages.
-    public List<ShiftPerformance> GetScoreTrendForProject(Project p)
-    {
-        var trend = new List<ShiftPerformance>();
-        int originalShift = _state.GetShift(p);
-        var options = _state.GetValidShifts(p);
-
-        foreach (int shift in options)
-        {
-            _state.ApplyShift(p, shift);
-            double totalScore = CalculateFitnessScore(_state);
-
-            trend.Add(new ShiftPerformance
-            {
-                Shift = shift,
-                Score = totalScore,
-                IsOptimal = false
-            });
-
-            _state.ApplyShift(p, originalShift); // roll back
-        }
-        return trend.OrderByDescending(t => t.Score).ToList();
-    }
+    // see where the total overload count landed
+    int finalExtraTasks = _state.GetTotalExtraTasks();
 
 
+    int increment = finalExtraTasks - baseExtraTasks;
+    
+    // Returns: 
+    // 1.0 if the project fits perfectly without adding new overloads.
+    // A negative value (e.g., -2.0) representing the NET INCREASE in physical task overloads.
+    // Note: This is a delta count of extra tasks, not hours.
+    return increment == 0 ? 1.0 : -increment;
+}
 
-    // a method to help adding new projetc since we need to find optimal resouce with same role
-    public Dictionary<string, RoleGapReport> GetRoleSaturation(int startWeek, int endWeek)
-    {
-        var report = new Dictionary<string, RoleGapReport>();
-        var allRoles = _state.People.Select(p => p.role).Distinct();
 
-        foreach (var role in allRoles)
-        {
-            int supplyWeeks = _state.People.Count(p => p.role == role) * (endWeek - startWeek + 1);
-
-            int demandWeeks = 0;
-            foreach (var proj in _state.Projects)
-            {
-                var shift = _state.GetShift(proj);
-                var cells = _state.GetGrid(proj, shift)
-                                 .Where(c => c.Week >= startWeek && c.Week <= endWeek);
-
-                foreach (var cell in cells)
-                {
-                    var person = _state.People.First(p => p.id == cell.PersonId);
-                    if (person.role == role) demandWeeks++;
-                }
-            }
-
-            double saturation = supplyWeeks == 0 ? 0 : (double)demandWeeks / supplyWeeks;
-
-            report[role] = new RoleGapReport
-            {
-                Saturation = saturation,
-                MissingHours = (demandWeeks > supplyWeeks) ? (demandWeeks - supplyWeeks) * 40 : 0,
-                RecommendedStaff = Math.Max(0, Math.Ceiling((double)(demandWeeks - supplyWeeks) / (endWeek - startWeek + 1)))
-            };
-        }
-        return report;
-    }
 
 
 
@@ -410,58 +352,6 @@ public double GetConflictScore(ScheduleState state)
 }
 
 
-
-    //----return conflicts detail: exist conflict in which project whose overloap and which week overloap
-    // public List<string> GetDetailedConflictList()
-    // {
-    //     var details = new List<string>();
-
-    //     foreach (var entry in _state.PersonWeekGrid.Where(kv => kv.Value >= 2))
-    //     {
-    //         var key = entry.Key;
-    //         var person = _state.People.First(p => p.id == key.PersonId);
-
-    //         var conflictingProjects = _state.Projects
-    //             .Where(proj => _state.GetGrid(proj, _state.GetShift(proj))
-    //             .Any(cell => cell.PersonId == key.PersonId && cell.Week == key.Week))
-    //             .Select(proj => proj.name)
-    //             .ToList();
-
-    //         details.Add($"Week {key.Week} | {person.name} | Projects: {string.Join(" & ", conflictingProjects)}");
-    //     }
-    //     return details;
-    // }
-
-
-
-    private string FormatWeeksIntoRanges(List<int> weeks)
-    {
-        if (weeks == null || !weeks.Any()) return "None";
-        var sortedWeeks = weeks.Distinct().OrderBy(w => w).ToList();
-
-        var ranges = new List<string>();
-        int start = sortedWeeks[0];
-        int end = sortedWeeks[0];
-
-        for (int i = 1; i < sortedWeeks.Count; i++)
-        {
-            if (sortedWeeks[i] == end + 1)
-            {
-                end = sortedWeeks[i];
-            }
-            else
-            {
-                ranges.Add(start == end ? $"{start}" : $"{start}-{end}");
-                start = end = sortedWeeks[i];
-            }
-        }
-        ranges.Add(start == end ? $"{start}" : $"{start}-{end}");
-        return string.Join(", ", ranges);
-    }
-
-
-
-
     public ScheduleState Finalize()
     {
         return _state;
@@ -469,13 +359,5 @@ public double GetConflictScore(ScheduleState state)
 }
 
 
-public class ShiftScore
-{
-    public int DeltaDoubleBooked { get; set; }
-    public int OverlapAfter { get; set; }
-    public int ShiftDistance { get; set; }
-    public double Fitness { get; set; }
-
-}
 
 

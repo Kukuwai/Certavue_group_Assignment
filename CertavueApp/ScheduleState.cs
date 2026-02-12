@@ -89,7 +89,7 @@ public class ScheduleState
         Projects.Add(p);
         _window[p] = new Window(p.startDate, p.endDate);
         _shift[p] = 0;
-        AddProjectToGrid(p);
+        RebuildGrid();
     }
 
 
@@ -212,6 +212,20 @@ private void AddProjectToGrid(Project p)
         
         PersonWeekGrid[cleanKey] = PersonWeekGrid.GetValueOrDefault(cleanKey) + 1;
     }
+}
+
+
+public int GetTotalExtraTasks()
+{
+    int extraTasks = 0;
+    foreach (var count in PersonWeekGrid.Values)
+    {
+        if (count > 1)
+        {
+            extraTasks += (count - 1);
+        }
+    }
+    return extraTasks;
 }
 
     public void SwapPersonInProject(Project p, Person oldPerson, Person newPerson)
