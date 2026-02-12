@@ -39,7 +39,7 @@ public class Person
     {
         foreach (var entry in projects)
         {
-            Console.WriteLine($"{entry.Key.name}");
+            Console.WriteLine($"{entry.Key.name} | {this.name}");
         }
     }
 

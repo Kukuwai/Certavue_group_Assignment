@@ -47,8 +47,10 @@ public class Program
             output.ExportToHtml(file, scheduleAfterGreedy, "After Role Checks");
             printStats("Role optimiser Data", roleResult.BestState, file, true);
 
+            Console.WriteLine("Find people by project test");
             projects[0].printPeopleOnProject();
             Console.WriteLine("-------");
+            Console.WriteLine("Find project by person test");
             people[0].printProjectsForPerson();
         }
     }
