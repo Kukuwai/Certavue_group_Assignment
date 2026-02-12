@@ -58,29 +58,7 @@ public class ScheduleState
     //duration should be from start date week +1 to end date week -1 but need to check my maths on this one on paper
     public int GetDuration(Project p)
     {
-        var weeks = p.people
-            .SelectMany(person => person.projects[p]) //weeks on proj for this person
-            .Distinct() //remove duplicate weeks ie 2 people working week 10
-            .ToList();
-        int leftmost = weeks[0].Key;
-        int rightmost = weeks[0].Key;
-        int duration = rightmost - leftmost + 1;
-        foreach (KeyValuePair<int, int> entry in weeks)
-        {
-            if (entry.Key < leftmost)
-            {
-                leftmost = entry.Key;
-            }
-            if (entry.Key > rightmost)
-            {
-                rightmost = entry.Key;
-            }
-            duration = rightmost - leftmost + 1;
-        }
-
-
-
-        return duration;
+        return p.durationProjectFinder();
     }
     public int GetShift(Project p)
     {
