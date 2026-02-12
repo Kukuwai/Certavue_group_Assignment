@@ -154,8 +154,11 @@ public class Project
     {
         foreach (Person p in people)
         {
-            Dictionary<int, int> weekWorkingHours = p.projects.GetValueOrDefault(this);
-            Console.WriteLine($"{p.name} | {p.role} | {this.name} | {string.Join(", ", weekWorkingHours.Keys)} | {string.Join(", ", weekWorkingHours.Values)}");
+            Dictionary<int,int> projectWeekHours = p.projects.GetValueOrDefault(this);
+            foreach (KeyValuePair<int, int> entry in projectWeekHours)
+            {
+                Console.WriteLine($"{p.name} | {p.role} | {this.name} | Week {entry.Key}: | {entry.Value}");
+            }
         }
     }
     
