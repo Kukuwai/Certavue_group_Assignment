@@ -1,4 +1,5 @@
 using System.Dynamic;
+using Google.OrTools.LinearSolver;
 using static Person;
 
 public class Project
@@ -44,13 +45,13 @@ public class Project
         foreach (Person p in this.people)
         {
             // check if project is contained within dictiornary and that it onl has one person
-            if (!p.projects.TryGetValue(this, out List<int> weeksForProject))
+            if (!p.projects.TryGetValue(this, out Dictionary<int,int> weeksForProject))
             {
                 // skip if not
                 continue;   
             }
             // go through each week project is in
-            foreach (int week in weeksForProject)
+            foreach (int week in weeksForProject.Keys)
             {
                 // get earliest week
                 if (earliest == null || week < earliest)
@@ -106,8 +107,8 @@ public class Project
     {
         foreach (Person p in people)
         {
-            List<int> weeksAssigned = p.projects.GetValueOrDefault(this);
-            Console.WriteLine($"{p.name} | {p.role} | {this.name} | {string.Join(", ", weeksAssigned)}");
+            Dictionary<int, int> weekWorkingHours = p.projects.GetValueOrDefault(this);
+            Console.WriteLine($"{p.name} | {p.role} | {this.name} | {string.Join(", ", weekWorkingHours.Keys)} | {string.Join(", ", weekWorkingHours.Values)}");
         }
     }
     
