@@ -214,27 +214,37 @@ public class GreedyAlg
 
     //we can probably move this method out somewhere else later but just the initial handoff shift logic
     public static void MoveWeekToReplacement(ScheduleState state, Project project, Person from, Person to, int week)
+{
+    // 1. 先把小时数存起来，因为 Remove 之后就拿不到了
+    int hours = from.getHoursForProjecForWeek(project, week);
+
+    // 2. 尝试从原负责人手中移除
+    if (!from.projects.ContainsKey(project) || !from.projects[project].Remove(week))
     {
-
-        if (!from.projects.ContainsKey(project) || !from.projects[project].Remove(week)) //error was happening if someone was previously removed from a project
-        {
-            return;
-        }
-        if (!to.projects.ContainsKey(project)) //iff the new person doesn't hae this project already add it to their list
-        {
-            to.projects[project] = new Dictionary<int, int>();
-        }
-        to.projects[project].Add(week, from.getHoursForProjecForWeek(project, week)); //assigns the week being traded //assigns the week being traded 
-
-        project.people.Add(to);
-        if (from.projects[project].Count == 0) //removes old person if their project weeks are 0 aka no longer on project
-        {
-            project.people.Remove(from);
-
-        }
-
-        state.RebuildGrid(); //rebuilds the state with changes
+        return;
     }
+
+    // 3. 准备给接收者（to）
+    if (!to.projects.ContainsKey(project))
+    {
+        to.projects[project] = new Dictionary<int, int>();
+    }
+
+    // --- 修复点：使用索引器 [week] 而不是 .Add() ---
+    // 这样如果 key 已存在，它会覆盖旧值而不是报错崩溃
+    to.projects[project][week] = hours; 
+
+    // 4. 更新项目的参与人员名单
+    project.people.Add(to); // HashSet 会自动处理重复，所以 Add 是安全的
+
+    if (from.projects[project].Count == 0)
+    {
+        project.people.Remove(from);
+    }
+
+    // 5. 重构网格以反映更改
+    state.RebuildGrid();
+}
 
     //Checking person's schedule for open week
     public static bool IsPersonFree(ScheduleState state, Person person, Project project, int week) //boolean that returns true/false if person is free or not

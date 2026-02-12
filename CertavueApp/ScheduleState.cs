@@ -5,7 +5,7 @@ using MoreLinq; // Requires the MoreLINQ package
 //Since we designed it without a schedule class in the loader we keep track here making the "grid" in the CSV form
 public class ScheduleState
 {
-    public struct WeekKey //handles a person and week cell
+    public record struct WeekKey //handles a person and week cell
     {
         public int PersonId;
         public int ProjectId;
@@ -17,6 +17,19 @@ public class ScheduleState
             ProjectId = projectId;
             Week = week;
         }
+
+        public readonly bool Equals(WeekKey other)
+        {
+         return PersonId == other.PersonId && Week == other.Week;
+        }
+
+    
+        public override readonly int GetHashCode()
+        {
+         return HashCode.Combine(PersonId, Week);
+        }
+
+
     }
 
     public class Window    //handles the start and end weeks of project
@@ -173,17 +186,17 @@ public class ScheduleState
             else PersonWeekGrid[key] = count;
         }
     }
-    //current shift added 
-    private void AddProjectToGrid(Project p)
+
+private void AddProjectToGrid(Project p)
+{
+    foreach (var key in GetGrid(p, GetShift(p)))
     {
-        int shift = GetShift(p);
-        foreach (var key in GetGrid(p, shift))  //loops over occupied cells
-        {
-            int week = key.Week;
-            if (week < 1 || week > Weeks) continue;
-            PersonWeekGrid[key] = PersonWeekGrid.GetValueOrDefault(key) + 1;
-        }
+        
+        var cleanKey = new WeekKey(key.PersonId, key.ProjectId, key.Week);
+        
+        PersonWeekGrid[cleanKey] = PersonWeekGrid.GetValueOrDefault(cleanKey) + 1;
     }
+}
 
     public void SwapPersonInProject(Project p, Person oldPerson, Person newPerson)
     {
@@ -192,4 +205,39 @@ public class ScheduleState
         p.ReplaceStaff(oldPerson, newPerson);
         AddProjectToGrid(p);
     }
+
+
+    public void DebugConflictDetails(ScheduleState state)
+{
+    int totalConflictCells = 0;
+    int totalOvertimeHours = 0;
+    var conflictingPeople = new HashSet<int>();
+
+    Console.WriteLine("\n========== [DEBUG 冲突详细分析] ==========");
+
+    foreach (var entry in state.PersonWeekGrid)
+    {
+        if (entry.Value > 1) 
+        {
+            totalConflictCells++;
+            int overtime = (entry.Value - 1) * 40;
+            totalOvertimeHours += overtime;
+            conflictingPeople.Add(entry.Key.PersonId);
+
+            Console.WriteLine($"[冲突点] 员工ID: {entry.Key.PersonId.ToString().PadRight(4)} | 第 {entry.Key.Week.ToString().PadRight(2)} 周 | 项目数: {entry.Value} | 超时: {overtime}h");
+        }
+    }
+
+    if (totalConflictCells == 0)
+    {
+        Console.WriteLine(">>> 完美！当前排班无任何 Double Booking 冲突。");
+    }
+    else
+    {
+        Console.WriteLine("------------------------------------------");
+        Console.WriteLine($"总结: 共有 {totalConflictCells} 个冲突周格，涉及 {conflictingPeople.Count} 名员工。");
+        Console.WriteLine($"总计 Double Booking 时间: {totalOvertimeHours} 小时。");
+    }
+    Console.WriteLine("==========================================\n");
+}
 }

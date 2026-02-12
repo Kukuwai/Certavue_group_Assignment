@@ -48,46 +48,49 @@ public class ScheduleHandler
 
     //-------method of calculate fitness score
     public double CalculateFitnessScore(ScheduleState state)
+{
+    double conflict = GetConflictScore(state);
+    double duration = GetDurationScore(state);
+    double movement = GetMovementScore(state);
+    double focus = GetFocusScore(state);
+    double continuity = GetContinuityScore(state);
+
+    // 重点：使用固定的加权，不要用 if/else 截断
+    // 调大 Conflict 的权重（如 0.8），这样算法会拼命先解冲突
+    return (conflict * 0.4) + (duration * 0.2) + (movement * 0.2) + (focus * 0.1) + (continuity * 0.1 );
+}
+
+
+public double GetConflictScore(ScheduleState state)
+{
+    if (state.PersonWeekGrid == null || state.PersonWeekGrid.Count == 0) return 1.0;
+
+    double totalPenalty = 0;
+    int totalAssignments = 0; // 这里的总数就是我们要的分母
+
+    foreach (var entry in state.PersonWeekGrid)
     {
-        double conflictScore = GetConflictScore(state);
-        double movementScore = GetMovementScore(state);
-        double focusScore = GetFocusScore(state);
-        double continuityScore = GetContinuityScore(state);
-        double durationScore = GetDurationScore(state);
+        // 这一格里有多少个项目？ (1个还是N个)
+        int projectsInThisCell = entry.Value;
+        
+        // 累加：这代表了“全公司总共分派了多少个任务单元”
+        totalAssignments += projectsInThisCell;
 
-        // Final weighted sum
-        return (conflictScore * 0.4) +
-               (movementScore * 0.2) +
-               (focusScore * 0.2) +
-               (continuityScore * 0.1) +
-               (durationScore * 0.1);
-    }
-
-   // This is a overload punisher
-    public double GetConflictScore(ScheduleState state)
-    {
-         if (state.PersonWeekGrid.Count == 0) return 1.0;
-
-        double totalOverworkHours = 0;
-        double totalAssignedHours = 0;
-        const int CAPACITY_LIMIT = 40; // set a maxmium work hours
-
-         foreach (var projectCount in state.PersonWeekGrid.Values)
+        // 如果项目数大于 1，说明有冲突，计算惩罚
+        if (projectsInThisCell > 1)
         {
-        // translete per week to be 40 hours
-        int hoursInThisCell = projectCount * 40;
-        totalAssignedHours += hoursInThisCell;
-
-        // caculate the overwork hours
-        if (hoursInThisCell > CAPACITY_LIMIT)
-        { // caculate the total overwork hours
-            totalOverworkHours += (hoursInThisCell - CAPACITY_LIMIT);
+            totalPenalty += Math.Pow(projectsInThisCell - 1, 2);
         }
-    }  //caculate percentage of overwork
-        double conflictRatio = totalOverworkHours / totalAssignedHours;
-       //Normalization
-        return Math.Max(0, 1.0 - conflictRatio);
     }
+
+    // 现在 totalAssignments 就是你想要的“每个人参与项目数的总和”
+    double dynamicDenominator = totalAssignments; 
+
+    if (dynamicDenominator <= 0) return 1.0;
+
+    double finalScore = 1.0 - (totalPenalty / dynamicDenominator);
+    return Math.Max(0.0, finalScore);
+}
 
 
 
@@ -99,7 +102,7 @@ public class ScheduleHandler
         double totalShift = state.Projects.Sum(p => Math.Abs(state.GetShift(p)));
         // normalization socre
         double avgShift = totalShift / state.Projects.Count;
-        return Math.Max(0, 1.0 - (avgShift / 4.0)); // if it near with 4 it will be 0
+        return Math.Max(0, 1.0 - (avgShift / 10.0)); // if it near with 10 it will be 0
     }
 
     public double GetFocusScore(ScheduleState state)
@@ -204,6 +207,7 @@ public class ScheduleHandler
         foreach (int shift in _state.GetValidShifts(p)) //Looping to compare each delta
         {
             double delta = EvaluateMoveDelta(p, shift);//Evaluation using Delta
+            Console.WriteLine($"Project {p.name} try Shift {shift} | Delta: {delta}");
             if (delta > maxDelta)
             {
                 maxDelta = delta;
@@ -359,6 +363,40 @@ public class ScheduleHandler
         }
         return report;
     }
+
+        public void DebugConflictDetails(ScheduleState state)
+{
+    int totalConflictCells = 0;
+    int totalOvertimeHours = 0;
+    var conflictingPeople = new HashSet<int>();
+
+    Console.WriteLine("\n========== [DEBUG Analyze] ==========");
+
+    foreach (var entry in state.PersonWeekGrid)
+    {
+        if (entry.Value > 1) 
+        {
+            totalConflictCells++;
+            int overtime = (entry.Value - 1) * 40;
+            totalOvertimeHours += overtime;
+            conflictingPeople.Add(entry.Key.PersonId);
+
+            Console.WriteLine($"[CONFLICTS🚨] Person ID: {entry.Key.PersonId.ToString().PadRight(4)} | The {entry.Key.Week.ToString().PadRight(2)} week | count of project: {entry.Value} | Overtime: {overtime}h");
+        }
+    }
+
+    if (totalConflictCells == 0)
+    {
+        Console.WriteLine(">>> Sucess！👍 No conflicts");
+    }
+    else
+    {
+        Console.WriteLine("------------------------------------------");
+        Console.WriteLine($"Total:  {totalConflictCells} conflict week grid，related with {conflictingPeople.Count} person。");
+        Console.WriteLine($"Total Double Booking time: {totalOvertimeHours} hours。");
+    }
+    Console.WriteLine("==========================================\n");
+}
 
 
 
