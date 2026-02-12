@@ -27,7 +27,7 @@ public class Program
             var originalState = loadData(file);
 
             // export original data to html output
-            Output output = new Output();
+            /*Output output = new Output();
             output.ExportToHtml(file, originalState, "Original");
             printStats("Original Data", originalState, file, false);
 
@@ -51,7 +51,7 @@ public class Program
             projects[0].printPeopleOnProject();
             Console.WriteLine("-------");
             Console.WriteLine("Find project by person test");
-            people[0].printProjectsForPerson();
+            people[0].printProjectsForPerson();*/
         }
     }
     public ScheduleState loadData(string path)
