@@ -73,10 +73,11 @@ public class Program
             {
                 p.printPeopleOnProject();
             }
+            }
 
         ProcessNewProjectInsertion(finalState);
     }
-    }
+    
 
         private void ProcessNewProjectInsertion(ScheduleState currentState)
         {
