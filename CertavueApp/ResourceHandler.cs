@@ -63,7 +63,7 @@ public class ScheduleHandler
                (durationScore * 0.1);
     }
 
-    // This is a overload punisher
+   // This is a overload punisher
     public double GetConflictScore(ScheduleState state)
     {
          if (state.PersonWeekGrid.Count == 0) return 1.0;
@@ -88,6 +88,8 @@ public class ScheduleHandler
        //Normalization
         return Math.Max(0, 1.0 - conflictRatio);
     }
+
+
 
 
 

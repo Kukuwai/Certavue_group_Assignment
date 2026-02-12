@@ -74,7 +74,7 @@ public class Program
     {
         if (currentState == null)
         {
-            Console.WriteLine("[Error] 没有找到可用的全局优化状态，无法插入新项目。");
+            Console.WriteLine("[Error] No available global optimization state was found, and a new project could not be inserted.");
             return;
         }
 
@@ -112,7 +112,7 @@ public class Program
                 }
             }
             Output finalOutput = new Output();
-            finalOutput.ExportToHtml("Global_Final_Schedule", currentState, "With_New_Projects.html");
+            finalOutput.ExportToHtml("Global_Final_Schedule",currentState, "With_New_Projects.html");
         }
 
         Console.WriteLine("[SYSTEM] The final shift schedule has been exported to an HTML file.");
