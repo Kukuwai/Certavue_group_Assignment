@@ -46,6 +46,8 @@ public class RoleOptimizer
         };
 
     }
+
+    
     private WeekOptimizationResult OptimizeWeek(ScheduleState state, int week, double baselineFitness, ScheduleHandler handler) //method checks one week at a time and optimizes it
     {
         List<ConflictTask> tasks = BuildConflictTasks(state, week); //each task is one overloaded person on one project in that week

@@ -174,18 +174,34 @@ public class ScheduleState
         AddProjectToGrid(p);    //adds the proj back
     }
     //removes a project from the grid when it is being shifted
+    // private void RemoveProjectFromGrid(Project p)
+    // {
+    //     int shift = GetShift(p);   //current cell shift
+    //     foreach (var key in GetGrid(p, shift))
+    //     {
+    //         int week = key.Week;
+    //         if (week < 1 || week > Weeks) continue;
+    //         if (!PersonWeekGrid.TryGetValue(key, out var count)) continue;
+    //         if (--count == 0) PersonWeekGrid.Remove(key);
+    //         else PersonWeekGrid[key] = count;
+    //     }
+    // }
+
     private void RemoveProjectFromGrid(Project p)
+{
+    foreach (var key in GetGrid(p, GetShift(p)))
     {
-        int shift = GetShift(p);   //current cell shift
-        foreach (var key in GetGrid(p, shift))
+        var cleanKey = new WeekKey(key.PersonId, key.ProjectId, key.Week);
+        if (PersonWeekGrid.ContainsKey(cleanKey))
         {
-            int week = key.Week;
-            if (week < 1 || week > Weeks) continue;
-            if (!PersonWeekGrid.TryGetValue(key, out var count)) continue;
-            if (--count == 0) PersonWeekGrid.Remove(key);
-            else PersonWeekGrid[key] = count;
+            PersonWeekGrid[cleanKey] -= 1;
+            if (PersonWeekGrid[cleanKey] <= 0)
+            {
+                PersonWeekGrid.Remove(cleanKey);
+            }
         }
     }
+}
 
 private void AddProjectToGrid(Project p)
 {
@@ -206,38 +222,4 @@ private void AddProjectToGrid(Project p)
         AddProjectToGrid(p);
     }
 
-
-    public void DebugConflictDetails(ScheduleState state)
-{
-    int totalConflictCells = 0;
-    int totalOvertimeHours = 0;
-    var conflictingPeople = new HashSet<int>();
-
-    Console.WriteLine("\n========== [DEBUG 冲突详细分析] ==========");
-
-    foreach (var entry in state.PersonWeekGrid)
-    {
-        if (entry.Value > 1) 
-        {
-            totalConflictCells++;
-            int overtime = (entry.Value - 1) * 40;
-            totalOvertimeHours += overtime;
-            conflictingPeople.Add(entry.Key.PersonId);
-
-            Console.WriteLine($"[冲突点] 员工ID: {entry.Key.PersonId.ToString().PadRight(4)} | 第 {entry.Key.Week.ToString().PadRight(2)} 周 | 项目数: {entry.Value} | 超时: {overtime}h");
-        }
-    }
-
-    if (totalConflictCells == 0)
-    {
-        Console.WriteLine(">>> 完美！当前排班无任何 Double Booking 冲突。");
-    }
-    else
-    {
-        Console.WriteLine("------------------------------------------");
-        Console.WriteLine($"总结: 共有 {totalConflictCells} 个冲突周格，涉及 {conflictingPeople.Count} 名员工。");
-        Console.WriteLine($"总计 Double Booking 时间: {totalOvertimeHours} 小时。");
-    }
-    Console.WriteLine("==========================================\n");
-}
 }

@@ -55,9 +55,7 @@ public class ScheduleHandler
     double focus = GetFocusScore(state);
     double continuity = GetContinuityScore(state);
 
-    // 重点：使用固定的加权，不要用 if/else 截断
-    // 调大 Conflict 的权重（如 0.8），这样算法会拼命先解冲突
-    return (conflict * 0.4) + (duration * 0.2) + (movement * 0.2) + (focus * 0.1) + (continuity * 0.1 );
+    return (conflict * 0.4) + (duration * 0.1) + (movement * 0.2) + (focus * 0.2) + (continuity * 0.1 );
 }
 
 
@@ -66,32 +64,35 @@ public double GetConflictScore(ScheduleState state)
     if (state.PersonWeekGrid == null || state.PersonWeekGrid.Count == 0) return 1.0;
 
     double totalPenalty = 0;
-    int totalAssignments = 0; // 这里的总数就是我们要的分母
+    int totalAssignments = 0; 
 
     foreach (var entry in state.PersonWeekGrid)
     {
-        // 这一格里有多少个项目？ (1个还是N个)
         int projectsInThisCell = entry.Value;
-        
-        // 累加：这代表了“全公司总共分派了多少个任务单元”
         totalAssignments += projectsInThisCell;
 
-        // 如果项目数大于 1，说明有冲突，计算惩罚
         if (projectsInThisCell > 1)
         {
-            totalPenalty += Math.Pow(projectsInThisCell - 1, 2);
+            // 使用 1.5 次方保持对大冲突的敏感性
+            totalPenalty += Math.Pow(projectsInThisCell - 1, 1.5);
         }
     }
 
-    // 现在 totalAssignments 就是你想要的“每个人参与项目数的总和”
-    double dynamicDenominator = totalAssignments; 
+    if (totalAssignments <= 0) return 1.0;
 
-    if (dynamicDenominator <= 0) return 1.0;
+    // 计算惩罚比率
+    double ratio = totalPenalty / totalAssignments;
 
-    double finalScore = 1.0 - (totalPenalty / dynamicDenominator);
-    return Math.Max(0.0, finalScore);
+    // --- 核心改进：指数衰减函数 ---
+    // 逻辑：Score = e^(-ratio)
+    // 当 ratio = 0 (无冲突) 时，结果是 1.0
+    // 当 ratio = 1 时，结果是 0.36
+    // 当 ratio = 10 (极端冲突) 时，结果是 0.000045
+    // 这样分数永远不会是 0，算法在任何时候都能看到细微的优化趋势
+    double finalScore = Math.Exp(-ratio);
+
+    return finalScore;
 }
-
 
 
 
@@ -102,7 +103,7 @@ public double GetConflictScore(ScheduleState state)
         double totalShift = state.Projects.Sum(p => Math.Abs(state.GetShift(p)));
         // normalization socre
         double avgShift = totalShift / state.Projects.Count;
-        return Math.Max(0, 1.0 - (avgShift / 10.0)); // if it near with 10 it will be 0
+        return Math.Max(0, 1.0 - (avgShift / 20.0)); // if it near with 10 it will be 0
     }
 
     public double GetFocusScore(ScheduleState state)
@@ -364,9 +365,12 @@ public double GetConflictScore(ScheduleState state)
         return report;
     }
 
-        public void DebugConflictDetails(ScheduleState state)
+
+
+    public void DebugConflictDetails(ScheduleState state)
 {
-    int totalConflictCells = 0;
+    int totalConflictCells = 0;   // 受灾的格子数（受苦的周数）
+    int totalExtraTasks = 0;      // 对齐工时的冲突数（多出来的任务单元）
     int totalOvertimeHours = 0;
     var conflictingPeople = new HashSet<int>();
 
@@ -377,7 +381,12 @@ public double GetConflictScore(ScheduleState state)
         if (entry.Value > 1) 
         {
             totalConflictCells++;
-            int overtime = (entry.Value - 1) * 40;
+            
+            // --- 核心改进：统计超载的任务单元数 ---
+            int extraTasks = entry.Value - 1; 
+            totalExtraTasks += extraTasks;
+
+            int overtime = extraTasks * 40;
             totalOvertimeHours += overtime;
             conflictingPeople.Add(entry.Key.PersonId);
 
@@ -387,12 +396,14 @@ public double GetConflictScore(ScheduleState state)
 
     if (totalConflictCells == 0)
     {
-        Console.WriteLine(">>> Sucess！👍 No conflicts");
+        Console.WriteLine(">>> Success！👍 No conflicts");
     }
     else
     {
         Console.WriteLine("------------------------------------------");
-        Console.WriteLine($"Total:  {totalConflictCells} conflict week grid，related with {conflictingPeople.Count} person。");
+        Console.WriteLine($"Total Conflicts (Extra Tasks): {totalExtraTasks}");
+        Console.WriteLine($"Affected Week Grids: {totalConflictCells}");
+        Console.WriteLine($"Related Persons: {conflictingPeople.Count}");
         Console.WriteLine($"Total Double Booking time: {totalOvertimeHours} hours。");
     }
     Console.WriteLine("==========================================\n");

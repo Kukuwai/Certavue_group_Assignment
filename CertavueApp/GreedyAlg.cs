@@ -113,6 +113,7 @@ public class GreedyAlg
         }
     }
 
+
     //something to think about on this method is it replaces it with the first available person. Maybe that is fine, maybe not but good to discuss
     public bool MoveBetweenRoles(ScheduleState state)
     {
@@ -213,36 +214,62 @@ public class GreedyAlg
 
 
     //we can probably move this method out somewhere else later but just the initial handoff shift logic
+    // public static void MoveWeekToReplacement(ScheduleState state, Project project, Person from, Person to, int week)
+    // {
+
+    //     if (!from.projects.ContainsKey(project) || !from.projects[project].Remove(week)) //error was happening if someone was previously removed from a project
+    //     {
+    //         return;
+    //     }
+    //     if (!to.projects.ContainsKey(project)) //iff the new person doesn't hae this project already add it to their list
+    //     {
+    //         to.projects[project] = new Dictionary<int, int>();
+    //     }
+    //     to.projects[project].Add(week, from.getHoursForProjecForWeek(project, week)); //assigns the week being traded //assigns the week being traded 
+
+    //     project.people.Add(to);
+    //     if (from.projects[project].Count == 0) //removes old person if their project weeks are 0 aka no longer on project
+    //     {
+    //         project.people.Remove(from);
+
+    //     }
+
+    //     state.RebuildGrid(); //rebuilds the state with changes
+    // }
+
+
+
     public static void MoveWeekToReplacement(ScheduleState state, Project project, Person from, Person to, int week)
 {
-    // 1. 先把小时数存起来，因为 Remove 之后就拿不到了
-    int hours = from.getHoursForProjecForWeek(project, week);
-
-    // 2. 尝试从原负责人手中移除
-    if (!from.projects.ContainsKey(project) || !from.projects[project].Remove(week))
+    // 1. 安全检查：确保原负责人确实有这个项目和这一周
+    if (!from.projects.ContainsKey(project) || !from.projects[project].ContainsKey(week))
     {
         return;
     }
 
-    // 3. 准备给接收者（to）
+    // 2. 【核心修正】定义并获取小时数，防止 CS0103 错误
+    int hours = from.getHoursForProjecForWeek(project, week);
+
+    // 3. 从原负责人手中移除
+    from.projects[project].Remove(week);
+
+    // 4. 准备给接收者
     if (!to.projects.ContainsKey(project))
     {
         to.projects[project] = new Dictionary<int, int>();
     }
 
-    // --- 修复点：使用索引器 [week] 而不是 .Add() ---
-    // 这样如果 key 已存在，它会覆盖旧值而不是报错崩溃
+    // 5. 【核心修正】使用索引器 [] 而不是 .Add()，防止重复 Key 导致崩溃
     to.projects[project][week] = hours; 
 
-    // 4. 更新项目的参与人员名单
-    project.people.Add(to); // HashSet 会自动处理重复，所以 Add 是安全的
-
+    // 6. 更新项目人员名单
+    project.people.Add(to);
     if (from.projects[project].Count == 0)
     {
         project.people.Remove(from);
     }
 
-    // 5. 重构网格以反映更改
+    // 7. 更新全局网格
     state.RebuildGrid();
 }
 
