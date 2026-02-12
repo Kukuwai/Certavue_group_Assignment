@@ -172,16 +172,16 @@ public class ScheduleHandler
     // }
 
     // Returns a dictionary mapping each person to their available (free) week ranges.
-    public Dictionary<string, string> GetGapsPerPerson()
-    {
-        var report = new Dictionary<string, string>();
-        foreach (var p in _state.People)
-        {
-            List<int> freeWeeks = _finder.GetAvailableWeeksForPerson(p.name);
-            report[p.name] = FormatWeeksIntoRanges(freeWeeks);
-        }
-        return report;
-    }
+    // public Dictionary<string, string> GetGapsPerPerson()
+    // {
+    //     var report = new Dictionary<string, string>();
+    //     foreach (var p in _state.People)
+    //     {
+    //         List<int> freeWeeks = _finder.GetAvailableWeeksForPerson(p.name);
+    //         report[p.name] = FormatWeeksIntoRanges(freeWeeks);
+    //     }
+    //     return report;
+    // }
 
     // public ShiftScore EvaluateMove(Project p, int candidateShift)
     // {

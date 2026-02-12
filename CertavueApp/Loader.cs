@@ -50,7 +50,7 @@ public class Loader
             Dictionary<int, int> weekWorkingHours = new Dictionary<int, int>();
             for (int i = startDate+1; i < endDate; i++)
                 {
-                    if (!cells[i].Contains(","))
+                    if (!cells[i].Contains(",") && !cells[i].Contains(""))
                     {
                         weekWorkingHours.Add(i-2, Convert.ToInt32(cells[i]));
                     }

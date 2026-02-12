@@ -131,7 +131,7 @@ public class RoleOptimizer
             foreach (Project project in state.Projects)
             {
                 int rawWeek = week - state.GetShift(project); //converts because the displayed week is not the actual week 
-                if (overloaded.projects.TryGetValue(project, out List<int> weeks) && weeks.Contains(rawWeek)) //checks if project is being worked on that week
+                if (overloaded.projects.TryGetValue(project, out Dictionary<int, int> weeks) && weeks.Keys.Contains(rawWeek)) //checks if project is being worked on that week
                 {
                     tasks.Add(new ConflictTask //if it is then adding it to the conflict tasks list
                     {
@@ -159,7 +159,7 @@ public class RoleOptimizer
                 continue;
             }
 
-            if (!GreedyAlg.IsPersonFree(state, person, task.Week)) //makes sure they are free this week
+            if (!GreedyAlg.IsPersonFree(state, person, task.Project, task.Week)) //makes sure they are free this week
             {
                 continue;
             }
@@ -170,30 +170,30 @@ public class RoleOptimizer
     private bool TryMove(ScheduleState state, ConflictTask task, Person replacement)
     {
         int rawWeek = task.Week - state.GetShift(task.Project); //apparently the displayed week after the move isn't the same as what is truly stored which was interesting
-        if (!task.OverloadedPerson.projects.TryGetValue(task.Project, out List<int> weeks)) //Makes sure the original person owns the project still, ie was moved away prior
+        if (!task.OverloadedPerson.projects.TryGetValue(task.Project, out Dictionary<int, int> weeks)) //Makes sure the original person owns the project still, ie was moved away prior
         {
             return false;
         }
-        if (!weeks.Contains(rawWeek)) //has to be the exact same week working
+        if (!weeks.Keys.Contains(rawWeek)) //has to be the exact same week working
         {
             return false;
         }
-        if (!GreedyAlg.IsPersonFree(state, replacement, task.Week)) //replacement must still be free, ie not added another project
+        if (!GreedyAlg.IsPersonFree(state, replacement, task.Project, task.Week)) //replacement must still be free, ie not added another project
         {
             return false;
         }
         GreedyAlg.MoveWeekToReplacement(state, task.Project, task.OverloadedPerson, replacement, rawWeek); //does the actual moving
-        return replacement.projects.TryGetValue(task.Project, out List<int> replacementWeeks) && replacementWeeks.Contains(rawWeek);
+        return replacement.projects.TryGetValue(task.Project, out Dictionary<int, int> replacementWeeks) && replacementWeeks.Keys.Contains(rawWeek);
     }
     private AssignmentSnapshot CaptureSnapshot(ScheduleState state)  //keeps a snapshot of changes for comparison ak grid v grid
     {
-        var personAssignments = new Dictionary<Person, Dictionary<Project, List<int>>>(); //Copy person/project/weeks map
+        var personAssignments = new Dictionary<Person, Dictionary<Project, Dictionary<int, int>>>(); //Copy person/project/weeks map
         foreach (Person person in state.People)
         {
-            var byProject = new Dictionary<Project, List<int>>();
-            foreach (KeyValuePair<Project, List<int>> kv in person.projects) //takes list of people on project
+            var byProject = new Dictionary<Project, Dictionary<int, int>>(person.projects);
+            foreach (KeyValuePair<Project, Dictionary<int,int>> kv in person.projects) //takes list of people on project
             {
-                byProject[kv.Key] = new List<int>(kv.Value); //copies s future changes don't impact it
+                byProject[kv.Key] = new Dictionary<int, int>(kv.Value); //copies s future changes don't impact it
             }
             personAssignments[person] = byProject; //saves this version 
         }
@@ -204,7 +204,7 @@ public class RoleOptimizer
         }
         return new AssignmentSnapshot  // Return one snapshot object containing both views of the same schedule, person/project/weeks and project/people so we can build a full state
         {
-            PersonAssignments = personAssignments,
+            PersonAssignments = personAssignments, 
             ProjectPeople = projectPeople
         };
     }
@@ -213,13 +213,13 @@ public class RoleOptimizer
         foreach (Person person in state.People) //restores each person's projects/weeks
         {
             person.projects.Clear(); //removes current state
-            if (!snapshot.PersonAssignments.TryGetValue(person, out Dictionary<Project, List<int>> byProject)) //skip anyone without snapshot data
+            if (!snapshot.PersonAssignments.TryGetValue(person, out Dictionary<Project, Dictionary<int, int>> byProject)) //skip anyone without snapshot data
             {
                 continue;
             }
-            foreach (KeyValuePair<Project, List<int>> kv in byProject) //rebuilds from snapshot
+            foreach (KeyValuePair<Project, Dictionary<int, int>> kv in byProject) //rebuilds from snapshot
             {
-                person.projects[kv.Key] = new List<int>(kv.Value);
+                person.projects[kv.Key] = new Dictionary<int, int>(kv.Value);
             }
         }
         foreach (Project project in state.Projects) //restores each projects people set
@@ -253,7 +253,7 @@ public class RoleOptimizer
 
     private class AssignmentSnapshot //copies of states to compare
     {
-        public Dictionary<Person, Dictionary<Project, List<int>>> PersonAssignments { get; set; }
+        public Dictionary<Person, Dictionary<Project, Dictionary<int, int>>> PersonAssignments { get; set; }
         public Dictionary<Project, HashSet<Person>> ProjectPeople { get; set; }
     }
 
