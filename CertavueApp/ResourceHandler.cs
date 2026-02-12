@@ -63,15 +63,35 @@ public class ScheduleHandler
                (durationScore * 0.1);
     }
 
+   // This is a overload punisher
     public double GetConflictScore(ScheduleState state)
     {
-        int totalSlots = state.PersonWeekGrid.Count;
-        if (totalSlots == 0) return 1.0;
-        // find conflicts grid
-        int conflicts = state.PersonWeekGrid.Values.Count(v => v > 1);
-        // normalization 
-        return Math.Max(0, 1.0 - ((double)conflicts / totalSlots)); // make sure punlish is outstanding
+         if (state.PersonWeekGrid.Count == 0) return 1.0;
+
+        double totalOverworkHours = 0;
+        double totalAssignedHours = 0;
+        const int CAPACITY_LIMIT = 40; // set a maxmium work hours
+
+         foreach (var projectCount in state.PersonWeekGrid.Values)
+        {
+        // translete per week to be 40 hours
+        int hoursInThisCell = projectCount * 40;
+        totalAssignedHours += hoursInThisCell;
+
+        // caculate the overwork hours
+        if (hoursInThisCell > CAPACITY_LIMIT)
+        { // caculate the total overwork hours
+            totalOverworkHours += (hoursInThisCell - CAPACITY_LIMIT);
+        }
+    }  //caculate percentage of overwork
+        double conflictRatio = totalOverworkHours / totalAssignedHours;
+       //Normalization
+        return Math.Max(0, 1.0 - conflictRatio);
     }
+
+
+
+
 
     public double GetMovementScore(ScheduleState state)
     {
@@ -150,111 +170,11 @@ public class ScheduleHandler
     }
 
 
-
-
-
-
-
-
-
-
-
-
     //----------------------------------------
     public ScheduleState GetCurrentState() => _state;
     public AvailabilityFinder GetFinder() => _finder;
 
 
-    // // --- Gets a list of valid shift offsets that keep the project within its allowed timeframe.
-    // public List<int> GetValidOptions(Project p)
-    // {
-    //     return _state.GetValidShifts(p);
-    // }
-
-    // Returns a dictionary mapping each person to their available (free) week ranges.
-    // public Dictionary<string, string> GetGapsPerPerson()
-    // {
-    //     var report = new Dictionary<string, string>();
-    //     foreach (var p in _state.People)
-    //     {
-    //         List<int> freeWeeks = _finder.GetAvailableWeeksForPerson(p.name);
-    //         report[p.name] = FormatWeeksIntoRanges(freeWeeks);
-    //     }
-    //     return report;
-    // }
-
-    // public ShiftScore EvaluateMove(Project p, int candidateShift)
-    // {
-    //     int currentShift = _state.GetShift(p);
-
-    //     int currentDoubleBooked = _state.PersonWeekGrid
-    //                    .Where(kv => kv.Value >= 2)
-    //                    .Sum(kv => kv.Value);
-    //     if (candidateShift == currentShift)
-    //     {
-
-
-    //         int currentConflictCells = _state.PersonWeekGrid.Values.Count(v => v >= 2);
-
-    //         double currentPenalty = (1000.0 * currentDoubleBooked) + (10.0 * currentConflictCells);
-
-    //         return new ShiftScore
-    //         {
-    //             DeltaDoubleBooked = 0,
-    //             OverlapAfter = currentConflictCells,
-    //             ShiftDistance = 0,
-    //             Fitness = 1.0 / (1.0 + currentPenalty)
-    //         };
-    //     }
-
-
-
-    //     var currentCells = _state.GetGrid(p, currentShift);
-    //     var candidateCells = _state.GetGrid(p, candidateShift);
-
-    //     var touchedKeys = currentCells.Union(candidateCells).Distinct();
-
-    //     int delta = 0;
-    //     int overlapAfter = 0;
-
-
-    //     foreach (var key in touchedKeys)
-    //     {
-    //         _state.PersonWeekGrid.TryGetValue(key, out int currentTotalCount);
-
-    //         bool isOccupiedInCurrent = currentCells.Any(c => c.Equals(key));
-    //         int baseCountWithoutProject = isOccupiedInCurrent ? currentTotalCount - 1 : currentTotalCount;
-
-    //         bool isOccupiedInCandidate = candidateCells.Any(c => c.Equals(key));
-    //         int newCountWithCandidate = isOccupiedInCandidate ? baseCountWithoutProject + 1 : baseCountWithoutProject;
-
-    //         if (currentTotalCount >= 2) delta -= 1;
-    //         if (newCountWithCandidate >= 2)
-    //         {
-    //             delta += 1;
-    //             overlapAfter++;
-    //         }
-    //     }
-    //     int distance = Math.Abs(candidateShift - currentShift);
-
-    //     currentDoubleBooked = _state.PersonWeekGrid
-    //         .Where(kv => kv.Value >= 2)
-    //         .Sum(kv => kv.Value);
-
-    //     int projectedDoubleBooked = Math.Max(0, currentDoubleBooked + delta);
-
-    //     double penalty = (1000.0 * projectedDoubleBooked) + (10.0 * overlapAfter) + distance;
-    //     double fitness = 1.0 / (1.0 + penalty);
-
-    //     return new ShiftScore
-    //     {
-    //         DeltaDoubleBooked = delta,
-    //         OverlapAfter = overlapAfter,
-    //         ShiftDistance = distance,
-    //         Fitness = fitness
-    //     };
-
-    // }
 
 
     // evaluate move socre/delta in order to allow alg evaluate
@@ -442,9 +362,6 @@ public class ScheduleHandler
 
 
 
-
-
-
     //----return conflicts detail: exist conflict in which project whose overloap and which week overloap
     // public List<string> GetDetailedConflictList()
     // {
@@ -467,18 +384,6 @@ public class ScheduleHandler
     // }
 
 
-    // private List<int> GetOverloadWeeksList(string personName)
-    // {
-    //     List<int> overloads = new List<int>();
-    //     for (int w = 1; w <= 52; w++)
-    //     {
-    //         if (_finder.GetPersonWorkload(personName, w) > 1)
-    //         {
-    //             overloads.Add(w);
-    //         }
-    //     }
-    //     return overloads;
-    // }
 
     private string FormatWeeksIntoRanges(List<int> weeks)
     {
@@ -506,59 +411,6 @@ public class ScheduleHandler
     }
 
 
-
-
-    // public string GenerateSummary()
-    // {
-    //     // 1. Calculations
-    //     int conflictCells = _state.PersonWeekGrid.Values.Count(v => v >= 2);
-    //     int totalOccupiedCells = _state.PersonWeekGrid.Count;
-    //     double successPct = totalOccupiedCells == 0 ? 100 : (double)_state.PersonWeekGrid.Values.Count(v => v == 1) / totalOccupiedCells * 100;
-
-    //     StringBuilder sb = new StringBuilder();
-    //     sb.AppendLine("======= 📅 PROJECT SCHEDULE DIAGNOSTIC REPORT =======");
-    //     sb.AppendLine($"[Status] Total Conflicts: {conflictCells} | Success Rate: {successPct:0.##}%");
-
-    //     // 2. Critical Overloads (Who is busy)
-    //     sb.AppendLine("\n[Critical Overloads]");
-    //     var overloadedStaff = _state.People
-    //         .Select(p => new { p.name, Weeks = GetOverloadWeeksList(p.name) })
-    //         .Where(x => x.Weeks.Any())
-    //         .ToList();
-
-    //     if (overloadedStaff.Any())
-    //     {
-    //         foreach (var s in overloadedStaff)
-    //             sb.AppendLine($"  ⚠️ {s.name}: {s.Weeks.Count} weeks conflicted ({FormatWeeksIntoRanges(s.Weeks)})");
-    //     }
-    //     else
-    //     {
-    //         sb.AppendLine("  ✅ No resource overloads detected.");
-    //     }
-
-    //     // 3. Conflict Breakdown ( What is happening)
-    //     sb.AppendLine("\n[Conflict Breakdown - Project Overlaps]");
-    //     var conflictDetails = GetDetailedConflictList();
-    //     if (conflictDetails.Any())
-    //     {
-    //         foreach (var line in conflictDetails) sb.AppendLine($"  ❌ {line}");
-    //     }
-    //     else
-    //     {
-    //         sb.AppendLine("  ✅ All project assignments are isolated.");
-    //     }
-
-    //     // 4. Resource Capacity (Future planning)
-    //     sb.AppendLine("\n[Resource Capacity / Gaps]");
-    //     foreach (var p in _state.People)
-    //     {
-    //         var gaps = _finder.GetAvailableWeeksForPerson(p.name);
-    //         sb.AppendLine($"  💡 {p.name}: {gaps.Count} weeks free (Windows: {FormatWeeksIntoRanges(gaps)})");
-    //     }
-
-    //     sb.AppendLine("\n====================================================");
-    //     return sb.ToString();
-    // }
 
 
     public ScheduleState Finalize()

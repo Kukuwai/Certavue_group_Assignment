@@ -10,10 +10,13 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
+
 public class Program
 {
     List<Project> projects = new List<Project>();
     List<Person> people = new List<Person>();
+
+    public static ScheduleState LatestState;
 
 
 
@@ -21,6 +24,9 @@ public class Program
     {
         var dataDirectory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Data"));
         string[] files = Directory.GetFiles(dataDirectory, "*.csv");
+
+        ScheduleState finalState = null;
+
         // loading data in
         foreach (string file in files)
         {
@@ -36,6 +42,12 @@ public class Program
             // output.ExportToHtml(file, scheduleAfterConflict, "after_conflict");
             // printStats("Conflict Moving Data", scheduleAfterConflict, file);
 
+            /*Console.WriteLine("start move conflict");
+            var scheduleAfterConflict = new MoveByConflict().start(originalState, projects);
+            output.ExportToHtml(file, scheduleAfterConflict, "after_conflict");
+            printStats("Conflict Moving Data", scheduleAfterConflict, file);*/
+
+
             // greedy algorithm starts, inluding export of output to html
             Console.WriteLine($"Greeding Running File - {System.IO.Path.GetFileName(file)}\n");
             var scheduleAfterGreedy = new GreedyAlg().StartGreedy(people, projects);
@@ -44,16 +56,84 @@ public class Program
 
             var roleOpt = new RoleOptimizer();
             var roleResult = roleOpt.Optimize(scheduleAfterGreedy, maxPasses: 999999999);
+            Program.LatestState = roleResult.BestState;// * add newest state
             output.ExportToHtml(file, scheduleAfterGreedy, "After Role Checks");
             printStats("Role optimiser Data", roleResult.BestState, file, true);
+
+
+            projects[0].printPeopleOnProject();
+            Console.WriteLine("-------");
+            people[0].printProjectsForPerson();
+
+            finalState = roleResult.BestState;
+
 
             Console.WriteLine("Find project by person test");
             foreach (Project p in projects)
             {
                 p.printPeopleOnProject();
             }
-        }
+            }
+
+        ProcessNewProjectInsertion(finalState);
     }
+    
+
+        private void ProcessNewProjectInsertion(ScheduleState currentState)
+        {
+        if (currentState == null)
+        {
+            Console.WriteLine("[Error] No available global optimization state was found, and a new project could not be inserted.");
+            return;
+        }
+
+        var newProjectDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "AddNewProject"));
+        Console.WriteLine($"\n[ACTION] is searching new project: {newProjectDir}");
+
+        if (!Directory.Exists(newProjectDir))
+        {
+            Console.WriteLine("[Error] can not find AddNewProject folder。");
+            return;
+        }
+
+        ScheduleHandler handler = new ScheduleHandler(currentState);
+        string[] newFiles = Directory.GetFiles(newProjectDir, "*.csv");
+
+        foreach (var file in newFiles)
+        {
+            Console.WriteLine($"[File] is processing: {Path.GetFileName(file)}");
+
+            List<Project> newProjects = LoadNewProjectsOnly(file);
+
+            foreach (var project in newProjects)
+            {
+                currentState.AddProject(project);           //fixed these 2 lines
+                double scoreDelta = handler.EvaluateNewProjectInsertion(project);  //fixed these 2 lines
+
+
+                if (scoreDelta >= 0)
+                {
+                    Console.WriteLine($"   ✅ [Success] project '{project.name}' had insert sucessful。score change: {scoreDelta:F4}");
+                }
+                else
+                {
+                    Console.WriteLine($"   ⚠️ [Warning] project '{project.name}' after insert,score change: ({scoreDelta:F4})，please check conflicts。");
+                }
+            }
+            Output finalOutput = new Output();
+            finalOutput.ExportToHtml("Global_Final_Schedule",currentState, "With_New_Projects.html");
+        }
+
+        Console.WriteLine("[SYSTEM] The final shift schedule has been exported to an HTML file.");
+    }
+
+    public List<Project> LoadNewProjectsOnly(string path)
+    {
+        Loader load = new Loader();
+        (_, var newProjects) = load.LoadData(path);
+        return newProjects;
+    }
+
     public ScheduleState loadData(string path)
     {
         Loader load = new Loader();
@@ -64,7 +144,6 @@ public class Program
         Console.WriteLine($"Loaded {System.IO.Path.GetFileName(path)}\n");
         return state;
     }
-
 
     static void Main(string[] args)
     {
@@ -84,7 +163,7 @@ public class Program
         Console.WriteLine($"Finess Score - {fitnessScore.ToString("F2")}\nBreakdown - Conflict Score: {conflictScore.ToString("F2")} || Movement Score: {movementScore.ToString("F2")} || Focus Score: {focusScore.ToString("F2")} || Continuity Score: {continuityScore.ToString("F2")} || Duration Score: {durationScore.ToString("F2")}\n");
         if (end)
         {
-           Console.WriteLine("------------------------------------------------------------------\n"); 
+            Console.WriteLine("------------------------------------------------------------------\n");
         }
     }
 }
