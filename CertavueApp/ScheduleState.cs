@@ -4,11 +4,13 @@ public class ScheduleState
     public struct WeekKey //handles a person and week cell
     {
         public int PersonId;
+        public int ProjectId;
         public int Week;
 
-        public WeekKey(int personId, int week)
+        public WeekKey(int personId, int projectId, int week)
         {
             PersonId = personId;
+            ProjectId = projectId;
             Week = week;
         }
     }
@@ -28,7 +30,7 @@ public class ScheduleState
     public List<Person> People { get; } //list of all people in that schedule
     public List<Project> Projects { get; } //list of projects
 
-    public Dictionary<WeekKey, int> PersonWeekGrid { get; } = new(); //dictionary to track projects a person has each week
+    public Dictionary<WeekKey, int> PersonWeekGrid { get; } = new();   //dictionary to track projects a person has each week and weekly hours on them
     private readonly Dictionary<Project, Window> _window; //considers start and end dates to know what valid moves are 
     private readonly Dictionary<Project, int> _shift; //current shift of project
     public ScheduleState(List<Person> people, List<Project> projects)
@@ -117,7 +119,7 @@ public class ScheduleState
                     int shiftedWeek = originalWeek + shift;  //makes the shift change
                     if (shiftedWeek >= 1 && shiftedWeek <= 52)
                     {
-                        cells.Add(new WeekKey(person.id, shiftedWeek)); //adds the new changed cell to list
+                        cells.Add(new WeekKey(person.id, p.id, shiftedWeek)); //adds the new changed cell to list
                     }
                 }
             }
