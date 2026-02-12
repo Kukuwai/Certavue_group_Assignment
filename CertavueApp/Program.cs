@@ -27,13 +27,13 @@ public class Program
             var originalState = loadData(file);
 
             // export original data to html output
-            /*Output output = new Output();
+            Output output = new Output();
             output.ExportToHtml(file, originalState, "Original");
             printStats("Original Data", originalState, file, false);
 
             // moveByConflict method (manual optimisation)
-            // var scheduleAfterConflict = new MoveByConflict().start(originalState, projects);
-            // output.ExportToHtml(file, scheduleAfterConflict, "after_conflict");
+            var scheduleAfterConflict = new MoveByConflict().start(originalState, projects);
+            output.ExportToHtml(file, scheduleAfterConflict, "after_conflict");
             // printStats("Conflict Moving Data", scheduleAfterConflict, file);
 
             // greedy algorithm starts, inluding export of output to html
@@ -51,7 +51,7 @@ public class Program
             projects[0].printPeopleOnProject();
             Console.WriteLine("-------");
             Console.WriteLine("Find project by person test");
-            people[0].printProjectsForPerson();*/
+            people[0].printProjectsForPerson();
         }
     }
     public ScheduleState loadData(string path)
