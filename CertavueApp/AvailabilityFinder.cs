@@ -17,7 +17,7 @@ public class AvailabilityFinder
     var person = _state.People.FirstOrDefault(p => p.name == personName);
     if (person == null) return -1;
 
-    var key = new ScheduleState.WeekKey(person.id, week);
+    var key = new ScheduleState.WeekKey(person.id, week, 0);
 
     if (_state.PersonWeekGrid.ContainsKey(key))
     {
@@ -31,7 +31,7 @@ public class AvailabilityFinder
     return _state.People
         .Where(p =>
         {
-          var key = new ScheduleState.WeekKey(p.id, week);
+          var key = new ScheduleState.WeekKey(p.id, week, 0);
           return !_state.PersonWeekGrid.ContainsKey(key) || _state.PersonWeekGrid[key] == 0;
         })
         .ToList();
@@ -45,7 +45,7 @@ public class AvailabilityFinder
     var availableWeeks = new List<int>();
     for (int week = 1; week <= 52; week++)
     {
-      var key = new ScheduleState.WeekKey(person.id, week);
+      var key = new ScheduleState.WeekKey(person.id, week, 0);
       if (!_state.PersonWeekGrid.ContainsKey(key) || _state.PersonWeekGrid[key] == 0)
       {
         availableWeeks.Add(week);
@@ -86,7 +86,7 @@ public class AvailabilityFinder
     int overloadedWeeks = 0;
     for (int week = 1; week <= 52; week++)
     {
-      var key = new ScheduleState.WeekKey(person.id, week);
+      var key = new ScheduleState.WeekKey(person.id, week, 0);
       if (_state.PersonWeekGrid.ContainsKey(key) && _state.PersonWeekGrid[key] > 1)
       {
         overloadedWeeks++;
@@ -113,7 +113,7 @@ public class AvailabilityFinder
       var overloadedPeople = _state.People
           .Where(p =>
           {
-            var key = new ScheduleState.WeekKey(p.id, week);
+            var key = new ScheduleState.WeekKey(p.id, week, 0);
             return _state.PersonWeekGrid.ContainsKey(key) && _state.PersonWeekGrid[key] > 1;
           })
           .ToList();
@@ -190,7 +190,7 @@ public class AvailabilityFinder
       // Check each week of the project
       for (int week = startWeek; week < startWeek + duration; week++)
       {
-        var key = new ScheduleState.WeekKey(person.id, week);
+        var key = new ScheduleState.WeekKey(person.id, week, 0);
 
         // If person is busy in ANY week, they can't do the full project
         if (_state.PersonWeekGrid.ContainsKey(key) && _state.PersonWeekGrid[key] > 0)
