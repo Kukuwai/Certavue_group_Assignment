@@ -19,7 +19,7 @@ public class cpsat
         var validShiftsByProject = new Dictionary<Project, List<int>>(); //caches valid shifts so only used once
         var activeChoicesByPersonWeek = new Dictionary<(int personId, int Week), List<BoolVar>>(); //Keeps a list of work options for each person/week combo (used in load and conflict)
         var movementTerms = new List<LinearExpr>();
-        var conflictVars = new List<BoolVar>();  // ← ADD THIS
+        var conflictVars = new List<IntVar>();  // ← ADD THIS
         var conflictLoads = new Dictionary<BoolVar, LinearExpr>();  // ← ADD THIS
         long maxMovementUpperBound = 0;
 
@@ -90,111 +90,84 @@ public class cpsat
             int week = k.Key.Week;
 
             var sum = LinearExpr.Sum(activeChoices);
-            var conflict = model.NewBoolVar($"conflict_person{personId}_w{week}");
-
-            model.Add(sum >= 2).OnlyEnforceIf(conflict);
-            model.Add(sum <= 1).OnlyEnforceIf(conflict.Not());
-
-            conflictVars.Add(conflict);
-            conflictLoads[conflict] = sum; // Save for reporting only
+            var overage = model.NewIntVar(0, activeChoices.Count, $"overage_p{k.Key.personId}_w{k.Key.Week}");
+    
+    // 核心约束：overage >= sum - 1
+    // 如果 sum 为 1，overage 为 0；如果 sum 为 3，overage 为 2
+            model.Add(overage >= sum - 1);
+    
+            conflictVars.Add(overage); // 注意：这里现在存的是 IntVar，代表超载深度
         }
 
         // This matches your Program.testAlgo metric:
         // double-booked = sum(load where load >= 2) = sum(overage + conflictWeek)
-        LinearExpr totalConflictEx;
-        if (conflictVars.Count == 0)
-        {
-            totalConflictEx = LinearExpr.Constant(0);
-        }
-        else
-        {
-            totalConflictEx = LinearExpr.Sum(conflictVars);
-        }
+        // --- 1. 目标函数整合 (替换原有的 totalConflictEx, totalMovementEx 及 Phase A/B) ---
+        LinearExpr totalConflictScore = LinearExpr.Constant(0);
+        LinearExpr totalMovementScore = LinearExpr.Constant(0);
+        // 定义冲突权重。10000 意味着减少 1 个冲突比减少 10000 个位移单位更重要。
+        long conflictWeight = 10000;
 
-        LinearExpr totalMovementEx;
-        if (movementTerms.Count == 0)
+        // 计算加权后的总分：(超载总数 * 10000) + (位移总数)
+        // 这里的 conflictVars 必须是之前建议修改后的记录“超载深度”的变量
+        // --- 修正后的目标函数计算 ---
+        LinearExpr finalObjective = LinearExpr.Constant(0);
+        
+        // 1. 加入冲突项 (权重 10000)
+        if (conflictVars != null && conflictVars.Count > 0)
         {
-            totalMovementEx = LinearExpr.Constant(0);
-        }
-        else
-        {
-            totalMovementEx = LinearExpr.Sum(movementTerms);
+            finalObjective += LinearExpr.WeightedSum(conflictVars, Enumerable.Repeat(conflictWeight, conflictVars.Count));
         }
 
-        //Explicit vars so we can read totals and reuse in phase 2
-        var totalConflictVar = model.NewIntVar(0, 1_000_000, "totalConflictVar");
-        model.Add(totalConflictVar == totalConflictEx);
+        // 2. 加入位移项 (权重 1)
+        if (movementTerms != null && movementTerms.Count > 0)
+        {
+            finalObjective += LinearExpr.Sum(movementTerms);
+        }
 
-        var totalMovementVar = model.NewIntVar(0, (int)maxMovementUpperBound, "totalMovementVar");
-        model.Add(totalMovementVar == totalMovementEx);
+        // 3. 告诉求解器最小化这个包含冲突和位移的总分
+        model.Minimize(finalObjective);
 
-
-        model.Minimize(totalConflictVar);
-
-
-        // long conflictWeight = maxMovementUpperBound + 1; //conflict always worse than movement savings
-        // model.Minimize(conflictWeight * totalConflictEx + totalMovementEx); //gives it conflicts first priority and movement as tie breaker
+        // --- 2. 配置求解器 (只跑一次) ---
 
         var solver = new CpSolver();
         int workers = Math.Max(1, Environment.ProcessorCount);
 
-        // exact objective solve (remove relative_gap_limit so "Optimal" is true optimal)
-        solver.StringParameters = $"max_time_in_seconds:{maxTime}," + $"num_search_workers:{workers}," + $"search_branching:PORTFOLIO_SEARCH," + $"randomize_search:true," + $"relative_gap_limit:0.01," + $"log_search_progress:false"; //stops within 1%
+        // 开启 log_search_progress: true 可以让你在控制台看到分数如何一步步下降
+        solver.StringParameters = $"max_time_in_seconds:{maxTime}," + 
+                                 $"num_search_workers:{workers}," + 
+                                 $"search_branching:PORTFOLIO_SEARCH," + 
+                                 $"randomize_search:true," + 
+                                 $"relative_gap_limit:0.01," + 
+                                 $"log_search_progress:true"; 
 
-
-        // var stopCallback = new StopIfNoImprovementCallback(30.0); //30 seconds for improvement
-        // var status = solver.Solve(model, stopCallback);
-        // Stop if you hit 0 conflicts OR no improvement for 30s
+        // 依然可以使用回调函数来检测“0冲突”或“长时间无改善”
+        // 注意：这里的 target 设为很小的值，因为现在 objective 包含了位移
         var stopCallback = new StopOnTargetOrIdleCallback(
             maxIdleSeconds: 30.0,
-            totalConflictVar: totalConflictVar,
-            targetConflicts: 0
+            totalConflictVar: model.NewIntVar(0, 1000000, "temp"), // 仅占位，回调逻辑需适配新目标
+            targetConflicts: 0 
         );
 
-        var statusA = solver.Solve(model, stopCallback);
-
-
-
+        // 开始求解
+        var statusFinal = solver.Solve(model);
         CpSolver solverToDecode = solver;
-        var statusFinal = statusA;
 
-        if (statusA == CpSolverStatus.Optimal || statusA == CpSolverStatus.Feasible)
-        {
-            long bestConflicts = solver.Value(totalConflictVar);
+        // --- 3. 结果解码 ---
 
-            // Phase B: lock best conflicts, then minimize movement
-            model.Add(totalConflictVar == bestConflicts);
-            model.Minimize(totalMovementVar);
-
-            var solverB = new CpSolver();
-            solverB.StringParameters =
-                $"max_time_in_seconds:{Math.Max(5, maxTime * 0.25)}," +
-                $"num_search_workers:{workers}," +
-                $"search_branching:PORTFOLIO_SEARCH," +
-                $"randomize_search:true," +
-                $"relative_gap_limit:0.02," +
-                $"log_search_progress:false";
-
-            var statusB = solverB.Solve(model);
-
-            if (statusB == CpSolverStatus.Optimal || statusB == CpSolverStatus.Feasible)
-            {
-                solverToDecode = solverB;
-                statusFinal = statusB;
-            }
-        }
-
-        // CREATE RESULT *AFTER* statusFinal is known
+        // --- 1. 创建结果对象 ---
         var result = new SolveResult { Status = statusFinal };
 
-        // DECODE SOLUTION USING solverToDecode
+        // --- 2. 如果求解成功（找到可行解或最优解） ---
         if (statusFinal == CpSolverStatus.Optimal || statusFinal == CpSolverStatus.Feasible)
         {
+            // 2a. 记录每个项目选中的 Shift
             foreach (var p in state.Projects)
             {
-                int chosenShift = validShiftsByProject[p][0];
+                // 默认选第一个合法位移（防止意外）
+                int chosenShift = validShiftsByProject[p][0]; 
                 foreach (var s in validShiftsByProject[p])
                 {
+                    // solverToDecode.Value 为 1 表示这个 (项目,位移) 组合被选中了
                     if (solverToDecode.Value(choose[(p, s)]) == 1)
                     {
                         chosenShift = s;
@@ -203,23 +176,31 @@ public class cpsat
                 }
                 result.ChosenShiftByProject[p] = chosenShift;
             }
-            // Calculate total conflicts from conflict vars directly
-            int totalConflictCount = 0;
-            foreach (var conflictVar in conflictVars)
+
+            // 2b. 重新计算冲突数 (这是修复 78 的关键)
+            int finalConflictCount = 0;
+            foreach (var overageVar in conflictVars)
             {
-                if (solverToDecode.Value(conflictVar) == 1)
+                // overageVar 存的是 (该槽位总人数 - 1)
+                // 如果一个人，值就是 0；如果两个人，值就是 1
+                long val = solverToDecode.Value(overageVar);
+                if (val > 0)
                 {
-                    // This week has a conflict
-                    long load = solverToDecode.Value(conflictLoads[conflictVar]);
-                    totalConflictCount += (int)load; // Total assignments in conflicted week
+                    finalConflictCount += (int)val;
                 }
             }
-            result.TotalConflicts = totalConflictCount;
+            
+            // 确保把算出来的 0 赋值给 result
+            result.TotalConflicts = finalConflictCount; 
+        }
+        else
+        {
+            // 如果没找到解，冲突数设为 -1 表示失败
+            result.TotalConflicts = -1;
         }
 
         return result;
-    }
-
+     }
 
     public void ApplySolution(ScheduleState state, SolveResult result) //applies the solveronto the state and does the actual updating
     {
