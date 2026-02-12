@@ -1,3 +1,7 @@
+using System.Linq;
+using System.Collections.Generic;
+using MoreLinq; // Requires the MoreLINQ package
+
 //Since we designed it without a schedule class in the loader we keep track here making the "grid" in the CSV form
 public class ScheduleState
 {
@@ -58,10 +62,23 @@ public class ScheduleState
             .SelectMany(person => person.projects[p]) //weeks on proj for this person
             .Distinct() //remove duplicate weeks ie 2 people working week 10
             .ToList();
-
-        int leftmost = weeks.Min();
-        int rightmost = weeks.Max();
+        int leftmost = weeks[0].Key;
+        int rightmost = weeks[0].Key;
         int duration = rightmost - leftmost + 1;
+        foreach (KeyValuePair<int, int> entry in weeks)
+        {
+            if (entry.Key < leftmost)
+            {
+                leftmost = entry.Key;
+            }
+            if (entry.Key > rightmost)
+            {
+                rightmost = entry.Key;
+            }
+            duration = rightmost - leftmost + 1;
+        }
+
+
 
         return duration;
     }
@@ -86,10 +103,20 @@ public class ScheduleState
         {
             return new List<int> { 0 }; //breaks without this do not remove
         }
-
-        int baselineStart = weeks.Min();   //earliest x
-        int baselineEnd = weeks.Max();     //latest x
-
+        int baselineStart = weeks[0].Key;
+        int baselineEnd = weeks[0].Key;
+        foreach (KeyValuePair<int, int> entry in weeks)
+        {
+            if (entry.Key < baselineStart) //earliest x
+            {
+                baselineStart = entry.Key;
+            }
+            if (entry.Key > baselineEnd) //latest x
+            {
+                baselineEnd = entry.Key;
+            }
+        }
+        
         int duration = baselineEnd - baselineStart + 1; //how wide the project is or long
 
         int earliestStart = _window[p].Start + 1;  //valid moves left
@@ -116,7 +143,7 @@ public class ScheduleState
             {
                 foreach (var originalWeek in person.projects[p])   //takes each week someone is on a project
                 {
-                    int shiftedWeek = originalWeek + shift;  //makes the shift change
+                    int shiftedWeek = originalWeek.Key + shift;  //makes the shift change
                     if (shiftedWeek >= 1 && shiftedWeek <= 52)
                     {
                         cells.Add(new WeekKey(person.id, p.id, shiftedWeek)); //adds the new changed cell to list
@@ -170,10 +197,10 @@ public class ScheduleState
     }
 
     public void SwapPersonInProject(Project p, Person oldPerson, Person newPerson)
-{
-    RemoveProjectFromGrid(p); 
+    {
+        RemoveProjectFromGrid(p);
 
-    p.ReplaceStaff(oldPerson, newPerson);
-    AddProjectToGrid(p);
-} 
+        p.ReplaceStaff(oldPerson, newPerson);
+        AddProjectToGrid(p);
+    }
 }

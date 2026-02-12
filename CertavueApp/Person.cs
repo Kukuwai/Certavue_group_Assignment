@@ -43,4 +43,11 @@ public class Person
         }
     }
 
+    public int getHoursForProjecForWeek(Project project, int week)
+    {
+        var weekkey = projects.GetValueOrDefault(project);
+        return weekkey.GetValueOrDefault(week);
+    }
+
 }
+
