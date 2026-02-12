@@ -59,39 +59,76 @@ public class ScheduleHandler
 }
 
 
+// public double GetConflictScore(ScheduleState state)
+// {
+//     if (state.PersonWeekGrid == null || state.PersonWeekGrid.Count == 0) return 1.0;
+
+//     double totalPenalty = 0;
+//     int totalAssignments = 0; 
+
+//     foreach (var entry in state.PersonWeekGrid)
+//     {
+//         int projectsInThisCell = entry.Value;
+//         totalAssignments += projectsInThisCell;
+
+//         if (projectsInThisCell > 1)
+//         {
+//             // 使用 1.5 次方保持对大冲突的敏感性
+//             totalPenalty += Math.Pow(projectsInThisCell - 1, 1.5);
+//         }
+//     }
+
+//     if (totalAssignments <= 0) return 1.0;
+
+//     // 计算惩罚比率
+//     double ratio = totalPenalty / totalAssignments;
+
+//     // --- 核心改进：指数衰减函数 ---
+//     // 逻辑：Score = e^(-ratio)
+//     // 当 ratio = 0 (无冲突) 时，结果是 1.0
+//     // 当 ratio = 1 时，结果是 0.36
+//     // 当 ratio = 10 (极端冲突) 时，结果是 0.000045
+//     // 这样分数永远不会是 0，算法在任何时候都能看到细微的优化趋势
+//     double finalScore = Math.Exp(-ratio);
+
+//     return finalScore;
+// }
+
+
+
 public double GetConflictScore(ScheduleState state)
 {
+    // 1. 如果网格里没人，说明没活干，自然没冲突
     if (state.PersonWeekGrid == null || state.PersonWeekGrid.Count == 0) return 1.0;
 
-    double totalPenalty = 0;
-    int totalAssignments = 0; 
+    double totalOverloadPenalty = 0;
+    
+    // 2. 分母：当前所有有排班的“人-周”单元格的总承载力
+    // 假设每个单元格标准工时是 40h
+    double totalCapacityHours = state.PersonWeekGrid.Count * 40.0; 
 
     foreach (var entry in state.PersonWeekGrid)
     {
-        int projectsInThisCell = entry.Value;
-        totalAssignments += projectsInThisCell;
+        int projectCount = entry.Value;
 
-        if (projectsInThisCell > 1)
+        if (projectCount > 1)
         {
-            // 使用 1.5 次方保持对大冲突的敏感性
-            totalPenalty += Math.Pow(projectsInThisCell - 1, 1.5);
+            // 3. 计算超载的小时数
+            // 2个项目重叠 = 超载 40h；3个项目重叠 = 超载 80h
+            double extraHours = (projectCount - 1) * 40.0;
+            
+            // 4. 使用平方惩罚 (Quadratic Penalty)
+            // 为什么要平方？为了告诉算法：让一个人干 3 份活（1600罚分）
+            // 远比让两个人各干 2 份活（400+400=800罚分）要糟糕得多。
+            totalOverloadPenalty += Math.Pow(extraHours, 2);
         }
     }
 
-    if (totalAssignments <= 0) return 1.0;
-
-    // 计算惩罚比率
-    double ratio = totalPenalty / totalAssignments;
-
-    // --- 核心改进：指数衰减函数 ---
-    // 逻辑：Score = e^(-ratio)
-    // 当 ratio = 0 (无冲突) 时，结果是 1.0
-    // 当 ratio = 1 时，结果是 0.36
-    // 当 ratio = 10 (极端冲突) 时，结果是 0.000045
-    // 这样分数永远不会是 0，算法在任何时候都能看到细微的优化趋势
-    double finalScore = Math.Exp(-ratio);
-
-    return finalScore;
+    // 5. 归一化：将惩罚值映射到 0-1 之间
+    // 系数 400.0 是为了调节灵敏度，你可以根据 0.79 的变动来调整它
+    double normalizedPenalty = totalOverloadPenalty / (totalCapacityHours * 10.0);
+    
+    return Math.Exp(-normalizedPenalty);
 }
 
 

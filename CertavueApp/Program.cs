@@ -9,7 +9,6 @@ using static ScheduleState;
 using System.IO;
 using System.Linq;
 using System.Text;
-using Google.OrTools.Sat;
 
 
 public class Program
@@ -28,8 +27,8 @@ public class Program
        //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_spectacular_fitness_mixedD_varied40s.csv") };
        //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_spectacular_fitness_mixedC_varied40s.csv") };
        //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_spectacular_fitness_mixedB_varied40s.csv") };
-       //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_spectacular_fitness_mixedA_varied40s.csv") };
-       // string[] files = new string[] { Path.Combine(dataDirectory, "schedule_role_optimizer_hits_100_after_greedy_stuck_varied40s.csv") };
+        //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_spectacular_fitness_mixedA_varied40s.csv") };
+      // string[] files = new string[] { Path.Combine(dataDirectory, "schedule_role_optimizer_hits_100_after_greedy_stuck_varied40s.csv") };
        string[] files = new string[] { Path.Combine(dataDirectory, "schedule_requires_role_optimizer_greedy_stuck_B_varied40s.csv") };
        //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_requires_role_optimizer_greedy_stuck_A_varied40s.csv") };
        //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_project_contiguous_fitness_medium_improvable_varied40s.csv") };
@@ -37,7 +36,7 @@ public class Program
        //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_project_contiguous_fitness_high_improvable_varied40s.csv") };
        //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_project_contiguous_fitness_extreme_improvable_varied40s.csv") };
       
-       // ScheduleState finalState = null;
+        ScheduleState finalState = null;
         
 
         // loading data in
@@ -45,139 +44,111 @@ public class Program
         {
             var originalState = loadData(file);
             ScheduleHandler handler = new ScheduleHandler(originalState);
+            Console.WriteLine(">>> initial state analye:");
+            handler.DebugConflictDetails(originalState);
+            // Console.WriteLine("\n--- PersonWeekGrid checking vaule ---");
+            // int count = 0;
+            // foreach (var entry in originalState.PersonWeekGrid)
+            // {
+            //   if (count++ >= 10) break; 
+    
+            //    Console.WriteLine($"Key content: {entry.Key} | (Value): {entry.Value}");
+            //  }
+            // Console.WriteLine("----------------------------------\n");
 
-            var solverEngine = new cpsat();
-            Console.WriteLine("--- OR-Tools 优化开始 ---");
-            var result = solverEngine.OptimizeShifts(originalState, maxTime: 60.0);
-            if (result.Status == Google.OrTools.Sat.CpSolverStatus.Optimal || 
-    result.Status == Google.OrTools.Sat.CpSolverStatus.Feasible)
+
+
+            // export original data to html output
+            Output output = new Output();
+            output.ExportToHtml(file, originalState, "Original");
+            printStats("Original Data", originalState, file, false);
+
+            // moveByConflict method (manual optimisation)
+            // var scheduleAfterConflict = new MoveByConflict().start(originalState, projects);
+            // output.ExportToHtml(file, scheduleAfterConflict, "after_conflict");
+            // printStats("Conflict Moving Data", scheduleAfterConflict, file);
+
+            /*Console.WriteLine("start move conflict");
+            var scheduleAfterConflict = new MoveByConflict().start(originalState, projects);
+            output.ExportToHtml(file, scheduleAfterConflict, "after_conflict");
+            printStats("Conflict Moving Data", scheduleAfterConflict, file);*/
+
+
+            // greedy algorithm starts, inluding export of output to html
+            Console.WriteLine($"Greeding Running File - {System.IO.Path.GetFileName(file)}\n");
+            var scheduleAfterGreedy = new GreedyAlg().StartGreedy(people, projects);
+            Console.WriteLine(">>> After Greedy conflicts detail:");
+            handler.DebugConflictDetails(scheduleAfterGreedy);
+            output.ExportToHtml(file, scheduleAfterGreedy, "after_greedy");
+
+
+            var roleOpt = new RoleOptimizer();
+            var roleResult = roleOpt.Optimize(scheduleAfterGreedy, maxPasses: 999999999);
+            Program.LatestState = roleResult.BestState;// * add newest state
+            Console.WriteLine(">>> Role Optimizer final conflicts detail:");
+            handler.DebugConflictDetails(roleResult.BestState);
+            output.ExportToHtml(file, scheduleAfterGreedy, "After Role Checks");
+            printStats("Role optimiser Data", roleResult.BestState, file, true);
+
+
+            projects[0].printPeopleOnProject();
+            Console.WriteLine("-------");
+            people[0].printProjectsForPerson();
+
+            finalState = roleResult.BestState;
+
+
+            // Console.WriteLine("Find project by person test");
+            // foreach (Project p in projects)
+            // {
+            //     p.printPeopleOnProject();
+            // }
+             }
+
+     ProcessNewProjectInsertion(finalState);
+    }
+    
+
+private void ProcessNewProjectInsertion(ScheduleState currentState)
 {
-    Console.WriteLine($"优化成功！最终冲突数: {result.TotalConflicts}");
-    
-    // 5. 将结果应用回原始状态
-    solverEngine.ApplySolution(originalState, result);
-    
-    // 6. 验证最终分数（调用你们现有的评分方法）
-    ScheduleHandler resultHandler = new ScheduleHandler(originalState);
-    double finalScore = resultHandler.CalculateFitnessScore(originalState);
-    Console.WriteLine($"OR-Tools 方案的 Finess Score: {finalScore}");
-}
-else
-{
-    Console.WriteLine("未能找到可行解，可能是约束太硬。");
-}
-}
-}
 
+    var newProjectDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "AddNewProject"));
+    if (!Directory.Exists(newProjectDir))
+    {
+        Console.WriteLine("[Error] can not find AddNewProject folder.");
+        return;
+    }
 
+    ScheduleHandler handler = new ScheduleHandler(currentState);
+    string[] newFiles = Directory.GetFiles(newProjectDir, "*.csv");
 
+    foreach (var file in newFiles)
+    {
+        Console.WriteLine($"\n[File] is processing: {Path.GetFileName(file)}");
+        List<Project> newProjects = LoadNewProjectsOnly(file);
 
+        foreach (var project in newProjects)
+        {
+            double insertionResult = handler.EvaluateNewProjectInsertion(project);
 
-    //         Console.WriteLine(">>> initial state analye:");
-    //         handler.DebugConflictDetails(originalState);
-    //         // Console.WriteLine("\n--- PersonWeekGrid checking vaule ---");
-    //         // int count = 0;
-    //         // foreach (var entry in originalState.PersonWeekGrid)
-    //         // {
-    //         //   if (count++ >= 10) break; 
-    
-    //         //    Console.WriteLine($"Key content: {entry.Key} | (Value): {entry.Value}");
-    //         //  }
-    //         // Console.WriteLine("----------------------------------\n");
+            if (insertionResult >= 1.0)
+            {
 
-
-
-    //         // export original data to html output
-    //         Output output = new Output();
-    //         output.ExportToHtml(file, originalState, "Original");
-    //         printStats("Original Data", originalState, file, false);
-
-    //         // moveByConflict method (manual optimisation)
-    //         // var scheduleAfterConflict = new MoveByConflict().start(originalState, projects);
-    //         // output.ExportToHtml(file, scheduleAfterConflict, "after_conflict");
-    //         // printStats("Conflict Moving Data", scheduleAfterConflict, file);
-
-    //         /*Console.WriteLine("start move conflict");
-    //         var scheduleAfterConflict = new MoveByConflict().start(originalState, projects);
-    //         output.ExportToHtml(file, scheduleAfterConflict, "after_conflict");
-    //         printStats("Conflict Moving Data", scheduleAfterConflict, file);*/
-
-
-    //         // greedy algorithm starts, inluding export of output to html
-    //         Console.WriteLine($"Greeding Running File - {System.IO.Path.GetFileName(file)}\n");
-    //         var scheduleAfterGreedy = new GreedyAlg().StartGreedy(people, projects);
-    //         Console.WriteLine(">>> After Greedy conflicts detail:");
-    //         handler.DebugConflictDetails(scheduleAfterGreedy);
-    //         output.ExportToHtml(file, scheduleAfterGreedy, "after_greedy");
-
-
-    //         var roleOpt = new RoleOptimizer();
-    //         var roleResult = roleOpt.Optimize(scheduleAfterGreedy, maxPasses: 999999999);
-    //         Program.LatestState = roleResult.BestState;// * add newest state
-    //         Console.WriteLine(">>> Role Optimizer final conflicts detail:");
-    //         handler.DebugConflictDetails(roleResult.BestState);
-    //         output.ExportToHtml(file, scheduleAfterGreedy, "After Role Checks");
-    //         printStats("Role optimiser Data", roleResult.BestState, file, true);
-
-
-    //         projects[0].printPeopleOnProject();
-    //         Console.WriteLine("-------");
-    //         people[0].printProjectsForPerson();
-
-    //         finalState = roleResult.BestState;
-
-
-    //         // Console.WriteLine("Find project by person test");
-    //         // foreach (Project p in projects)
-    //         // {
-    //         //     p.printPeopleOnProject();
-    //         // }
-    //          }
-
-    //  ProcessNewProjectInsertion(finalState);
-   // }
-    
-
-//     private void ProcessNewProjectInsertion(ScheduleState currentState)
-//     {
-
-//     var newProjectDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "AddNewProject"));
-//     if (!Directory.Exists(newProjectDir))
-//     {
-//         Console.WriteLine("[Error] can not find AddNewProject folder.");
-//         return;
-//     }
-
-//     ScheduleHandler handler = new ScheduleHandler(currentState);
-//     string[] newFiles = Directory.GetFiles(newProjectDir, "*.csv");
-
-//     foreach (var file in newFiles)
-//     {
-//         Console.WriteLine($"\n[File] is processing: {Path.GetFileName(file)}");
-//         List<Project> newProjects = LoadNewProjectsOnly(file);
-
-//         foreach (var project in newProjects)
-//         {
-//             double insertionResult = handler.EvaluateNewProjectInsertion(project);
-
-//             if (insertionResult >= 1.0)
-//             {
-
-//                 Console.WriteLine($"   ✅ [INSERT SUCCESSFUL] Project '{project.name}' find avalible time，no extrac conflicts。");
-//             }
-//             else
-//             {
-//                 int conflictCount = (int)Math.Abs(insertionResult);
-//                 Console.WriteLine($"   ⚠️ [FORCE INSERT] Project '{project.name}' can not avoid conflicts，lead to add new {conflictCount} conflicts。");
-//             }
-//         }
+                Console.WriteLine($"   ✅ [INSERT SUCCESSFUL] Project '{project.name}' find avalible time，no extrac conflicts。");
+            }
+            else
+            {
+                int conflictCount = (int)Math.Abs(insertionResult);
+                Console.WriteLine($"   ⚠️ [FORCE INSERT] Project '{project.name}' can not avoid conflicts，lead to add new {conflictCount} conflicts。");
+            }
+        }
         
-//         Output finalOutput = new Output();
-//         finalOutput.ExportToHtml("Global_Final_Schedule", currentState, "With_New_Projects.html");
-//     }
+        Output finalOutput = new Output();
+        finalOutput.ExportToHtml("Global_Final_Schedule", currentState, "With_New_Projects.html");
+    }
 
-//     Console.WriteLine("\n[SYSTEM] finish insert，final output alreay generate。");
-// }
+    Console.WriteLine("\n[SYSTEM] finish insert，final output alreay generate。");
+}
 
     public List<Project> LoadNewProjectsOnly(string path)
     {
