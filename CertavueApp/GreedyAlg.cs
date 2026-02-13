@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.WebSockets;
 using static ScheduleState;
 
 public class GreedyAlg
@@ -29,11 +30,8 @@ public class GreedyAlg
         {
             startPct = (double)startNotDoubleBookedCells / startTotal * 100.0;
         }
-        Console.WriteLine("Greedy algorithm running: ");
 
         var scheduleHandler = new ScheduleHandler(state);
-        Console.WriteLine($"Start fitness: {scheduleHandler.CalculateFitnessScore(state):0.000000}");
-
 
         int GetConflictScore(Project p)
         {
@@ -109,7 +107,7 @@ public class GreedyAlg
                 pct = (double)notDoubleBookedCells / total * 100.0;
             }
 
-            Console.WriteLine($"After pass {pass}, fitness: {scheduleHandler.CalculateFitnessScore(state):0.000000}");
+            printStats($"Greedy Pass {pass}", state);
 
             if (!anyShifted) break; //ends if nothing moves so we really could have the passes be pretty high for safety
         }
@@ -190,7 +188,7 @@ public class GreedyAlg
 
                     if (person.role == overloadedPerson.role)    //roles are equal
                     {
-                        if (IsPersonFree(state, person, week))   //calls is free method to verify opening
+                        if (IsPersonFree(state, person, project, week))   //calls is free method to verify opening
                         {
                             replacementPerson = person; //found the person to replace
                             break;
@@ -224,9 +222,9 @@ public class GreedyAlg
         }
         if (!to.projects.ContainsKey(project)) //iff the new person doesn't hae this project already add it to their list
         {
-            to.projects[project] = new List<int>();
+            to.projects[project] = new Dictionary<int, int>();
         }
-        to.projects[project].Add(week); //assigns the week being traded 
+        to.projects[project].Add(week, from.getHoursForProjecForWeek(project, week)); //assigns the week being traded //assigns the week being traded 
 
         project.people.Add(to);
         if (from.projects[project].Count == 0) //removes old person if their project weeks are 0 aka no longer on project
@@ -239,9 +237,9 @@ public class GreedyAlg
     }
 
     //Checking person's schedule for open week
-    public static bool IsPersonFree(ScheduleState state, Person person, int week) //boolean that returns true/false if person is free or not
+    public static bool IsPersonFree(ScheduleState state, Person person, Project project, int week) //boolean that returns true/false if person is free or not
     {
-        var key = new ScheduleState.WeekKey(person.id, week); //week key for review
+        var key = new ScheduleState.WeekKey(person.id, project.id, week); //week key for review
         return !state.PersonWeekGrid.TryGetValue(key, out var count); //Checks if this person has a project for the week, if they do it returns false which means they cannot be swapped
     }
 
@@ -308,6 +306,19 @@ public class GreedyAlg
             OverlapAfter = overlapAfter,
             ShiftDistance = Math.Abs(candidateShift)
         };
+    }
+
+    public void printStats(string dataName, ScheduleState state)
+    {
+        ScheduleHandler handler = new ScheduleHandler(state);
+        var conflictScore = handler.GetConflictScore(state);
+        var movementScore = handler.GetMovementScore(state);
+        var focusScore = handler.GetFocusScore(state);
+        var continuityScore = handler.GetContinuityScore(state);
+        var durationScore = handler.GetDurationScore(state);
+        var fitnessScore = handler.CalculateFitnessScore(state);
+        Console.WriteLine($"|----- {dataName} -----|");
+        Console.WriteLine($"Finess Score - {fitnessScore.ToString("F2")}\nBreakdown - Conflict Score: {conflictScore.ToString("F2")} || Movement Score: {movementScore.ToString("F2")} || Focus Score: {focusScore.ToString("F2")} || Continuity Score: {continuityScore.ToString("F2")} || Duration Score: {durationScore.ToString("F2")}\n");
     }
 
 }

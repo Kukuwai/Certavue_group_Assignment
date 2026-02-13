@@ -47,17 +47,18 @@ public class Loader
             var person = peopleByName[personName];
             var project = projectsByName[projectName];
 
-            List<int> weeksAssigned = new List<int>();
+            Dictionary<int, int> weekWorkingHours = new Dictionary<int, int>();
             for (int i = startDate+1; i < endDate; i++)
                 {
-                    if (cells[i].Contains("40"))
+                    if (int.TryParse(cells[i], out int hours))
                     {
-                        weeksAssigned.Add(i-2);
+                        weekWorkingHours.Add(i-2, Convert.ToInt32(cells[i]));
                     }
                 }
 
-            person.projects.Add(project, weeksAssigned);
+            person.projects.Add(project, weekWorkingHours);
             project.people.Add(person);
+            project.originalPeopleIds.Add(person.id);
             project.updateCapacity();
             
         }

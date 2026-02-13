@@ -8,7 +8,6 @@ public class Output
         
     }
 
-
     public void ExportToHtml(string originalFileName, ScheduleState state, string newFileName)
     {
         // Save alongside input data instead of bin output
@@ -18,8 +17,9 @@ public class Output
         try
         {
             // generate the HTML filename based on the input CSV filename
-            string exportFileName = originalFileName.Replace(".csv", "_Heatmap.html");
-            exportFileName = exportFileName.Replace("_Heatmap.html", "_" + newFileName + "_Heatmap.html");
+            string baseName = Path.GetFileNameWithoutExtension(originalFileName);
+            string subName = Path.GetFileNameWithoutExtension(newFileName);
+            string exportFileName = $"{baseName}_{subName}_Heatmap.html";
             var sb = new StringBuilder();
 
             //  CSS outlook 
@@ -102,7 +102,7 @@ public class Output
             // 5. write to file
             string exportPath = Path.Combine(dataDirectory, Path.GetFileName(exportFileName));
             File.WriteAllText(exportPath, sb.ToString());
-            Console.WriteLine($"\n[Success] The sorted heatmap has been saved: {exportPath}");
+            //Console.WriteLine($"\n[Success] The sorted heatmap has been saved: {exportPath}");
         }
         catch (Exception ex)
         {
