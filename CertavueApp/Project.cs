@@ -17,6 +17,8 @@ public class Project
     public int capacityStartWeek {get; set;}
     public int capacityEndWeek {get; set;}
     public int capacity {get; set;}
+    public double FixedInitialSpan { get; set; }
+    public double InitialBaselineSpan { get; set; } = 0;
 
     public Project(string name, int startDate, int endDate, int hoursNeeded)
     {
@@ -99,9 +101,8 @@ public class Project
         }
         else
         {
-            capacityStartWeek = earliest.Value;
-            capacityEndWeek = latest.Value;
-            capacity = (capacityEndWeek - capacityStartWeek) + 1;
+            this.capacity = (latest.Value - earliest.Value) + 1;
+            this.FixedInitialSpan = this.capacity;
         }
         return capacity;
     }

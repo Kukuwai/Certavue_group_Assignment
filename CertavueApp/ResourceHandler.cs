@@ -64,13 +64,12 @@ public class RoleGapReport
 
     public double GetConflictScore(ScheduleState state)
     {
-    // 1. 如果网格里没人，说明没活干，自然没冲突
+    // 1. if grid is empty
     if (state.PersonWeekGrid == null || state.PersonWeekGrid.Count == 0) return 1.0;
 
     double totalOverloadPenalty = 0;
     
-    // 2. 分母：当前所有有排班的“人-周”单元格的总承载力
-    // 假设每个单元格标准工时是 40h
+    // 2. denominator
     double totalCapacityHours = state.PersonWeekGrid.Count * 40.0; 
 
     foreach (var entry in state.PersonWeekGrid)
@@ -79,36 +78,41 @@ public class RoleGapReport
 
         if (projectCount > 1)
         {
-            // 3. 计算超载的小时数
-            // 2个项目重叠 = 超载 40h；3个项目重叠 = 超载 80h
+            // 3. caculate over worok hour
             double extraHours = (projectCount - 1) * 40.0;
             
-            // 4. 使用平方惩罚 (Quadratic Penalty)
-            // 为什么要平方？为了告诉算法：让一个人干 3 份活（1600罚分）
-            // 远比让两个人各干 2 份活（400+400=800罚分）要糟糕得多。
+            // 4. Quadratic Penalty , reduce the extramly overloaded
             totalOverloadPenalty += Math.Pow(extraHours, 2);
         }
     }
 
-    // 5. 归一化：将惩罚值映射到 0-1 之间
-    // 系数 400.0 是为了调节灵敏度，你可以根据 0.79 的变动来调整它
+    // 5. normaliztaion
     double normalizedPenalty = totalOverloadPenalty / (totalCapacityHours * 10.0);
     
     return Math.Exp(-normalizedPenalty);
     }
 
-    public double GetMovementScore(ScheduleState state) {
-    // sum shift
-    double totalShift = state.Projects.Sum(p => Math.Abs(state.GetShift(p)));
-    // normalization socre
-    double avgShift = totalShift / state.Projects.Count;
-    return Math.Max(0, 1.0 - (avgShift / 4.0)); // if it near with 4 it will be 0
+
+
+// value the cost of shift
+    public double GetMovementScore(ScheduleState state)
+    {
+        int movedCount = 0;
+        foreach (var p in state.Projects)
+        {
+            if (state.GetShift(p) != 0)
+            {
+                movedCount++;
+            }
+        }
+
+        // 2. 计算“稳定性得分”
+        // 公式： (总项目数 - 移动的项目数) / 总项目数
+        return (double)(state.Projects.Count - movedCount) / state.Projects.Count;
     }
 
    public double GetFocusScore(ScheduleState state)
     {
-        // 如果没有项目或没有人，默认给满分
-        if (state.People.Count == 0) return 1.0;
 
         double totalScore = 0;
         int activePeopleCount = 0;
@@ -127,12 +131,11 @@ public class RoleGapReport
                 totalWeeksWorked += weeks.Count;
             }
 
-            // 如果这个人完全没活干，跳过不计入分数
             if (totalWeeksWorked == 0) continue;
 
             activePeopleCount++;
 
-            // 如果只做 1 个项目，不管做多久，都是 100% 专注 -> 1.0
+            // less project enaged high focus socre
             if (distinctProjects <= 1)
             {
                 totalScore += 1.0;
@@ -145,7 +148,7 @@ public class RoleGapReport
                 if (totalWeeksWorked > 1)
                 {
                     double score = (double)(totalWeeksWorked - distinctProjects) / (totalWeeksWorked - 1);
-                    totalScore += Math.Max(0, score); // 确保不出现负数
+                    totalScore += Math.Max(0, score); 
                 }
                 else
                 {
@@ -205,64 +208,33 @@ public double GetContinuityScore(ScheduleState state)
 
 
     public double GetDurationScore(ScheduleState state)
+{
+    double totalScore = 0;
+    int projectCount = 0;
+
+    foreach (var project in state.Projects)
     {
-        double totalScore = 0;
-        int projectCount = 0;
+        // 1. 获取分子：死数字（初始跨度）
+        double ideal = project.InitialBaselineSpan;
 
-        foreach (var project in state.Projects)
+        // 2. 获取分母：动态数字（当前网格跨度）
+        int currentShift = state.GetShift(project);
+        var cells = state.GetGrid(project, currentShift);
+        if (!cells.Any()) continue;
+
+        int actual = (cells.Max(c => c.Week) - cells.Min(c => c.Week)) + 1;
+
+        // debug
+        //Console.WriteLine($"Project: {project.id} | Ideal: {ideal} | Actual: {actual}");
+
+        if (actual > 0 && ideal > 0)
         {
-            // 如果项目没人做，跳过
-            if (project.people.Count == 0) continue;
-
-            // 1. 获取理想时长 (Capacity)
-            // 确保 capacity 已更新
-            if (project.capacity == 0) project.updateCapacity();
-            double idealDuration = project.capacity;
-
-            // 2. 获取当前排班的实际时长 (Actual Duration)
-            int minWeek = int.MaxValue;
-            int maxWeek = int.MinValue;
-            bool hasAssignments = false;
-
-            foreach (var person in project.people)
-            {
-                // 使用 List<int> 获取周数
-                if (person.projects.TryGetValue(project, out List<int> weeks))
-                {
-                    foreach (int w in weeks)
-                    {
-                        if (w < minWeek) minWeek = w;
-                        if (w > maxWeek) maxWeek = w;
-                        hasAssignments = true;
-                    }
-                }
-            }
-
-            if (!hasAssignments) continue;
-
-            // 计算实际跨度
-            double actualDuration = (maxWeek - minWeek) + 1;
-
-            // 3. 计算得分
-            if (actualDuration > 0)
-            {
-                // 理想时长 / 实际时长
-                // 如果实际时长被拉得很长，分数就会变低
-                double score = idealDuration / actualDuration;
-                
-                // 限制最高分 1.0
-                if (score > 1.0) score = 1.0;
-                
-                totalScore += score;
-                projectCount++;
-            }
+            totalScore += Math.Min(1.0, (double)ideal / actual);
+            projectCount++;
         }
-
-        // 如果没有项目，默认返回 1.0，否则返回平均分
-        return projectCount == 0 ? 1.0 : totalScore / projectCount;
     }
-
-
+    return projectCount == 0 ? 1.0 : totalScore / projectCount;
+}
 
 
 //----------------------------------------

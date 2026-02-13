@@ -1,158 +1,123 @@
-﻿﻿using static Project;
-using static Person;
-using static Loader;
-using System;
+﻿﻿using System;
 using System.Collections.Generic;
-using System.IO.Pipes;
-using static MoveByConflict;
-using static ScheduleState;
 using System.IO;
 using System.Linq;
-using System.Text;
-
 
 public class Program
 {
-    List<Project> projects = new List<Project>();
-    List<Person> people = new List<Person>();
-
+    private List<Project> peopleProjects = new List<Project>();
+    private List<Person> currentPeople = new List<Person>();
     public static ScheduleState LatestState;
 
+    public static void Main(string[] args)
+    {
+        // 启动程序
+        new Program().Run();
+    }
 
-
-    public Program()
+    public void Run()
     {
         var dataDirectory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Data"));
+        if (!Directory.Exists(dataDirectory))
+        {
+            Console.WriteLine($"[Error] Path not found: {dataDirectory}");
+            return;
+        }
+
         string[] files = Directory.GetFiles(dataDirectory, "*.csv");
-       //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_spectacular_fitness_mixedD_varied40s.csv") };
-       //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_spectacular_fitness_mixedC_varied40s.csv") };
-       //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_spectacular_fitness_mixedB_varied40s.csv") };
-        //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_spectacular_fitness_mixedA_varied40s.csv") };
-      // string[] files = new string[] { Path.Combine(dataDirectory, "schedule_role_optimizer_hits_100_after_greedy_stuck_varied40s.csv") };
-      // string[] files = new string[] { Path.Combine(dataDirectory, "schedule_requires_role_optimizer_greedy_stuck_B_varied40s.csv") };
-       //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_requires_role_optimizer_greedy_stuck_A_varied40s.csv") };
-       //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_project_contiguous_fitness_medium_improvable_varied40s.csv") };
-       //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_project_contiguous_fitness_low_improvable_varied40s.csv") };
-       //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_project_contiguous_fitness_high_improvable_varied40s.csv") };
-       //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_project_contiguous_fitness_extreme_improvable_varied40s.csv") };
-       //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_target75_high_improvement.csv") };
-        //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_target75_paired_moderate.csv") };
 
-      
-        ScheduleState finalState = null;
-        
-
-        // loading data in
         foreach (string file in files)
         {
-            var originalState = loadData(file);
-            foreach (var p in originalState.Projects)
-            {
-                // 1. 修复 Continuity Score (连贯性为0的问题)
-                // 必须在算法开始前，把“原班人马”快照保存下来
-                p.originalPeopleIds.Clear();
-                foreach (var person in p.people)
-                {
-                    p.originalPeopleIds.Add(person.id);
-                }
+            // --- 1. 加载阶段 ---
+            var state = loadData(file);
 
-                // 2. 修复 Duration (Capacity为0的问题)
-                // 必须手动调用一次，计算项目跨越了多少周
-                p.updateCapacity(); 
-            }
-            // =======================================================
+            // --- 2. 初始化阶段：锁定理想标尺 ---
+            InitializeProjectBaselines(state);
 
-            ScheduleHandler handler = new ScheduleHandler(originalState);
-            Console.WriteLine(">>> initial state analye:");
-           // handler.DebugConflictDetails(originalState);
+            // --- 3. 记录原始状态 ---
+            ReportState(file, state, "Original");
 
-            // export original data to html output
-            Output output = new Output();
-            output.ExportToHtml(file, originalState, "Original");
-            printStats("Original Data", originalState, file, false);
+            // --- 4. 贪婪算法 ---
+            Console.WriteLine($"Greedy Running File - {Path.GetFileName(file)}");
+            var greedyAlg = new GreedyAlg();
 
-            // greedy algorithm starts
-            Console.WriteLine($"Greeding Running File - {System.IO.Path.GetFileName(file)}\n");
-            var scheduleAfterGreedy = new GreedyAlg().StartGreedy(people, projects);
-            
-            Console.WriteLine(">>> After Greedy conflicts detail:");
-           // handler.DebugConflictDetails(scheduleAfterGreedy);
-            output.ExportToHtml(file, scheduleAfterGreedy, "after_greedy");
+            state = greedyAlg.StartGreedy(state.People, state.Projects);
+            ReportState(file, state, "After_Greedy");
 
-
-            // Role Optimizer starts
+            // --- 5. 角色优化器 ---
             var roleOpt = new RoleOptimizer();
-            // 这里调用的是我们修复后的 Optimize 方法
-            var roleResult = roleOpt.Optimize(scheduleAfterGreedy, maxPasses: 100); 
+            var result = roleOpt.Optimize(state, maxPasses: 100);
+            state = result.BestState;
+            Program.LatestState = state;
             
-            Program.LatestState = roleResult.BestState; 
-            
-            Console.WriteLine(">>> Role Optimizer final conflicts detail:");
-           // handler.DebugConflictDetails(roleResult.BestState);
-            output.ExportToHtml(file, roleResult.BestState, "After Role Checks");
-            printStats("Role optimiser Data", roleResult.BestState, file, true);
+            // --- 6. 最终产出 ---
+            ReportState(file, state, "Final_Optimized");
 
-            if (projects.Count > 0) projects[0].printPeopleOnProject();
-            Console.WriteLine("-------");
-            if (people.Count > 0) people[0].printProjectsForPerson();
-
-            finalState = roleResult.BestState;
-
-            Console.WriteLine("Find project by person test");
-            foreach (Project p in projects)
+            // --- 7. 后续插入逻辑 ---
+            if (state != null)
             {
-                 p.printPeopleOnProject();
-            }
-
-            if (finalState != null)
-            {
-                ProcessNewProjectInsertion(finalState);
-            }
-
-        } 
-    }
-    
-
-private void ProcessNewProjectInsertion(ScheduleState currentState)
-{
-
-    var newProjectDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "AddNewProject"));
-    if (!Directory.Exists(newProjectDir))
-    {
-        Console.WriteLine("[Error] can not find AddNewProject folder.");
-        return;
-    }
-
-    ScheduleHandler handler = new ScheduleHandler(currentState);
-    string[] newFiles = Directory.GetFiles(newProjectDir, "*.csv");
-
-    foreach (var file in newFiles)
-    {
-        Console.WriteLine($"\n[File] is processing: {Path.GetFileName(file)}");
-        List<Project> newProjects = LoadNewProjectsOnly(file);
-
-        foreach (var project in newProjects)
-        {
-            double insertionResult = handler.EvaluateNewProjectInsertion(project);
-
-            if (insertionResult >= 1.0)
-            {
-
-                Console.WriteLine($"   ✅ [INSERT SUCCESSFUL] Project '{project.name}' find avalible time，no extrac conflicts。");
-            }
-            else
-            {
-                int conflictCount = (int)Math.Abs(insertionResult);
-                Console.WriteLine($"   ⚠️ [FORCE INSERT] Project '{project.name}' can not avoid conflicts，lead to add new {conflictCount} conflicts。");
+                ProcessNewProjectInsertion(state);
             }
         }
-        
-        Output finalOutput = new Output();
-        finalOutput.ExportToHtml("Global_Final_Schedule", currentState, "With_New_Projects.html");
     }
 
-    Console.WriteLine("\n[SYSTEM] finish insert，final output alreay generate。");
-}
+    private void InitializeProjectBaselines(ScheduleState state)
+    {
+        foreach (var p in state.Projects)
+        {
+            // 锁定 InitialBaselineSpan
+            p.InitialBaselineSpan = (p.endDate - p.startDate) + 1;
+
+            if (p.InitialBaselineSpan <= 0) 
+            {
+                p.updateCapacity(); 
+                p.InitialBaselineSpan = p.capacity;
+            }
+        }
+    }
+
+    private void ReportState(string file, ScheduleState state, string label)
+    {
+        Output output = new Output();
+        output.ExportToHtml(file, state, label);
+        printStats($"{label} Data", state, file, label != "Original");
+    }
+
+    public ScheduleState loadData(string path)
+    {
+        Loader load = new Loader();
+        (var people, var projects) = load.LoadData(path);
+        
+        // 更新类成员变量供全局使用
+        this.currentPeople = people;
+        this.peopleProjects = projects;
+
+        Console.WriteLine($"Loaded {Path.GetFileName(path)}");
+        return new ScheduleState(people, projects);
+    }
+
+    private void ProcessNewProjectInsertion(ScheduleState currentState)
+    {
+        var newProjectDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "AddNewProject"));
+        if (!Directory.Exists(newProjectDir)) return;
+
+        ScheduleHandler handler = new ScheduleHandler(currentState);
+        string[] newFiles = Directory.GetFiles(newProjectDir, "*.csv");
+
+        foreach (var file in newFiles)
+        {
+            List<Project> newProjects = LoadNewProjectsOnly(file);
+            foreach (var project in newProjects)
+            {
+                double result = handler.EvaluateNewProjectInsertion(project);
+                if (result >= 1.0)
+                    Console.WriteLine($"   ✅ [SUCCESS] {project.name}");
+                else
+                    Console.WriteLine($"   ⚠️ [CONFLICT] {project.name} adds {Math.Abs(result)} conflicts");
+            }
+            new Output().ExportToHtml("Global_Final", currentState, "With_New_Projects");
+        }
+    }
 
     public List<Project> LoadNewProjectsOnly(string path)
     {
@@ -161,38 +126,39 @@ private void ProcessNewProjectInsertion(ScheduleState currentState)
         return newProjects;
     }
 
-    public ScheduleState loadData(string path)
+    public void printStats(string label, ScheduleState state, string path, bool showLine)
+{
+    ScheduleHandler handler = new ScheduleHandler(state);
+    
+    // 获取 5 大维度分值
+    double conflict = handler.GetConflictScore(state);
+    double movement = handler.GetMovementScore(state);
+    double focus = handler.GetFocusScore(state);
+    double continuity = handler.GetContinuityScore(state);
+    double duration = handler.GetDurationScore(state);
+    double totalFitness = handler.CalculateFitnessScore(state);
+
+
+    var conflicts = state.PersonWeekGrid.Values.Where(v => v > 1).ToList();
+    int extraTasks = conflicts.Sum(v => v - 1);
+    int affectedCells = conflicts.Count;
+
+    Console.WriteLine($"--- {label} ANALYSIS ---");
+    Console.WriteLine($"[OVERALL] Fitness Score: {totalFitness:F4}");
+    Console.WriteLine($"[DETAILS] Cnf: {conflict:F2} | Mov: {movement:F2} | Foc: {focus:F2} | Con: {continuity:F2} | Dur: {duration:F2}");
+    
+    if (extraTasks > 0)
     {
-        Loader load = new Loader();
-        (var people, var projects) = load.LoadData(path);
-        var state = new ScheduleState(people, projects);
-        this.people = people;
-        this.projects = projects;
-        Console.WriteLine($"Loaded {System.IO.Path.GetFileName(path)}\n");
-        return state;
+        Console.WriteLine($"[CONFLICT INFO] Extra Tasks: {extraTasks} | Affected Grids: {affectedCells} | Overtime: {extraTasks * 40}h");
+    }
+    else
+    {
+        Console.WriteLine("[CONFLICT INFO] No Conflicts! 👍");
     }
 
-    static void Main(string[] args)
-    {
-        new Program();
-    }
-
-    public void printStats(string dataName, ScheduleState state, string path, bool end)
-    {
-        ScheduleHandler handler = new ScheduleHandler(state);
-        var conflictScore = handler.GetConflictScore(state);
-        var movementScore = handler.GetMovementScore(state);
-        var focusScore = handler.GetFocusScore(state);
-        var continuityScore = handler.GetContinuityScore(state);
-        var durationScore = handler.GetDurationScore(state);
-        var fitnessScore = handler.CalculateFitnessScore(state);
-        Console.WriteLine($"|-----{dataName}-----|");
-        Console.WriteLine($"Finess Score - {fitnessScore.ToString("F2")}\nBreakdown - Conflict Score: {conflictScore.ToString("F2")} || Movement Score: {movementScore.ToString("F2")} || Focus Score: {focusScore.ToString("F2")} || Continuity Score: {continuityScore.ToString("F2")} || Duration Score: {durationScore.ToString("F2")}\n");
-        if (end)
-        {
-            Console.WriteLine("------------------------------------------------------------------\n");
-        }
-    }
+    if (showLine) Console.WriteLine(new string('-', 60));
+}
+    
 }
 
 public class AssignmentRow
