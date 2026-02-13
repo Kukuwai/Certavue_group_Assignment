@@ -284,7 +284,7 @@ public class NewProjectStaffingResult
       if (AvailablePeople.Count > 10)
       {
         Console.WriteLine($"  ... and {AvailablePeople.Count - 10} more");
-        
+
 
       }
     }
