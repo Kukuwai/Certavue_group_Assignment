@@ -7,202 +7,157 @@ public class cpsat
 {
     public class SolveResult
     {
-        public CpSolverStatus Status { get; set; } //using this to set if it solved or not
-        public int TotalConflicts { get; set; } //counts # of conflicts for final solution, will report final #
-        public Dictionary<Project, int> ChosenShiftByProject { get; set; } = new(); //final shift for each prohect
+        public CpSolverStatus Status { get; set; }
+        public int TotalConflicts { get; set; }
+        public Dictionary<Project, int> ChosenShiftByProject { get; set; } = new();
     }
 
     public SolveResult OptimizeShifts(ScheduleState state, double maxTime = 3600)
     {
         var model = new CpModel();
-        var choose = new Dictionary<(Project P, int S), BoolVar>(); //Decision variable that lists what shift is actually chosen and is used to map the final move
-        var validShiftsByProject = new Dictionary<Project, List<int>>(); //caches valid shifts so only used once
-        var activeChoicesByPersonWeek = new Dictionary<(int personId, int Week), List<BoolVar>>(); //Keeps a list of work options for each person/week combo (used in load and conflict)
+        
+        // 1. 变量定义
+        var choose = new Dictionary<(Project P, int S), BoolVar>();
+        var validShiftsByProject = new Dictionary<Project, List<int>>();
+        var activeChoicesByPersonWeek = new Dictionary<(int personId, int Week), List<BoolVar>>();
         var movementTerms = new List<LinearExpr>();
-        var conflictVars = new List<IntVar>();  // ← ADD THIS
-        var conflictLoads = new Dictionary<BoolVar, LinearExpr>();  // ← ADD THIS
-        long maxMovementUpperBound = 0;
+        var conflictVars = new List<IntVar>();
 
-
+        // 2. 遍历项目，建立决策变量
         foreach (var p in state.Projects)
         {
-            var shifts = state.GetValidShifts(p); //finds the allowed shifts and stores for each project
+            var shifts = state.GetValidShifts(p);
 
-            if (shifts.Count == 0) //no legal moves still needs an option
+            // 给予足够的移动空间
+            if (shifts.Count < 3)
             {
-                shifts = new List<int> { state.GetShift(p) }; //sets only choice as current spot
+                int cur = state.GetShift(p);
+                shifts = Enumerable.Range(cur - 2, 5).ToList();
             }
-            validShiftsByProject[p] = shifts; //saves options for after solve
+            validShiftsByProject[p] = shifts;
+
             foreach (var s in shifts)
             {
-                choose[(p, s)] = model.NewBoolVar($"choose_p{p.id}_s{s}"); //makes a pick or not pick decision 
-            }
-            model.AddExactlyOne(shifts.Select(s => choose[(p, s)])); //takes one shift for every project
+                var bv = model.NewBoolVar($"choose_p{p.id}_s{s}");
+                choose[(p, s)] = bv;
 
-            int currentShift = state.GetShift(p);//takes how far the move is 
+                // 记录移动代价
+                int distance = Math.Abs(s - state.GetShift(p));
+                if (distance > 0)
+                {
+                    movementTerms.Add(distance * bv);
+                }
+
+                // 记录该选项涉及的所有人员-周格子
+                var grid = new HashSet<(int PersonId, int Week)>();
+                foreach (var cell in state.GetGrid(p, s))
+                {
+                    var key = (cell.PersonId, cell.Week);
+                    if (!grid.Add(key)) continue;
+
+                    if (!activeChoicesByPersonWeek.TryGetValue(key, out var varsHere))
+                    {
+                        varsHere = new List<BoolVar>();
+                        activeChoicesByPersonWeek[key] = varsHere;
+                    }
+                    varsHere.Add(bv);
+                }
+            }
+            
+            // 每个项目必须选且只能选一个班次
+            model.AddExactlyOne(shifts.Select(s => choose[(p, s)]));
+
+            // 添加 Hint 帮助求解器快速找到初始解
+            int currentShift = state.GetShift(p);
             if (shifts.Contains(currentShift))
             {
                 model.AddHint(choose[(p, currentShift)], 1);
             }
-
-            int maxDistanceForProject = 0; //worst movement possible for binding
-
-
-            foreach (var s in shifts)
-            {
-                int distance = Math.Abs(s - currentShift); //measures how much the shift was
-                maxDistanceForProject = Math.Max(maxDistanceForProject, distance); //bound calculation
-
-                if (distance > 0)//penalty for moving
-                {
-                    movementTerms.Add(distance * choose[(p, s)]); //cost paid for moving, penalty tiebreaker like above
-                }
-                var grid = new HashSet<(int PersonId, int Week)>(); //hash to prevent duplicates
-
-                foreach (var cell in state.GetGrid(p, s))
-                {
-                    var key = (cell.PersonId, cell.Week);
-
-                    if (!grid.Add(key)) //skips if dup
-                    {
-                        continue;
-                    }
-
-                    if (!activeChoicesByPersonWeek.TryGetValue(key, out var varsHere)) //list if this is a new person and week combo
-                    {
-                        varsHere = new List<BoolVar>(); //list of all possible decisions
-                        activeChoicesByPersonWeek[key] = varsHere;
-                    }
-                    varsHere.Add(choose[(p, s)]); //records the load of options
-                }
-            }
-
-            maxMovementUpperBound += maxDistanceForProject; //worst case movement
-
         }
 
+        // 3. 建立冲突（过载）变量
         foreach (var k in activeChoicesByPersonWeek)
         {
             var activeChoices = k.Value;
             if (activeChoices.Count <= 1) continue;
 
-            int personId = k.Key.personId;
-            int week = k.Key.Week;
-
-            var sum = LinearExpr.Sum(activeChoices);
+            // overage 代表除了第一个项目外，多出来的任务数（即冲突数）
             var overage = model.NewIntVar(0, activeChoices.Count, $"overage_p{k.Key.personId}_w{k.Key.Week}");
-    
-    // 核心约束：overage >= sum - 1
-    // 如果 sum 为 1，overage 为 0；如果 sum 为 3，overage 为 2
-            model.Add(overage >= sum - 1);
-    
-            conflictVars.Add(overage); // 注意：这里现在存的是 IntVar，代表超载深度
+            model.Add(overage >= LinearExpr.Sum(activeChoices) - 1);
+            
+            conflictVars.Add(overage);
         }
 
-        // This matches your Program.testAlgo metric:
-        // double-booked = sum(load where load >= 2) = sum(overage + conflictWeek)
-        // --- 1. 目标函数整合 (替换原有的 totalConflictEx, totalMovementEx 及 Phase A/B) ---
-        LinearExpr totalConflictScore = LinearExpr.Constant(0);
-        LinearExpr totalMovementScore = LinearExpr.Constant(0);
-        // 定义冲突权重。10000 意味着减少 1 个冲突比减少 10000 个位移单位更重要。
-        long conflictWeight = 10000;
+        // 4. 获取 Handler 权重并映射到目标函数
+        var config = new ScheduleHandler.FitnessScore();
+        long baseWeight = 1_000_000;
+        long cpConflictWeight = (long)(config.ConflictWeight * baseWeight);
+        long cpMovementWeight = (long)(config.MovementWeight * baseWeight);
 
-        // 计算加权后的总分：(超载总数 * 10000) + (位移总数)
-        // 这里的 conflictVars 必须是之前建议修改后的记录“超载深度”的变量
-        // --- 修正后的目标函数计算 ---
-        LinearExpr finalObjective = LinearExpr.Constant(0);
-        
-        // 1. 加入冲突项 (权重 10000)
-        if (conflictVars != null && conflictVars.Count > 0)
+        LinearExpr totalConflictPenalty = LinearExpr.Constant(0);
+        if (conflictVars.Count > 0)
         {
-            finalObjective += LinearExpr.WeightedSum(conflictVars, Enumerable.Repeat(conflictWeight, conflictVars.Count));
+            totalConflictPenalty = LinearExpr.WeightedSum(conflictVars, Enumerable.Repeat(cpConflictWeight, conflictVars.Count));
         }
 
-        // 2. 加入位移项 (权重 1)
-        if (movementTerms != null && movementTerms.Count > 0)
+        LinearExpr totalMovementPenalty = LinearExpr.Constant(0);
+        if (movementTerms.Count > 0)
         {
-            finalObjective += LinearExpr.Sum(movementTerms);
+            // 将位移权重平摊到每个项目上，避免位移分数值过大遮盖冲突分数
+            long movementStepWeight = cpMovementWeight / Math.Max(1, state.Projects.Count);
+            totalMovementPenalty = LinearExpr.WeightedSum(movementTerms, Enumerable.Repeat(movementStepWeight, movementTerms.Count));
         }
 
-        // 3. 告诉求解器最小化这个包含冲突和位移的总分
-        model.Minimize(finalObjective);
+        // 最小化惩罚：冲突最重要，位移次之
+        model.Minimize(totalConflictPenalty + totalMovementPenalty);
 
-        // --- 2. 配置求解器 (只跑一次) ---
-
+        // 5. 配置求解器
         var solver = new CpSolver();
         int workers = Math.Max(1, Environment.ProcessorCount);
+        solver.StringParameters = $"max_time_in_seconds:{maxTime}," +
+                                 $"num_search_workers:{workers}," +
+                                 $"log_search_progress:false," + // 彻底关掉日志
+                                 $"randomize_search:true";
 
-        // 开启 log_search_progress: true 可以让你在控制台看到分数如何一步步下降
-        solver.StringParameters = $"max_time_in_seconds:{maxTime}," + 
-                                 $"num_search_workers:{workers}," + 
-                                 $"search_branching:PORTFOLIO_SEARCH," + 
-                                 $"randomize_search:true," + 
-                                 $"relative_gap_limit:0.01," + 
-                                 $"log_search_progress:true"; 
+        // 绑定冲突变量到 Callback 以便观察进度
+        IntVar totalConflictSumVar = model.NewIntVar(0, 1000000, "total_conflicts");
+        model.Add(totalConflictSumVar == LinearExpr.Sum(conflictVars));
 
-        // 依然可以使用回调函数来检测“0冲突”或“长时间无改善”
-        // 注意：这里的 target 设为很小的值，因为现在 objective 包含了位移
         var stopCallback = new StopOnTargetOrIdleCallback(
-            maxIdleSeconds: 30.0,
-            totalConflictVar: model.NewIntVar(0, 1000000, "temp"), // 仅占位，回调逻辑需适配新目标
+            maxIdleSeconds: 15.0, 
+            totalConflictVar: totalConflictSumVar, 
             targetConflicts: 0 
         );
 
-        // 开始求解
-        var statusFinal = solver.Solve(model);
-        CpSolver solverToDecode = solver;
+        // 6. 执行求解
+        var statusFinal = solver.Solve(model, stopCallback);
 
-        // --- 3. 结果解码 ---
-
-        // --- 1. 创建结果对象 ---
+        // 7. 解码结果
         var result = new SolveResult { Status = statusFinal };
-
-        // --- 2. 如果求解成功（找到可行解或最优解） ---
         if (statusFinal == CpSolverStatus.Optimal || statusFinal == CpSolverStatus.Feasible)
         {
-            // 2a. 记录每个项目选中的 Shift
             foreach (var p in state.Projects)
             {
-                // 默认选第一个合法位移（防止意外）
-                int chosenShift = validShiftsByProject[p][0]; 
                 foreach (var s in validShiftsByProject[p])
                 {
-                    // solverToDecode.Value 为 1 表示这个 (项目,位移) 组合被选中了
-                    if (solverToDecode.Value(choose[(p, s)]) == 1)
+                    if (solver.Value(choose[(p, s)]) == 1)
                     {
-                        chosenShift = s;
+                        result.ChosenShiftByProject[p] = s;
                         break;
                     }
                 }
-                result.ChosenShiftByProject[p] = chosenShift;
             }
-
-            // 2b. 重新计算冲突数 (这是修复 78 的关键)
-            int finalConflictCount = 0;
-            foreach (var overageVar in conflictVars)
-            {
-                // overageVar 存的是 (该槽位总人数 - 1)
-                // 如果一个人，值就是 0；如果两个人，值就是 1
-                long val = solverToDecode.Value(overageVar);
-                if (val > 0)
-                {
-                    finalConflictCount += (int)val;
-                }
-            }
-            
-            // 确保把算出来的 0 赋值给 result
-            result.TotalConflicts = finalConflictCount; 
+            result.TotalConflicts = (int)solver.Value(totalConflictSumVar);
         }
         else
         {
-            // 如果没找到解，冲突数设为 -1 表示失败
             result.TotalConflicts = -1;
         }
 
         return result;
-     }
+    }
 
-    public void ApplySolution(ScheduleState state, SolveResult result) //applies the solveronto the state and does the actual updating
+    public void ApplySolution(ScheduleState state, SolveResult result)
     {
         foreach (var k in result.ChosenShiftByProject)
         {
@@ -229,27 +184,16 @@ public class cpsat
         public override void OnSolutionCallback()
         {
             long conflicts = Value(_totalConflictVar);
-
             if (conflicts < _bestConflicts)
             {
                 _bestConflicts = conflicts;
                 _lastImprovement = DateTime.Now;
-                // Console.WriteLine($"[Improvement] conflicts={conflicts}");
             }
 
-            // Stop immediately if we hit the target (usually 0 conflicts)
-            if (conflicts <= _targetConflicts)
-            {
-                StopSearch();
-                return;
-            }
-
-            // Stop if no improvement recently
-            if ((DateTime.Now - _lastImprovement).TotalSeconds > _maxIdleSeconds)
+            if (conflicts <= _targetConflicts || (DateTime.Now - _lastImprovement).TotalSeconds > _maxIdleSeconds)
             {
                 StopSearch();
             }
         }
     }
-
 }

@@ -252,6 +252,13 @@ public class AvailabilityFinder
 
   //     Console.WriteLine("****************\n");
   //   }
+
+    public List<Person> FindPeopleByRole(string role)
+    {
+        return _state.People
+            .Where(p => p.role.Equals(role, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
   // }
   // public class NewProjectStaffingResult
   // {

@@ -14,97 +14,62 @@ public class ScheduleHandler
         _finder = new AvailabilityFinder(_state);
     }
 
-    // the class to evaulate shift
-    // summary : The Fitness Score is our overall target—it tells us how good the schedule is. 
-    //But it doesn't tell us why it's bad.By adding RoleGapReport, we give the system 'diagnostic' power.
-    // When the score drops, the $RoleGapReport$ tells the user: 'It's because you need 1 more Developer.' Without this, the user just sees a low score and won't know how to fix it.
-    public class ShiftPerformance
-    {
+// the class to evaulate shift
+// summary : The Fitness Score is our overall target—it tells us how good the schedule is. 
+//But it doesn't tell us why it's bad.By adding RoleGapReport, we give the system 'diagnostic' power.
+// When the score drops, the $RoleGapReport$ tells the user: 'It's because you need 1 more Developer.' Without this, the user just sees a low score and won't know how to fix it.
+    public class ShiftPerformance {
         public int Shift { get; set; }
         public double Score { get; set; }
-        public string PrimaryConflict { get; set; }
+        public string PrimaryConflict { get; set; } 
         public bool IsOptimal { get; set; }
     }
 
-    // the class to pass the gap of resource after shifting or simulate shift
-    public class RoleGapReport
+// the class to pass the gap of resource after shifting or simulate shift
+public class RoleGapReport
     {
-        public double Saturation { get; set; }
-        public int MissingHours { get; set; }
-        public double RecommendedStaff { get; set; }
+        public double Saturation { get; set; }      
+        public int MissingHours { get; set; }   
+        public double RecommendedStaff { get; set; } 
         public string Status => Saturation > 1.0 ? "Critical" : "Healthy";
     }
 
 
-    //---------add fitness socre logic
+//---------add fitness socre logic
     public class FitnessScore
     {
-        public double ConflictWeight = 0.40;      // conflicts sorce
-        public double MovementWeight = 0.20;      // movement sorce： measure weather a project move frequently to different time axis in order to reduce conflicts
-        public double FocusWeight = 0.20;         // measure weather a person be shifted frequently
-        public double ContinuityWeight = 0.10;    // measure weather a project has most continuity 
-        public double DurationWeight = 0.10;      // project duration
+    public double ConflictWeight = 0.40;      // conflicts sorce
+    public double MovementWeight = 0.20;      // movement sorce： measure weather a project move frequently to different time axis in order to reduce conflicts
+    public double FocusWeight = 0.20;         // measure weather a person be shifted frequently
+    public double ContinuityWeight = 0.10;    // measure weather a project has most continuity 
+    public double DurationWeight = 0.10;      // project duration
     }
 
-    //-------method of calculate fitness score
+//-------method of calculate fitness score
     public double CalculateFitnessScore(ScheduleState state)
-{
-    double conflict = GetConflictScore(state);
-    double duration = GetDurationScore(state);
-    double movement = GetMovementScore(state);
-    double focus = GetFocusScore(state);
-    double continuity = GetContinuityScore(state);
+    {
+    double conflictScore = GetConflictScore(state);     
+    double movementScore = GetMovementScore(state);
+    double focusScore = GetFocusScore(state);
+    double continuityScore = GetContinuityScore(state);
+    double durationScore = GetDurationScore(state);
 
-    return (conflict * 0.4) + (duration * 0.1) + (movement * 0.2) + (focus * 0.2) + (continuity * 0.1 );
-}
+    // Final weighted sum
+    return (conflictScore * 0.4) + 
+           (movementScore * 0.2) + 
+           (focusScore * 0.2) + 
+           (continuityScore * 0.1) + 
+           (durationScore * 0.1);
+    }
 
-
-// public double GetConflictScore(ScheduleState state)
-// {
-//     if (state.PersonWeekGrid == null || state.PersonWeekGrid.Count == 0) return 1.0;
-
-//     double totalPenalty = 0;
-//     int totalAssignments = 0; 
-
-//     foreach (var entry in state.PersonWeekGrid)
-//     {
-//         int projectsInThisCell = entry.Value;
-//         totalAssignments += projectsInThisCell;
-
-//         if (projectsInThisCell > 1)
-//         {
-//             // 使用 1.5 次方保持对大冲突的敏感性
-//             totalPenalty += Math.Pow(projectsInThisCell - 1, 1.5);
-//         }
-//     }
-
-//     if (totalAssignments <= 0) return 1.0;
-
-//     // 计算惩罚比率
-//     double ratio = totalPenalty / totalAssignments;
-
-//     // --- 核心改进：指数衰减函数 ---
-//     // 逻辑：Score = e^(-ratio)
-//     // 当 ratio = 0 (无冲突) 时，结果是 1.0
-//     // 当 ratio = 1 时，结果是 0.36
-//     // 当 ratio = 10 (极端冲突) 时，结果是 0.000045
-//     // 这样分数永远不会是 0，算法在任何时候都能看到细微的优化趋势
-//     double finalScore = Math.Exp(-ratio);
-
-//     return finalScore;
-// }
-
-
-
-public double GetConflictScore(ScheduleState state)
-{
-    // 1. 如果网格里没人，说明没活干，自然没冲突
+    public double GetConflictScore(ScheduleState state)
+    {
+    // 1. if grid is empty
     if (state.PersonWeekGrid == null || state.PersonWeekGrid.Count == 0) return 1.0;
 
     double totalOverloadPenalty = 0;
     
-    // 2. 分母：当前所有有排班的“人-周”单元格的总承载力
-    // 假设每个单元格标准工时是 40h
+    // 2. denominator
     double totalCapacityHours = state.PersonWeekGrid.Count * 40.0; 
 
     foreach (var entry in state.PersonWeekGrid)
@@ -113,240 +78,292 @@ public double GetConflictScore(ScheduleState state)
 
         if (projectCount > 1)
         {
-            // 3. 计算超载的小时数
-            // 2个项目重叠 = 超载 40h；3个项目重叠 = 超载 80h
+            // 3. caculate over worok hour
             double extraHours = (projectCount - 1) * 40.0;
             
-            // 4. 使用平方惩罚 (Quadratic Penalty)
-            // 为什么要平方？为了告诉算法：让一个人干 3 份活（1600罚分）
-            // 远比让两个人各干 2 份活（400+400=800罚分）要糟糕得多。
+            // 4. Quadratic Penalty , reduce the extramly overloaded
             totalOverloadPenalty += Math.Pow(extraHours, 2);
         }
     }
 
-    // 5. 归一化：将惩罚值映射到 0-1 之间
-    // 系数 400.0 是为了调节灵敏度，你可以根据 0.79 的变动来调整它
+    // 5. normaliztaion
     double normalizedPenalty = totalOverloadPenalty / (totalCapacityHours * 10.0);
     
     return Math.Exp(-normalizedPenalty);
+    }
+
+
+
+// value the cost of shift
+    public double GetMovementScore(ScheduleState state)
+    {
+        int movedCount = 0;
+        foreach (var p in state.Projects)
+        {
+            if (state.GetShift(p) != 0)
+            {
+                movedCount++;
+            }
+        }
+
+        // 2. 计算“稳定性得分”
+        // 公式： (总项目数 - 移动的项目数) / 总项目数
+        return (double)(state.Projects.Count - movedCount) / state.Projects.Count;
+    }
+
+   public double GetFocusScore(ScheduleState state)
+    {
+
+        double totalScore = 0;
+        int activePeopleCount = 0;
+
+        foreach (var person in state.People)
+        {
+            // 1. Total Weeks
+            int totalWeeksWorked = 0;
+            
+            // 2. Distinct Projects
+            // person.projects 的 Key 是 Project 对象，所以 Count 就是项目数
+            int distinctProjects = person.projects.Count;
+
+            foreach (var weeks in person.projects.Values)
+            {
+                totalWeeksWorked += weeks.Count;
+            }
+
+            if (totalWeeksWorked == 0) continue;
+
+            activePeopleCount++;
+
+            // less project enaged high focus socre
+            if (distinctProjects <= 1)
+            {
+                totalScore += 1.0;
+            }
+            else
+            {
+                // 假设工作了 10 周，做了 2 个项目。理想是 10-1=9，实际是 10-2=8。分数 8/9 = 0.88
+                // 假设工作了 10 周，做了 10 个项目。实际 10-10=0。分数 0/9 = 0.0
+                
+                if (totalWeeksWorked > 1)
+                {
+                    double score = (double)(totalWeeksWorked - distinctProjects) / (totalWeeksWorked - 1);
+                    totalScore += Math.Max(0, score); 
+                }
+                else
+                {
+                    totalScore += 0;
+                }
+            }
+        }
+
+        return activePeopleCount == 0 ? 1.0 : totalScore / activePeopleCount;
+    }
+ 
+
+
+public double GetContinuityScore(ScheduleState state)
+{
+    double totalScore = 0;
+    int activeProjects = 0;
+
+    foreach (var project in state.Projects)
+    {
+        // 1. 获取该项目被分配到的所有周
+        int currentShift = state.GetShift(project);
+        var cells = state.GetGrid(project, currentShift);
+        
+        if (!cells.Any()) continue;
+
+        // 2. 提取周数并排序
+        var weeks = cells.Select(c => c.Week).Distinct().OrderBy(w => w).ToList();
+        
+        if (weeks.Count <= 1) 
+        {
+            totalScore += 1.0; // 只有一周肯定连续
+        }
+        else
+        {
+            // 3. 检查有没有“断档”
+            int gaps = 0;
+            for (int i = 0; i < weeks.Count - 1; i++)
+            {
+                // 如果下一周 不是 当前周+1，说明断了
+                if (weeks[i+1] != weeks[i] + 1)
+                {
+                    gaps++;
+                }
+            }
+
+            // 4. 计算分数：断档越少分越高
+            // 简单的公式： 1.0 / (1 + 断档数组)
+            // 例如：0断档=1.0分，1次断档=0.5分，2次断档=0.33分
+            totalScore += 1.0 / (1.0 + gaps);
+        }
+        activeProjects++;
+    }
+
+    return activeProjects == 0 ? 1.0 : totalScore / activeProjects;
 }
 
 
-
-
-    public double GetMovementScore(ScheduleState state)
-    {
-        // sum shift
-        double totalShift = state.Projects.Sum(p => Math.Abs(state.GetShift(p)));
-        // normalization socre
-        double avgShift = totalShift / state.Projects.Count;
-        return Math.Max(0, 1.0 - (avgShift / 20.0)); // if it near with 10 it will be 0
-    }
-
-    public double GetFocusScore(ScheduleState state)
-    {
-        // sum on average, how much projects each person takes on every week
-        var multiTaskWeeks = state.PersonWeekGrid.Values.Count(v => v > 1);
-        // normalization
-        return Math.Max(0, 1.0 - ((double)multiTaskWeeks / state.PersonWeekGrid.Count));
-    }
-
-    public double GetContinuityScore(ScheduleState state)
-    {
-        if (state.Projects.Count == 0) return 1.0;
-
-        double totalScore = 0;
-
-        foreach (var project in state.Projects)
-        {
-            int originalCount = project.originalPeopleIds.Count;
-
-            // If no baseline team exists, guess treat it as perfect for this project???
-            if (originalCount == 0)
-            {
-                totalScore += 1.0;
-                continue;
-            }
-
-            int overlap = 0;
-            foreach (var person in project.people)
-            {
-                // Count how many current people were in the original team
-                if (project.originalPeopleIds.Contains(person.id))
-                    overlap++;
-            }
-
-            // Score is the share of original people still on the project.
-            double projectScore = (double)overlap / originalCount;
-            totalScore += projectScore;
-        }
-
-        // Average continuity across all projects.
-        return totalScore / state.Projects.Count;
-    }
-
-
     public double GetDurationScore(ScheduleState state)
+{
+    double totalScore = 0;
+    int projectCount = 0;
+
+    foreach (var project in state.Projects)
     {
-        double totalScore = 0;
-        foreach (var project in state.Projects)
+        // --- 绕路开始：安全获取 InitialBaselineSpan ---
+        double ideal = 0;
+        var property = project.GetType().GetProperty("InitialBaselineSpan");
+        if (property != null)
         {
-            // Get the current shift (offset) applied to this project by the algorithm
-            int currentShift = state.GetShift(project);
-            // Retrieve all occupied cells (person-weeks) for this project at its current position
-            var projectCells = state.GetGrid(project, currentShift);
-
-            if (!projectCells.Any()) continue;
-            // Calculate the actual timeline span by finding the earliest start and latest end across all team members assigned to this project.
-            int actualStart = projectCells.Min(c => c.Week);
-            int actualEnd = projectCells.Max(c => c.Week);
-            int actualSpan = (actualEnd - actualStart) + 1;
-            // Determine the original planned duration as the socre for efficiency
-            int plannedSpan = (project.endDate - project.startDate) + 1;
-            // A score of 1.0 means the project is perfectly compact.
-            double score = (double)plannedSpan / actualSpan;
-            totalScore += Math.Min(1.0, score);
+            ideal = Convert.ToDouble(property.GetValue(project));
         }
-        return state.Projects.Count > 0 ? totalScore / state.Projects.Count : 1.0;
+        else
+        {
+            // 如果实在找不到，默认给个 1.0 避免除以 0，确保程序不崩溃
+            ideal = 1.0; 
+        }
+        // --- 绕路结束 ---
+
+        int currentShift = state.GetShift(project);
+        var cells = state.GetGrid(project, currentShift);
+        if (cells == null || !cells.Any()) continue;
+
+        int actual = (cells.Max(c => c.Week) - cells.Min(c => c.Week)) + 1;
+
+        if (actual > 0)
+        {
+            totalScore += Math.Min(1.0, ideal / (double)actual);
+            projectCount++;
+        }
     }
+    return projectCount == 0 ? 1.0 : totalScore / projectCount;
+}
 
-
-    //----------------------------------------
+//----------------------------------------
     public ScheduleState GetCurrentState() => _state;
     public AvailabilityFinder GetFinder() => _finder;
 
 
 
 
-    // evaluate move socre/delta in order to allow alg evaluate
-    public double EvaluateMoveDelta(Project p, int candidateShift)
-    {
-        double scoreBefore = CalculateFitnessScore(_state);
+    // public ShiftScore EvaluateMove(Project p, int candidateShift)
+    // {
+    //     int currentShift = _state.GetShift(p);
 
-        int originalShift = _state.GetShift(p);
-        _state.ApplyShift(p, candidateShift); // simulate shift
-
-        double scoreAfter = CalculateFitnessScore(_state);
-
-        _state.ApplyShift(p, originalShift); // 
-
-        return scoreAfter - scoreBefore; // return delta
-    }
+    //     int currentDoubleBooked = _state.PersonWeekGrid
+    //                    .Where(kv => kv.Value >= 2)
+    //                    .Sum(kv => kv.Value);
+    //     if (candidateShift == currentShift)
+    //     {
 
 
+    //         int currentConflictCells = _state.PersonWeekGrid.Values.Count(v => v >= 2);
 
-    // Compares the overall fitness improvement (Delta) to find the optimal project timing.
-    public int GetBestMoveForProject(Project p)
-    {
-        int bestShift = _state.GetShift(p);
-        double maxDelta = -999;   //Initial baseline: start with the project's current position
+    //         double currentPenalty = (1000.0 * currentDoubleBooked) + (10.0 * currentConflictCells);
 
-        // try valid shifts
-        foreach (int shift in _state.GetValidShifts(p)) //Looping to compare each delta
-        {
-            double delta = EvaluateMoveDelta(p, shift);//Evaluation using Delta
-            //Console.WriteLine($"Project {p.name} try Shift {shift} | Delta: {delta}");
-            if (delta > maxDelta)
-            {
-                maxDelta = delta;
-                bestShift = shift;
-            }
-        }
-        return bestShift; // Return the shift that balances all 5 weighted criteria most effectively.
-    }
-
-
-    // Performs a "vertical" resource optimization by searching for the best qualified 
-    // candidate to replace a current team member without changing the project timeline.
-    public Person DetermineBestReplacement(Project project, Person currentPerson)
-    {
-        // Identify all eligible candidates who possess the same professional Role.
-        var candidates = new List<Person>();
-        foreach (Project p in _state.Projects)
-        {
-            foreach (Person person in p.people)
-            {
-                if (person.role.Equals(currentPerson.role))
-                {
-                    candidates.Add(person);
-                }
-            }
-        }
-
-        Person bestCandidate = currentPerson;
-
-        //  Establish the baseline score to compare against during simulation.
-        double maxScore = CalculateFitnessScore(_state);
-
-        foreach (var candidate in candidates)
-        {
-            // Optimization: Skip evaluation if the candidate is already assigned.
-            if (candidate.id == currentPerson.id) continue;
-
-            // Simulation: Tentatively swap the resource in the project to test the impact.
-            _state.SwapPersonInProject(project, currentPerson, candidate);
-
-            // Assess how this specific swap affects the global Fitness Score.
-            // It primarily impacts Focus Score (20%) and Conflict Score (40%).
-            double newScore = CalculateFitnessScore(_state);
-
-            // Comparison: Update the "bestCandidate" if this resource swap improves overall schedule health.
-            if (newScore > maxScore)
-            {
-                maxScore = newScore;
-                bestCandidate = candidate;
-            }
-
-            // Rollback: Revert the project assignment to its original state for the next iteration.
-            _state.SwapPersonInProject(project, candidate, currentPerson);
-        }
-
-        // Return the candidate that yields the highest efficiency without changing the project timeline.
-        return bestCandidate;
-    }
+    //         return new ShiftScore
+    //         {
+    //             DeltaDoubleBooked = 0,
+    //             OverlapAfter = currentConflictCells,
+    //             ShiftDistance = 0,
+    //             Fitness = 1.0 / (1.0 + currentPenalty)
+    //         };
+    //     }
 
 
 
+    //     var currentCells = _state.GetGrid(p, currentShift);
+    //     var candidateCells = _state.GetGrid(p, candidateShift);
 
-//--------------evaluate if add a new project what is the ideal time and optimal resource------
-public double EvaluateNewProjectInsertion(Project newProject)
-{  
-    _state.AddProject(newProject);
-    // Grab the baseline for physical overloads
-    int baseExtraTasks = _state.GetTotalExtraTasks();
+    //     var touchedKeys = currentCells.Union(candidateCells).Distinct();
 
-    // where this project fits best geographically/temporally 
-    int bestShift = GetBestMoveForProject(newProject);
-    _state.ApplyShift(newProject, bestShift);
-
-    // Goal: minimize the "ExtraTasks" delta for the week
-    foreach (var person in newProject.people.ToList())
-    {
-        Person betterStaff = DetermineBestReplacement(newProject, person);
-        if (betterStaff.id != person.id)
-        {
-            _state.SwapPersonInProject(newProject, person, betterStaff);
-        }
-    }
-
-    // see where the total overload count landed
-    int finalExtraTasks = _state.GetTotalExtraTasks();
+    //     int delta = 0;
+    //     int overlapAfter = 0;
 
 
-    int increment = finalExtraTasks - baseExtraTasks;
+    //     foreach (var key in touchedKeys)
+    //     {
+    //         _state.PersonWeekGrid.TryGetValue(key, out int currentTotalCount);
+
+    //         bool isOccupiedInCurrent = currentCells.Any(c => c.Equals(key));
+    //         int baseCountWithoutProject = isOccupiedInCurrent ? currentTotalCount - 1 : currentTotalCount;
+
+    //         bool isOccupiedInCandidate = candidateCells.Any(c => c.Equals(key));
+    //         int newCountWithCandidate = isOccupiedInCandidate ? baseCountWithoutProject + 1 : baseCountWithoutProject;
+
+    //         if (currentTotalCount >= 2) delta -= 1;
+    //         if (newCountWithCandidate >= 2)
+    //         {
+    //             delta += 1;
+    //             overlapAfter++;
+    //         }
+    //     }
+    //     int distance = Math.Abs(candidateShift - currentShift);
+
+    //     currentDoubleBooked = _state.PersonWeekGrid
+    //         .Where(kv => kv.Value >= 2)
+    //         .Sum(kv => kv.Value);
+
+    //     int projectedDoubleBooked = Math.Max(0, currentDoubleBooked + delta);
+
+    //     double penalty = (1000.0 * projectedDoubleBooked) + (10.0 * overlapAfter) + distance;
+    //     double fitness = 1.0 / (1.0 + penalty);
+
+    //     return new ShiftScore
+    //     {
+    //         DeltaDoubleBooked = delta,
+    //         OverlapAfter = overlapAfter,
+    //         ShiftDistance = distance,
+    //         Fitness = fitness
+    //     };
+
+    // }
+
+
+// evaluate move socre/delta in order to allow alg evaluate
+public double EvaluateMoveDelta(Project p, int candidateShift)
+{
+    double scoreBefore = CalculateFitnessScore(_state);
     
-    // Returns: 
-    // 1.0 if the project fits perfectly without adding new overloads.
-    // A negative value (e.g., -2.0) representing the NET INCREASE in physical task overloads.
-    // Note: This is a delta count of extra tasks, not hours.
-    return increment == 0 ? 1.0 : -increment;
+    int originalShift = _state.GetShift(p);
+    _state.ApplyShift(p, candidateShift); // simulate shift
+    
+    double scoreAfter = CalculateFitnessScore(_state);
+    
+    _state.ApplyShift(p, originalShift); // 
+    
+    return scoreAfter - scoreBefore; // return delta
+}
+
+
+
+// Compares the overall fitness improvement (Delta) to find the optimal project timing.
+public int GetBestMoveForProject(Project p)
+{
+    int bestShift = _state.GetShift(p);
+    double maxDelta = -999;   //Initial baseline: start with the project's current position
+
+    // try valid shifts
+    foreach (int shift in _state.GetValidShifts(p)) //Looping to compare each delta
+    {
+        double delta = EvaluateMoveDelta(p, shift);//Evaluation using Delta
+        if (delta > maxDelta)
+        {
+            maxDelta = delta;
+            bestShift = shift;
+        }
+    }
+    return bestShift; // Return the shift that balances all 5 weighted criteria most effectively.
 }
 
 
 
 
-
-    public void DebugConflictDetails(ScheduleState state)
+   public void DebugConflictDetails(ScheduleState state)
 {
     int totalConflictCells = 0;   // 受灾的格子数（受苦的周数）
     int totalExtraTasks = 0;      // 对齐工时的冲突数（多出来的任务单元）
@@ -369,7 +386,7 @@ public double EvaluateNewProjectInsertion(Project newProject)
             totalOvertimeHours += overtime;
             conflictingPeople.Add(entry.Key.PersonId);
 
-            Console.WriteLine($"[CONFLICTS🚨] Person ID: {entry.Key.PersonId.ToString().PadRight(4)} | The {entry.Key.Week.ToString().PadRight(2)} week | count of project: {entry.Value} | Overtime: {overtime}h");
+          //  Console.WriteLine($"[CONFLICTS🚨] Person ID: {entry.Key.PersonId.ToString().PadRight(4)} | The {entry.Key.Week.ToString().PadRight(2)} week | count of project: {entry.Value} | Overtime: {overtime}h");
         }
     }
 
@@ -389,10 +406,121 @@ public double EvaluateNewProjectInsertion(Project newProject)
 }
 
 
+// Performs a "vertical" resource optimization by searching for the best qualified 
+// candidate to replace a current team member without changing the project timeline.
+public Person DetermineBestReplacement(Project project, Person currentPerson)
+{
+    // Identify all eligible candidates who possess the same professional Role.
+    var candidates = _finder.FindPeopleByRole(currentPerson.role);
+    Person bestCandidate = currentPerson;
+    double maxScore = CalculateFitnessScore(_state);
+
+     foreach (var candidate in candidates)
+    {
+        // Optimization: Skip evaluation if the candidate is already the person assigned.
+        if (candidate.id == currentPerson.id) continue;
+
+        // Simulation: Tentatively swap the resource in the project to test the impact.
+        _state.SwapPersonInProject(project, currentPerson, candidate);
+
+        // Assess how this specific swap affects the global Fitness Score.
+        double newScore = CalculateFitnessScore(_state);
+
+        // Comparison: If the new candidate provides a better overall score, they become the top choice.
+        if (newScore > maxScore)
+        {
+            maxScore = newScore;
+            bestCandidate = candidate;
+        } 
+
+        // 6. Rollback: CRITICAL! Revert the project assignment to the original state for the next iteration.
+        _state.SwapPersonInProject(project, candidate, currentPerson);
+    }
+
+    // Return the candidate that yields the highest efficiency.
+    return bestCandidate; 
+}
+
+
+
+
+//--------------evaluate if add a new project what is the ideal time and optimal resource------
+public double EvaluateNewProjectInsertion(Project newProject)
+{
+    // record the socre when if without new project 
+    double originalScore = CalculateFitnessScore(_state);
+
+    // find the ideal time windo
+    int bestShift = GetBestMoveForProject(newProject);
+    _state.ApplyShift(newProject, bestShift);
+
+    // find the ideal huamn resouce
+    foreach (var person in newProject.people.ToList())
+    {
+        Person betterStaff = DetermineBestReplacement(newProject, person); //The DetermineBestReplacement method automatically filters candidates 
+     // based on role and selects the one with the highest Fitness Score.
+        if (betterStaff.id != person.id)
+        {
+            _state.SwapPersonInProject(newProject, person, betterStaff);
+        }
+    }
+
+    // evaluate if insert new project , what socre of it
+    double newScore = CalculateFitnessScore(_state);
+
+    // returen delta socre to evaluate does insert successs, if score is positive it present success
+    return newScore - originalScore; 
+}
+
+
+
+
+
+
+
+
+    private string FormatWeeksIntoRanges(List<int> weeks)
+    {
+        if (weeks == null || !weeks.Any()) return "None";
+        var sortedWeeks = weeks.Distinct().OrderBy(w => w).ToList();
+
+        var ranges = new List<string>();
+        int start = sortedWeeks[0];
+        int end = sortedWeeks[0];
+
+        for (int i = 1; i < sortedWeeks.Count; i++)
+        {
+            if (sortedWeeks[i] == end + 1)
+            {
+                end = sortedWeeks[i];
+            }
+            else
+            {
+                ranges.Add(start == end ? $"{start}" : $"{start}-{end}");
+                start = end = sortedWeeks[i];
+            }
+        }
+        ranges.Add(start == end ? $"{start}" : $"{start}-{end}");
+        return string.Join(", ", ranges);
+     }
+
+
+
+
     public ScheduleState Finalize()
     {
         return _state;
     }
+}
+
+
+public class ShiftScore
+{
+    public int DeltaDoubleBooked { get; set; }
+    public int OverlapAfter { get; set; }
+    public int ShiftDistance { get; set; }
+    public double Fitness { get; set; }
+
 }
 
 

@@ -23,13 +23,13 @@ public class Program
     public Program()
     {
         var dataDirectory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Data"));
-       //string[] files = Directory.GetFiles(dataDirectory, "*.csv");
+        string[] files = Directory.GetFiles(dataDirectory, "*.csv");
        //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_spectacular_fitness_mixedD_varied40s.csv") };
        //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_spectacular_fitness_mixedC_varied40s.csv") };
        //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_spectacular_fitness_mixedB_varied40s.csv") };
         //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_spectacular_fitness_mixedA_varied40s.csv") };
       // string[] files = new string[] { Path.Combine(dataDirectory, "schedule_role_optimizer_hits_100_after_greedy_stuck_varied40s.csv") };
-       string[] files = new string[] { Path.Combine(dataDirectory, "schedule_requires_role_optimizer_greedy_stuck_B_varied40s.csv") };
+       //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_requires_role_optimizer_greedy_stuck_B_varied40s.csv") };
        //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_requires_role_optimizer_greedy_stuck_A_varied40s.csv") };
        //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_project_contiguous_fitness_medium_improvable_varied40s.csv") };
        //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_project_contiguous_fitness_low_improvable_varied40s.csv") };
@@ -91,11 +91,27 @@ public class Program
             printStats("Role optimiser Data", roleResult.BestState, file, true);
 
 
+
+
+            var cpsatSolver = new cpsat();
+            var cpResult = cpsatSolver.OptimizeShifts(roleResult.BestState, maxTime: 3600);
+
+            if (cpResult.Status == Google.OrTools.Sat.CpSolverStatus.Optimal || 
+            cpResult.Status == Google.OrTools.Sat.CpSolverStatus.Feasible)
+            {
+            cpsatSolver.ApplySolution(roleResult.BestState, cpResult);
+            Console.WriteLine($">>> CP-SAT Work well! the rest conflicts: {cpResult.TotalConflicts}");
+            }
+
+            finalState = roleResult.BestState;
+            //output.ExportToHtml(file, finalState, "Final_CPSAT_Result");
+            printStats("CP-SAT Optimized", finalState, file, true);
+
             projects[0].printPeopleOnProject();
             Console.WriteLine("-------");
             people[0].printProjectsForPerson();
 
-            finalState = roleResult.BestState;
+
 
 
             // Console.WriteLine("Find project by person test");
@@ -105,7 +121,7 @@ public class Program
             // }
              }
 
-     ProcessNewProjectInsertion(finalState);
+    //  ProcessNewProjectInsertion(finalState);
     }
     
 
