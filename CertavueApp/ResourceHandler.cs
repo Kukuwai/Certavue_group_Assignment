@@ -62,16 +62,42 @@ public class RoleGapReport
            (durationScore * 0.1);
     }
 
-    private double GetConflictScore(ScheduleState state) {
-    int totalSlots = state.PersonWeekGrid.Count;
-    if (totalSlots == 0) return 1.0;
-    // find conflicts grid
-    int conflicts = state.PersonWeekGrid.Values.Count(v => v > 1);
-    // normalization 
-    return Math.Max(0, 1.0 - ((double)conflicts / totalSlots * 5)); // make sure punlish is outstanding
+    public double GetConflictScore(ScheduleState state)
+{
+    // 1. 如果网格里没人，说明没活干，自然没冲突
+    if (state.PersonWeekGrid == null || state.PersonWeekGrid.Count == 0) return 1.0;
+
+    double totalOverloadPenalty = 0;
+    
+    // 2. 分母：当前所有有排班的“人-周”单元格的总承载力
+    // 假设每个单元格标准工时是 40h
+    double totalCapacityHours = state.PersonWeekGrid.Count * 40.0; 
+
+    foreach (var entry in state.PersonWeekGrid)
+    {
+        int projectCount = entry.Value;
+
+        if (projectCount > 1)
+        {
+            // 3. 计算超载的小时数
+            // 2个项目重叠 = 超载 40h；3个项目重叠 = 超载 80h
+            double extraHours = (projectCount - 1) * 40.0;
+            
+            // 4. 使用平方惩罚 (Quadratic Penalty)
+            // 为什么要平方？为了告诉算法：让一个人干 3 份活（1600罚分）
+            // 远比让两个人各干 2 份活（400+400=800罚分）要糟糕得多。
+            totalOverloadPenalty += Math.Pow(extraHours, 2);
+        }
     }
 
-    private double GetMovementScore(ScheduleState state) {
+    // 5. 归一化：将惩罚值映射到 0-1 之间
+    // 系数 400.0 是为了调节灵敏度，你可以根据 0.79 的变动来调整它
+    double normalizedPenalty = totalOverloadPenalty / (totalCapacityHours * 10.0);
+    
+    return Math.Exp(-normalizedPenalty);
+}
+
+    public double GetMovementScore(ScheduleState state) {
     // sum shift
     double totalShift = state.Projects.Sum(p => Math.Abs(state.GetShift(p)));
     // normalization socre
@@ -79,55 +105,114 @@ public class RoleGapReport
     return Math.Max(0, 1.0 - (avgShift / 4.0)); // if it near with 4 it will be 0
     }
 
-    private double GetFocusScore(ScheduleState state) {
+    public double GetFocusScore(ScheduleState state) {
     // sum on average, how much projects each person takes on every week
     var multiTaskWeeks = state.PersonWeekGrid.Values.Count(v => v > 1);
     // normalization
     return Math.Max(0, 1.0 - ((double)multiTaskWeeks / state.PersonWeekGrid.Count));
    }
 
-   private double GetContinuityScore(ScheduleState state) {
-    double totalPenalty = 0;
-    foreach(var p in state.Projects) {
-        // count how many people in a project
-        int peopleCount = p.people.Distinct().Count(); 
-        if(peopleCount > 1) totalPenalty += (peopleCount - 1);
-    }
-    return Math.Max(0, 1.0 - (totalPenalty / state.Projects.Count));
-   }  
+//    public double GetContinuityScore(ScheduleState state) {
+//     double totalPenalty = 0;
+//     foreach(var p in state.Projects) {
+//         // count how many people in a project
+//         int peopleCount = p.people.Distinct().Count(); 
+//         if(peopleCount > 1) totalPenalty += (peopleCount - 1);
+//     }
+//     return Math.Max(0, 1.0 - (totalPenalty / state.Projects.Count));
+//    }  
 
 
-   private double GetDurationScore(ScheduleState state)
-{
-    double totalScore = 0;
-    foreach (var project in state.Projects)
+public double GetContinuityScore(ScheduleState state)
     {
-        // Get the current shift (offset) applied to this project by the algorithm
-        int currentShift = state.GetShift(project);
-        // Retrieve all occupied cells (person-weeks) for this project at its current position
-        var projectCells = state.GetGrid(project, currentShift);
-        
-        if (!projectCells.Any()) continue;
-        // Calculate the actual timeline span by finding the earliest start and latest end across all team members assigned to this project.
-        int actualStart = projectCells.Min(c => c.Week);
-        int actualEnd = projectCells.Max(c => c.Week);
-        int actualSpan = (actualEnd - actualStart) + 1;
-        // Determine the original planned duration as the socre for efficiency
-        int plannedSpan = (project.endDate - project.startDate) + 1;
-        // A score of 1.0 means the project is perfectly compact.
-        double score = (double)plannedSpan / actualSpan;
-        totalScore += Math.Min(1.0, score);
+        if (state.Projects.Count == 0) return 1.0;
+
+        double totalScore = 0;
+
+        foreach (var project in state.Projects)
+        {
+            int originalCount = project.originalPeopleIds.Count;
+
+            // 【关键修复】如果这个项目原本就没有人（比如新项目），或者基准线没设好
+            if (originalCount == 0)
+            {
+                totalScore += 1.0; 
+                continue;
+            }
+
+            int overlap = 0;
+            foreach (var person in project.people)
+            {
+                // 检查现在的成员是否在原始名单里
+                if (project.originalPeopleIds.Contains(person.id))
+                    overlap++;
+            }
+
+            double projectScore = (double)overlap / originalCount;
+            totalScore += projectScore;
+        }
+
+        return totalScore / state.Projects.Count;
     }
-    return state.Projects.Count > 0 ? totalScore / state.Projects.Count : 1.0;
-}
 
 
+    public double GetDurationScore(ScheduleState state)
+    {
+        double totalScore = 0;
+        int projectCount = 0;
 
+        foreach (var project in state.Projects)
+        {
+            // 如果项目没人做，跳过
+            if (project.people.Count == 0) continue;
 
+            // 1. 获取理想时长 (Capacity)
+            // 确保 capacity 已更新
+            if (project.capacity == 0) project.updateCapacity();
+            double idealDuration = project.capacity;
 
+            // 2. 获取当前排班的实际时长 (Actual Duration)
+            int minWeek = int.MaxValue;
+            int maxWeek = int.MinValue;
+            bool hasAssignments = false;
 
+            foreach (var person in project.people)
+            {
+                // 使用 List<int> 获取周数
+                if (person.projects.TryGetValue(project, out List<int> weeks))
+                {
+                    foreach (int w in weeks)
+                    {
+                        if (w < minWeek) minWeek = w;
+                        if (w > maxWeek) maxWeek = w;
+                        hasAssignments = true;
+                    }
+                }
+            }
 
+            if (!hasAssignments) continue;
 
+            // 计算实际跨度
+            double actualDuration = (maxWeek - minWeek) + 1;
+
+            // 3. 计算得分
+            if (actualDuration > 0)
+            {
+                // 理想时长 / 实际时长
+                // 如果实际时长被拉得很长，分数就会变低
+                double score = idealDuration / actualDuration;
+                
+                // 限制最高分 1.0
+                if (score > 1.0) score = 1.0;
+                
+                totalScore += score;
+                projectCount++;
+            }
+        }
+
+        // 如果没有项目，默认返回 1.0，否则返回平均分
+        return projectCount == 0 ? 1.0 : totalScore / projectCount;
+    }
 
 
 
@@ -137,23 +222,7 @@ public class RoleGapReport
     public AvailabilityFinder GetFinder() => _finder;
 
 
-    // // --- Gets a list of valid shift offsets that keep the project within its allowed timeframe.
-    // public List<int> GetValidOptions(Project p)
-    // {
-    //     return _state.GetValidShifts(p);
-    // }
 
-    // Returns a dictionary mapping each person to their available (free) week ranges.
-    public Dictionary<string, string> GetGapsPerPerson()
-    {
-        var report = new Dictionary<string, string>();
-        foreach (var p in _state.People)
-        {
-            List<int> freeWeeks = _finder.GetAvailableWeeksForPerson(p.name);
-            report[p.name] = FormatWeeksIntoRanges(freeWeeks);
-        }
-        return report;
-    }
 
     // public ShiftScore EvaluateMove(Project p, int candidateShift)
     // {
@@ -266,6 +335,51 @@ public int GetBestMoveForProject(Project p)
 }
 
 
+
+
+   public void DebugConflictDetails(ScheduleState state)
+{
+    int totalConflictCells = 0;   // 受灾的格子数（受苦的周数）
+    int totalExtraTasks = 0;      // 对齐工时的冲突数（多出来的任务单元）
+    int totalOvertimeHours = 0;
+    var conflictingPeople = new HashSet<int>();
+
+    Console.WriteLine("\n========== [DEBUG Analyze] ==========");
+
+    foreach (var entry in state.PersonWeekGrid)
+    {
+        if (entry.Value > 1) 
+        {
+            totalConflictCells++;
+            
+            // --- 核心改进：统计超载的任务单元数 ---
+            int extraTasks = entry.Value - 1; 
+            totalExtraTasks += extraTasks;
+
+            int overtime = extraTasks * 40;
+            totalOvertimeHours += overtime;
+            conflictingPeople.Add(entry.Key.PersonId);
+
+            Console.WriteLine($"[CONFLICTS🚨] Person ID: {entry.Key.PersonId.ToString().PadRight(4)} | The {entry.Key.Week.ToString().PadRight(2)} week | count of project: {entry.Value} | Overtime: {overtime}h");
+        }
+    }
+
+    if (totalConflictCells == 0)
+    {
+        Console.WriteLine(">>> Success！👍 No conflicts");
+    }
+    else
+    {
+        Console.WriteLine("------------------------------------------");
+        Console.WriteLine($"Total Conflicts (Extra Tasks): {totalExtraTasks}");
+        Console.WriteLine($"Affected Week Grids: {totalConflictCells}");
+        Console.WriteLine($"Related Persons: {conflictingPeople.Count}");
+        Console.WriteLine($"Total Double Booking time: {totalOvertimeHours} hours。");
+    }
+    Console.WriteLine("==========================================\n");
+}
+
+
 // Performs a "vertical" resource optimization by searching for the best qualified 
 // candidate to replace a current team member without changing the project timeline.
 public Person DetermineBestReplacement(Project project, Person currentPerson)
@@ -333,108 +447,11 @@ public double EvaluateNewProjectInsertion(Project newProject)
 }
 
 
-// Returns a comprehensive "Search Map" of how moving this project (p) 
-// to different weeks impacts the global schedule's Fitness Score.
-// This might be useful for the Analyzer to determine if a project is "un-placeable" 
-// due to time constraints or resource shortages.
-public List<ShiftPerformance> GetScoreTrendForProject(Project p)
-{
-    var trend = new List<ShiftPerformance>();
-    int originalShift = _state.GetShift(p);
-    var options = _state.GetValidShifts(p);
-
-    foreach (int shift in options)
-    {
-        _state.ApplyShift(p, shift);
-        double totalScore = CalculateFitnessScore(_state);
-        
-        trend.Add(new ShiftPerformance {
-            Shift = shift,
-            Score = totalScore,
-            IsOptimal = false 
-        });
-
-        _state.ApplyShift(p, originalShift); // roll back
-    }
-    return trend.OrderByDescending(t => t.Score).ToList();
-}
-
-
-
-// a method to help adding new projetc since we need to find optimal resouce with same role
-public Dictionary<string, RoleGapReport> GetRoleSaturation(int startWeek, int endWeek)
-{
-    var report = new Dictionary<string, RoleGapReport>();
-    var allRoles = _state.People.Select(p => p.role).Distinct();
-
-    foreach (var role in allRoles)
-    {
-        int supplyWeeks = _state.People.Count(p => p.role == role) * (endWeek - startWeek + 1);
-        
-        int demandWeeks = 0;
-        foreach (var proj in _state.Projects)
-        {
-            var shift = _state.GetShift(proj);
-            var cells = _state.GetGrid(proj, shift)
-                             .Where(c => c.Week >= startWeek && c.Week <= endWeek);
-            
-            foreach(var cell in cells)
-            {
-                var person = _state.People.First(p => p.id == cell.PersonId);
-                if (person.role == role) demandWeeks++;
-            }
-        }
-
-        double saturation = supplyWeeks == 0 ? 0 : (double)demandWeeks / supplyWeeks;
-        
-        report[role] = new RoleGapReport {
-            Saturation = saturation,
-            MissingHours = (demandWeeks > supplyWeeks) ? (demandWeeks - supplyWeeks) * 40 : 0,
-            RecommendedStaff = Math.Max(0, Math.Ceiling((double)(demandWeeks - supplyWeeks) / (endWeek - startWeek + 1)))
-        };
-    }
-    return report;
-}
 
 
 
 
 
-
-    //----return conflicts detail: exist conflict in which project whose overloap and which week overloap
-    // public List<string> GetDetailedConflictList()
-    // {
-    //     var details = new List<string>();
-
-    //     foreach (var entry in _state.PersonWeekGrid.Where(kv => kv.Value >= 2))
-    //     {
-    //         var key = entry.Key;
-    //         var person = _state.People.First(p => p.id == key.PersonId);
-
-    //         var conflictingProjects = _state.Projects
-    //             .Where(proj => _state.GetGrid(proj, _state.GetShift(proj))
-    //             .Any(cell => cell.PersonId == key.PersonId && cell.Week == key.Week))
-    //             .Select(proj => proj.name)
-    //             .ToList();
-
-    //         details.Add($"Week {key.Week} | {person.name} | Projects: {string.Join(" & ", conflictingProjects)}");
-    //     }
-    //     return details;
-    // }
-
-
-    // private List<int> GetOverloadWeeksList(string personName)
-    // {
-    //     List<int> overloads = new List<int>();
-    //     for (int w = 1; w <= 52; w++)
-    //     {
-    //         if (_finder.GetPersonWorkload(personName, w) > 1)
-    //         {
-    //             overloads.Add(w);
-    //         }
-    //     }
-    //     return overloads;
-    // }
 
     private string FormatWeeksIntoRanges(List<int> weeks)
     {
@@ -462,59 +479,6 @@ public Dictionary<string, RoleGapReport> GetRoleSaturation(int startWeek, int en
      }
 
 
-
-
-    // public string GenerateSummary()
-    // {
-    //     // 1. Calculations
-    //     int conflictCells = _state.PersonWeekGrid.Values.Count(v => v >= 2);
-    //     int totalOccupiedCells = _state.PersonWeekGrid.Count;
-    //     double successPct = totalOccupiedCells == 0 ? 100 : (double)_state.PersonWeekGrid.Values.Count(v => v == 1) / totalOccupiedCells * 100;
-
-    //     StringBuilder sb = new StringBuilder();
-    //     sb.AppendLine("======= 📅 PROJECT SCHEDULE DIAGNOSTIC REPORT =======");
-    //     sb.AppendLine($"[Status] Total Conflicts: {conflictCells} | Success Rate: {successPct:0.##}%");
-
-    //     // 2. Critical Overloads (Who is busy)
-    //     sb.AppendLine("\n[Critical Overloads]");
-    //     var overloadedStaff = _state.People
-    //         .Select(p => new { p.name, Weeks = GetOverloadWeeksList(p.name) })
-    //         .Where(x => x.Weeks.Any())
-    //         .ToList();
-
-    //     if (overloadedStaff.Any())
-    //     {
-    //         foreach (var s in overloadedStaff)
-    //             sb.AppendLine($"  ⚠️ {s.name}: {s.Weeks.Count} weeks conflicted ({FormatWeeksIntoRanges(s.Weeks)})");
-    //     }
-    //     else
-    //     {
-    //         sb.AppendLine("  ✅ No resource overloads detected.");
-    //     }
-
-    //     // 3. Conflict Breakdown ( What is happening)
-    //     sb.AppendLine("\n[Conflict Breakdown - Project Overlaps]");
-    //     var conflictDetails = GetDetailedConflictList();
-    //     if (conflictDetails.Any())
-    //     {
-    //         foreach (var line in conflictDetails) sb.AppendLine($"  ❌ {line}");
-    //     }
-    //     else
-    //     {
-    //         sb.AppendLine("  ✅ All project assignments are isolated.");
-    //     }
-
-    //     // 4. Resource Capacity (Future planning)
-    //     sb.AppendLine("\n[Resource Capacity / Gaps]");
-    //     foreach (var p in _state.People)
-    //     {
-    //         var gaps = _finder.GetAvailableWeeksForPerson(p.name);
-    //         sb.AppendLine($"  💡 {p.name}: {gaps.Count} weeks free (Windows: {FormatWeeksIntoRanges(gaps)})");
-    //     }
-
-    //     sb.AppendLine("\n====================================================");
-    //     return sb.ToString();
-    // }
 
 
     public ScheduleState Finalize()
