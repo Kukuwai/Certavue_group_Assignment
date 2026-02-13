@@ -47,7 +47,7 @@ public class RoleGapReport
 
 //-------method of calculate fitness score
     public double CalculateFitnessScore(ScheduleState state)
-   {
+    {
     double conflictScore = GetConflictScore(state);     
     double movementScore = GetMovementScore(state);
     double focusScore = GetFocusScore(state);
@@ -63,7 +63,7 @@ public class RoleGapReport
     }
 
     public double GetConflictScore(ScheduleState state)
-{
+    {
     // 1. 如果网格里没人，说明没活干，自然没冲突
     if (state.PersonWeekGrid == null || state.PersonWeekGrid.Count == 0) return 1.0;
 
@@ -95,7 +95,7 @@ public class RoleGapReport
     double normalizedPenalty = totalOverloadPenalty / (totalCapacityHours * 10.0);
     
     return Math.Exp(-normalizedPenalty);
-}
+    }
 
     public double GetMovementScore(ScheduleState state) {
     // sum shift
@@ -105,55 +105,103 @@ public class RoleGapReport
     return Math.Max(0, 1.0 - (avgShift / 4.0)); // if it near with 4 it will be 0
     }
 
-    public double GetFocusScore(ScheduleState state) {
-    // sum on average, how much projects each person takes on every week
-    var multiTaskWeeks = state.PersonWeekGrid.Values.Count(v => v > 1);
-    // normalization
-    return Math.Max(0, 1.0 - ((double)multiTaskWeeks / state.PersonWeekGrid.Count));
-   }
+   public double GetFocusScore(ScheduleState state)
+    {
+        // 如果没有项目或没有人，默认给满分
+        if (state.People.Count == 0) return 1.0;
 
-//    public double GetContinuityScore(ScheduleState state) {
-//     double totalPenalty = 0;
-//     foreach(var p in state.Projects) {
-//         // count how many people in a project
-//         int peopleCount = p.people.Distinct().Count(); 
-//         if(peopleCount > 1) totalPenalty += (peopleCount - 1);
-//     }
-//     return Math.Max(0, 1.0 - (totalPenalty / state.Projects.Count));
-//    }  
+        double totalScore = 0;
+        int activePeopleCount = 0;
+
+        foreach (var person in state.People)
+        {
+            // 1. Total Weeks
+            int totalWeeksWorked = 0;
+            
+            // 2. Distinct Projects
+            // person.projects 的 Key 是 Project 对象，所以 Count 就是项目数
+            int distinctProjects = person.projects.Count;
+
+            foreach (var weeks in person.projects.Values)
+            {
+                totalWeeksWorked += weeks.Count;
+            }
+
+            // 如果这个人完全没活干，跳过不计入分数
+            if (totalWeeksWorked == 0) continue;
+
+            activePeopleCount++;
+
+            // 如果只做 1 个项目，不管做多久，都是 100% 专注 -> 1.0
+            if (distinctProjects <= 1)
+            {
+                totalScore += 1.0;
+            }
+            else
+            {
+                // 假设工作了 10 周，做了 2 个项目。理想是 10-1=9，实际是 10-2=8。分数 8/9 = 0.88
+                // 假设工作了 10 周，做了 10 个项目。实际 10-10=0。分数 0/9 = 0.0
+                
+                if (totalWeeksWorked > 1)
+                {
+                    double score = (double)(totalWeeksWorked - distinctProjects) / (totalWeeksWorked - 1);
+                    totalScore += Math.Max(0, score); // 确保不出现负数
+                }
+                else
+                {
+                    totalScore += 0;
+                }
+            }
+        }
+
+        return activePeopleCount == 0 ? 1.0 : totalScore / activePeopleCount;
+    }
+ 
 
 
 public double GetContinuityScore(ScheduleState state)
+{
+    double totalScore = 0;
+    int activeProjects = 0;
+
+    foreach (var project in state.Projects)
     {
-        if (state.Projects.Count == 0) return 1.0;
+        // 1. 获取该项目被分配到的所有周
+        int currentShift = state.GetShift(project);
+        var cells = state.GetGrid(project, currentShift);
+        
+        if (!cells.Any()) continue;
 
-        double totalScore = 0;
-
-        foreach (var project in state.Projects)
+        // 2. 提取周数并排序
+        var weeks = cells.Select(c => c.Week).Distinct().OrderBy(w => w).ToList();
+        
+        if (weeks.Count <= 1) 
         {
-            int originalCount = project.originalPeopleIds.Count;
-
-            // 【关键修复】如果这个项目原本就没有人（比如新项目），或者基准线没设好
-            if (originalCount == 0)
-            {
-                totalScore += 1.0; 
-                continue;
-            }
-
-            int overlap = 0;
-            foreach (var person in project.people)
-            {
-                // 检查现在的成员是否在原始名单里
-                if (project.originalPeopleIds.Contains(person.id))
-                    overlap++;
-            }
-
-            double projectScore = (double)overlap / originalCount;
-            totalScore += projectScore;
+            totalScore += 1.0; // 只有一周肯定连续
         }
+        else
+        {
+            // 3. 检查有没有“断档”
+            int gaps = 0;
+            for (int i = 0; i < weeks.Count - 1; i++)
+            {
+                // 如果下一周 不是 当前周+1，说明断了
+                if (weeks[i+1] != weeks[i] + 1)
+                {
+                    gaps++;
+                }
+            }
 
-        return totalScore / state.Projects.Count;
+            // 4. 计算分数：断档越少分越高
+            // 简单的公式： 1.0 / (1 + 断档数组)
+            // 例如：0断档=1.0分，1次断档=0.5分，2次断档=0.33分
+            totalScore += 1.0 / (1.0 + gaps);
+        }
+        activeProjects++;
     }
+
+    return activeProjects == 0 ? 1.0 : totalScore / activeProjects;
+}
 
 
     public double GetDurationScore(ScheduleState state)
