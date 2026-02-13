@@ -70,7 +70,7 @@ public class ScheduleState
     }
 
     public void AddProject(Project p)  //added this to fix it @Luca your project wasn't stored anywhere 
-    { 
+    {
         if (Projects.Contains(p)) return;
 
         Projects.Add(p);
@@ -105,7 +105,7 @@ public class ScheduleState
                 baselineEnd = entry.Key;
             }
         }
-        
+
         int duration = baselineEnd - baselineStart + 1; //how wide the project is or long
 
         int earliestStart = _window[p].Start + 1;  //valid moves left
@@ -161,27 +161,76 @@ public class ScheduleState
         AddProjectToGrid(p);    //adds the proj back
     }
     //removes a project from the grid when it is being shifted
+    // private void RemoveProjectFromGrid(Project p)
+    // {
+    //     int shift = GetShift(p);   //current cell shift
+    //     foreach (var key in GetGrid(p, shift))
+    //     {
+    //         int week = key.Week;
+    //         if (week < 1 || week > Weeks) continue;
+    //         if (!PersonWeekGrid.TryGetValue(key, out var count)) continue;
+    //         if (--count == 0) PersonWeekGrid.Remove(key);
+    //         else PersonWeekGrid[key] = count;
+    //     }
+    // }
+
     private void RemoveProjectFromGrid(Project p)
     {
-        int shift = GetShift(p);   //current cell shift
-        foreach (var key in GetGrid(p, shift))
+        int shift = GetShift(p);
+
+        foreach (var person in p.people)
         {
-            int week = key.Week;
-            if (week < 1 || week > Weeks) continue;
-            if (!PersonWeekGrid.TryGetValue(key, out var count)) continue;
-            if (--count == 0) PersonWeekGrid.Remove(key);
-            else PersonWeekGrid[key] = count;
+            if (person.projects.ContainsKey(p))
+            {
+                foreach (var weekEntry in person.projects[p])
+                {
+                    int originalWeek = weekEntry.Key;
+                    int shiftedWeek = originalWeek + shift;
+
+                    if (shiftedWeek >= 1 && shiftedWeek <= Weeks)
+                    {
+                        var key = new WeekKey(person.id, p.id, shiftedWeek);
+                        PersonWeekGrid.Remove(key);  // Remove this specific project assignment
+                    }
+                }
+            }
         }
     }
     //current shift added 
+    // private void AddProjectToGrid(Project p)
+    // {
+    //     int shift = GetShift(p);
+    //     foreach (var key in GetGrid(p, shift))  //loops over occupied cells
+    //     {
+    //         int week = key.Week;
+    //         if (week < 1 || week > Weeks) continue;
+    //         PersonWeekGrid[key] = PersonWeekGrid.GetValueOrDefault(key) + 1;
+    //     }
+    // }
+
     private void AddProjectToGrid(Project p)
     {
         int shift = GetShift(p);
-        foreach (var key in GetGrid(p, shift))  //loops over occupied cells
+
+        foreach (var person in p.people)
         {
-            int week = key.Week;
-            if (week < 1 || week > Weeks) continue;
-            PersonWeekGrid[key] = PersonWeekGrid.GetValueOrDefault(key) + 1;
+            if (person.projects.ContainsKey(p))
+            {
+                foreach (var weekEntry in person.projects[p])  // weekEntry is KeyValuePair<int, int>
+                {
+                    int originalWeek = weekEntry.Key;
+                    int hours = weekEntry.Value;  // Get the actual hours!
+                    int shiftedWeek = originalWeek + shift;
+
+                    if (shiftedWeek >= 1 && shiftedWeek <= Weeks)
+                    {
+                        var key = new WeekKey(person.id, p.id, shiftedWeek);
+
+                        // Add hours to existing value (person might be on multiple projects same week)
+                        PersonWeekGrid[key] = hours;
+                    }
+                }
+            }
         }
     }
 

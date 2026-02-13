@@ -67,20 +67,22 @@ public class Program
 
             finalState = roleResult.BestState;
 
+            TestFindPeopleForNewProject();
 
-            Console.WriteLine("Find project by person test");
-            foreach (Project p in projects)
-            {
-                p.printPeopleOnProject();
-            }
-            }
+
+            // Console.WriteLine("Find project by person test");
+            // foreach (Project p in projects)
+            // {
+            //     p.printPeopleOnProject();
+            // }
+        }
 
         ProcessNewProjectInsertion(finalState);
     }
-    
 
-        private void ProcessNewProjectInsertion(ScheduleState currentState)
-        {
+
+    private void ProcessNewProjectInsertion(ScheduleState currentState)
+    {
         if (currentState == null)
         {
             Console.WriteLine("[Error] No available global optimization state was found, and a new project could not be inserted.");
@@ -101,7 +103,7 @@ public class Program
 
         foreach (var file in newFiles)
         {
-            Console.WriteLine($"[File] is processing: {Path.GetFileName(file)}");
+            //Console.WriteLine($"[File] is processing: {Path.GetFileName(file)}");
 
             List<Project> newProjects = LoadNewProjectsOnly(file);
 
@@ -113,18 +115,18 @@ public class Program
 
                 if (scoreDelta >= 0)
                 {
-                    Console.WriteLine($"   ✅ [Success] project '{project.name}' had insert sucessful。score change: {scoreDelta:F4}");
+                    //Console.WriteLine($"   ✅ [Success] project '{project.name}' had insert sucessful。score change: {scoreDelta:F4}");
                 }
                 else
                 {
-                    Console.WriteLine($"   ⚠️ [Warning] project '{project.name}' after insert,score change: ({scoreDelta:F4})，please check conflicts。");
+                    //Console.WriteLine($"   ⚠️ [Warning] project '{project.name}' after insert,score change: ({scoreDelta:F4})，please check conflicts。");
                 }
             }
             Output finalOutput = new Output();
-            finalOutput.ExportToHtml("Global_Final_Schedule",currentState, "With_New_Projects.html");
+            finalOutput.ExportToHtml("Global_Final_Schedule", currentState, "With_New_Projects.html");
         }
 
-        Console.WriteLine("[SYSTEM] The final shift schedule has been exported to an HTML file.");
+        //Console.WriteLine("[SYSTEM] The final shift schedule has been exported to an HTML file.");
     }
 
     public List<Project> LoadNewProjectsOnly(string path)
@@ -143,6 +145,49 @@ public class Program
         this.projects = projects;
         Console.WriteLine($"Loaded {System.IO.Path.GetFileName(path)}\n");
         return state;
+    }
+
+    public void TestFindPeopleForNewProject()
+    {
+        Console.WriteLine("\n********Testing FindPeopleForNewProject method****** \n");
+
+        // ===== CHECK DATA BEFORE SCHEDULESTATE ===== 
+        Console.WriteLine("=== CHECKING Person_08 RAW DATA ===");
+        var person08 = people.FirstOrDefault(p => p.name == "Person_08");
+
+        if (person08 != null)
+        {
+            Console.WriteLine($"Person_08 has {person08.projects.Count} projects in raw data");
+
+            // Check first project
+            var firstProject = person08.projects.FirstOrDefault();
+            if (firstProject.Key != null)
+            {
+                Console.WriteLine($"\nFirst project: {firstProject.Key.name}");
+                Console.WriteLine($"Weeks for this project: {firstProject.Value.Count}");
+
+                // Show some week entries
+                foreach (var weekEntry in firstProject.Value.Take(5))
+                {
+                    Console.WriteLine($"  Week {weekEntry.Key}: {weekEntry.Value} hours");
+                }
+            }
+        }
+        Console.WriteLine("=========================\n");
+        // ===== END CHECK =====
+
+        var state = new ScheduleState(people, projects);
+
+        var finder = new AvailabilityFinder(state);
+
+        var result = finder.FindPeopleForNewProject(
+            startWeek: 25,
+            duration: 5,
+            peopleNeeded: 4,
+            requiredRole: "developer"
+        );
+
+        result.PrintSummary();
     }
 
     static void Main(string[] args)
