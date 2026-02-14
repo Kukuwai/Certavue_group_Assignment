@@ -45,80 +45,81 @@ public class RoleOptimizer
 
     private MoveCandidate FindBestMove(ScheduleState state, ScheduleHandler handler, double baselineFitness, out int combinationsChecked) //Checks all possible 5 hour moves
     {
-        combinationsChecked = 0; 
-        MoveCandidate best = null; 
+        combinationsChecked = 0;
+        MoveCandidate best = null;
 
         List<OverloadCell> overloadCells = BuildOverloadCells(state); //Builds all currently overloaded person/weeks
 
-        foreach (OverloadCell overload in overloadCells) 
+        foreach (OverloadCell overload in overloadCells)
         {
-            Person overloadedPerson = FindPersonById(state, overload.PersonId); 
-            if (overloadedPerson == null) 
+            Person overloadedPerson = FindPersonById(state, overload.PersonId);
+            if (overloadedPerson == null)
             {
-                continue; 
+                continue;
             }
 
             List<SourceAssignment> sourceAssignments = BuildSourceAssignments(state, overloadedPerson, overload.Week); //All projs/weeks part of overloaded person
-            if (sourceAssignments.Count == 0) 
+            if (sourceAssignments.Count == 0)
             {
-                continue; 
+                continue;
             }
 
             List<Person> replacementCandidates = GetReplacementCandidates(state, overloadedPerson, overload.Week); //Under 40 hours in same role/week
-            if (replacementCandidates.Count == 0) 
+            if (replacementCandidates.Count == 0)
             {
-                continue; 
+                continue;
             }
 
-            foreach (SourceAssignment source in sourceAssignments) 
+            foreach (SourceAssignment source in sourceAssignments)
             {
-                foreach (Person replacement in replacementCandidates) 
+                foreach (Person replacement in replacementCandidates)
                 {
                     for (int hoursToMove = 10; hoursToMove <= source.SourceHours; hoursToMove += 5) //Try every legal 5 hour move
                     {
-                        combinationsChecked++; 
+                        combinationsChecked++;
                         AssignmentSnapshot snapshot = CaptureSnapshot(state); //State saved
 
-                        bool moved = GreedyAlg.MoveHoursToReplacement(state, source.Project, overloadedPerson, replacement, source.RawWeek, overload.Week, hoursToMove); 
+                        bool moved = GreedyAlg.MoveHoursToReplacement(state, source.Project, overloadedPerson, replacement, source.RawWeek, overload.Week, hoursToMove);
 
-                        if (moved) 
+                        if (moved)
                         {
                             double afterFitness = handler.CalculateFitnessScore(state); //After move score
-                            double delta = afterFitness - baselineFitness; 
+                            double delta = afterFitness - baselineFitness;
 
                             if (delta > 0) //Only improvements
                             {
-                                int overloadAfter = GetOverloadAmount(state, overload.PersonId, overload.Week); 
-                                int overloadReduction = overload.OverloadAmount - overloadAfter; 
+                                int overloadAfter = GetOverloadAmount(state, overload.PersonId, overload.Week);
+                                int overloadReduction = overload.OverloadAmount - overloadAfter;
 
                                 var candidate = new MoveCandidate //Saved to be compared
                                 {
-                                    Project = source.Project, 
-                                    OverloadedPerson = overloadedPerson, 
-                                    ReplacementPerson = replacement, 
-                                    RawWeek = source.RawWeek, 
-                                    ShiftedWeek = overload.Week, 
-                                    HoursToMove = hoursToMove, 
-                                    FitnessDelta = delta, 
-                                    OverloadReduction = overloadReduction 
+                                    Project = source.Project,
+                                    OverloadedPerson = overloadedPerson,
+                                    ReplacementPerson = replacement,
+                                    RawWeek = source.RawWeek,
+                                    ShiftedWeek = overload.Week,
+                                    HoursToMove = hoursToMove,
+                                    FitnessDelta = delta,
+                                    OverloadReduction = overloadReduction
                                 };
 
                                 if (IsBetterCandidate(candidate, best)) //New best when higher fitness
                                 {
-                                    best = candidate; 
+                                    best = candidate;
                                 }
                             }
                         }
 
-                        RestoreSnapshot(state, snapshot); 
+                        RestoreSnapshot(state, snapshot);
                     }
                 }
             }
         }
 
-        return best; 
+        return best;
     }
-    
+
+   
     private AssignmentSnapshot CaptureSnapshot(ScheduleState state)  //keeps a snapshot of changes for comparison ak grid v grid
     {
         var personAssignments = new Dictionary<Person, Dictionary<Project, Dictionary<int, int>>>(); //Copy person/project/weeks map
@@ -190,7 +191,7 @@ public class RoleOptimizer
         public Dictionary<Person, Dictionary<Project, Dictionary<int, int>>> PersonAssignments { get; set; }
         public Dictionary<Project, HashSet<Person>> ProjectPeople { get; set; }
     }
- 
+
     public class OptimizationResult //returned best result
     {
         public ScheduleState BestState { get; set; }
@@ -199,4 +200,33 @@ public class RoleOptimizer
         public int WeeksImproved { get; set; }
         public int CombinationsChecked { get; set; }
     }
+
+    private class OverloadCell 
+    {
+        public int PersonId { get; set; } 
+        public int Week { get; set; } 
+        public int AssignedHours { get; set; } 
+        public int Capacity { get; set; } 
+        public int OverloadAmount { get; set; } 
+    }
+
+    private class SourceAssignment 
+    {
+        public Project Project { get; set; } 
+        public int RawWeek { get; set; } 
+        public int SourceHours { get; set; } 
+    }
+
+    private class MoveCandidate 
+    {
+        public Project Project { get; set; } 
+        public Person OverloadedPerson { get; set; } 
+        public Person ReplacementPerson { get; set; } 
+        public int RawWeek { get; set; } 
+        public int ShiftedWeek { get; set; } 
+        public int HoursToMove { get; set; } 
+        public double FitnessDelta { get; set; } 
+        public int OverloadReduction { get; set; } 
+    }
+
 }
