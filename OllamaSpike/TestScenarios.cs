@@ -1,4 +1,10 @@
+using OllamaSharp;
+using OllamaSharp.Models.Chat;
+
+using System.Diagnostics;
 namespace OllamaSpike;
+
+
 
 public class TestScenarios
 {
@@ -78,5 +84,36 @@ Changes:
 
 Summarize these changes in 2-3 sentences.
 ";
+  }
+
+  // This method is to run each scenario
+  public static async Task RunScenario(string title, string prompt, OllamaApiClient ollama)
+  {
+    Console.WriteLine($" {title}");
+    Console.WriteLine(new string('-', 50));
+
+    var stopwatch = Stopwatch.StartNew();
+
+    try
+    {
+      var chat = new Chat(ollama);
+      string response = "";
+
+      await foreach (var token in chat.SendAsync(prompt))
+      {
+        response += token;
+      }
+
+      stopwatch.Stop();
+
+      Console.WriteLine($"Explanation: {response}");
+      Console.WriteLine($"Time: {stopwatch.ElapsedMilliseconds}ms ({stopwatch.Elapsed.TotalSeconds:F2}s)");
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($" Error: {ex.Message}");
+    }
+
+    Console.WriteLine();
   }
 }
