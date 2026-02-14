@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable> 
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="GeneticAlgorithm" Version="1.3.6" />
+    <PackageReference Include="GeneticSharp" Version="3.1.4" />
+    <PackageReference Include="Google.OrTools" Version="*" />
+    <PackageReference Include="morelinq" Version="4.4.0" />
+    
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Data\*.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>
