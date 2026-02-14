@@ -118,8 +118,37 @@ public class RoleOptimizer
 
         return best;
     }
+    private List<OverloadCell> BuildOverloadCells(ScheduleState state) // Creates overloaded person-week list using hour totals and capacity.
+    {
+        return null;
+    }
+    private List<SourceAssignment> BuildSourceAssignments(ScheduleState state, Person overloadedPerson, int shiftedWeek)
+    {
+        return null;
+    }
+    private List<Person> GetReplacementCandidates(ScheduleState state, Person overloadedPerson, int shiftedWeek)
+    { return null; }
 
-   
+
+    private static bool IsBetterCandidate(MoveCandidate candidate, MoveCandidate best)
+    {
+        return true;
+    }
+    private int GetRemainingCapacity(ScheduleState state, Person person, int week)
+    {
+        return 0;
+    }
+
+    private int GetOverloadAmount(ScheduleState state, int personId, int week)
+    {
+        return 0;
+    }
+
+    private Person FindPersonById(ScheduleState state, int personId)
+    {
+        return null;
+    }
+
     private AssignmentSnapshot CaptureSnapshot(ScheduleState state)  //keeps a snapshot of changes for comparison ak grid v grid
     {
         var personAssignments = new Dictionary<Person, Dictionary<Project, Dictionary<int, int>>>(); //Copy person/project/weeks map
@@ -201,32 +230,32 @@ public class RoleOptimizer
         public int CombinationsChecked { get; set; }
     }
 
-    private class OverloadCell 
+    private class OverloadCell
     {
-        public int PersonId { get; set; } 
-        public int Week { get; set; } 
-        public int AssignedHours { get; set; } 
-        public int Capacity { get; set; } 
-        public int OverloadAmount { get; set; } 
+        public int PersonId { get; set; }
+        public int Week { get; set; }
+        public int AssignedHours { get; set; }
+        public int Capacity { get; set; }
+        public int OverloadAmount { get; set; }
     }
 
-    private class SourceAssignment 
+    private class SourceAssignment
     {
-        public Project Project { get; set; } 
-        public int RawWeek { get; set; } 
-        public int SourceHours { get; set; } 
+        public Project Project { get; set; }
+        public int RawWeek { get; set; }
+        public int SourceHours { get; set; }
     }
 
-    private class MoveCandidate 
+    private class MoveCandidate
     {
-        public Project Project { get; set; } 
-        public Person OverloadedPerson { get; set; } 
-        public Person ReplacementPerson { get; set; } 
-        public int RawWeek { get; set; } 
-        public int ShiftedWeek { get; set; } 
-        public int HoursToMove { get; set; } 
-        public double FitnessDelta { get; set; } 
-        public int OverloadReduction { get; set; } 
+        public Project Project { get; set; }
+        public Person OverloadedPerson { get; set; }
+        public Person ReplacementPerson { get; set; }
+        public int RawWeek { get; set; }
+        public int ShiftedWeek { get; set; }
+        public int HoursToMove { get; set; }
+        public double FitnessDelta { get; set; }
+        public int OverloadReduction { get; set; }
     }
 
 }
