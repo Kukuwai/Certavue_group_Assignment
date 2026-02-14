@@ -25,5 +25,9 @@ Console.WriteLine("\n All scenarios tested!");
 // Test real scenario
 await RealScenarioTest.TestFindPeopleExplanation(ollama);
 
+// CSV tests;
+Console.WriteLine("\n REAL CSV FORMAT TEST:\n");
+await CSVScheduleTest.TestScheduleOptimizationExplanation(ollama);
+
 
 
