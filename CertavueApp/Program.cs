@@ -54,18 +54,18 @@ public class Program
             output.ExportToHtml(file, scheduleAfterGreedy, "after_greedy");
 
 
-            var roleOpt = new RoleOptimizer();
-            var roleResult = roleOpt.Optimize(scheduleAfterGreedy, maxPasses: 999999999);
-            Program.LatestState = roleResult.BestState;// * add newest state
+            // var roleOpt = new RoleOptimizer();
+            // var roleResult = roleOpt.Optimize(scheduleAfterGreedy, maxPasses: 999999999);
+            //Program.LatestState = roleResult.BestState;// * add newest state
             output.ExportToHtml(file, scheduleAfterGreedy, "After Role Checks");
-            printStats("Role optimiser Data", roleResult.BestState, file, true);
+            //printStats("Role optimiser Data", roleResult.BestState, file, true);
 
 
             projects[0].printPeopleOnProject();
             Console.WriteLine("-------");
             people[0].printProjectsForPerson();
 
-            finalState = roleResult.BestState;
+            //finalState = roleResult.BestState;
 
 
             Console.WriteLine("Find project by person test");
