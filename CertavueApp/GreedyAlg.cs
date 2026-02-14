@@ -17,117 +17,29 @@ public class GreedyAlg
     }
     public void BuildGreedySchedule(ScheduleState state)
     {
-        const int maxPasses = 10; //seeing if this improves perfornmancesince greedy is cheap.it can be any number really
-        int startTotal = state.PersonWeekGrid.Values.Sum();//only occupied person/weeks
-        int startNotDoubleBookedCells = state.PersonWeekGrid.Where(kv => kv.Value == 1).Sum(kv => kv.Value);
-
-        double startPct;
-
-        if (startTotal == 0)
-        {
-            startPct = 100.0;
-        }
-        else
-        {
-            startPct = (double)startNotDoubleBookedCells / startTotal * 100.0;
-        }
-
-        var scheduleHandler = new ScheduleHandler(state);
-
-        int GetConflictScore(Project p)
-        {
-            int shift = state.GetShift(p);
-            var grid = state.GetGrid(p, shift);
-
-            int score = 0;
-            foreach (var cell in grid)
-            {
-                if (state.PersonWeekGrid.TryGetValue(cell, out var count))
-                    score += Math.Max(0, count - 1);
-            }
-            return score;
-        }
-
+        const int maxPasses = 10; //Can be whatever we want
+        ScheduleHandler scheduleHandler = new ScheduleHandler(state);
 
         for (int pass = 1; pass <= maxPasses; pass++)
         {
-            ScheduleState.OverloadCell worst; //Holds worst person/week.
-            bool hasWorst = state.TryGetWorstOverloadCell(out worst); //Returns the worst overload
-
-            if (!hasWorst) //Nothing over worked
+            ScheduleState.OverloadCell worst;
+            bool hasWorst = state.TryGetWorstOverloadCell(out worst); //Pick worst overloaded person/week
+            if (!hasWorst)
             {
-                break;
+                break; //Stop when nobody is overtime
             }
 
-            List<Project> ordered = GetProjectsForPersonWeek(state, worst.PersonId, worst.Week); //Only projects causing this overload
-            if (ordered.Count == 0) //If missing
+            MoveChoice bestMove = GetBestMoveForWorstCell(state, scheduleHandler, worst); //Finds best move
+            if (bestMove == null || bestMove.Delta <= 0)
             {
-                break;
+                break; //No improvement
             }
 
-            bool anyShifted = false; //Changes made
-
-            foreach (var project in ordered)  //tracks projects in order
-            {
-                bool movedBlock = TryBestProjectWeekMove(state, scheduleHandler, project, worst.Week);
-
-                if (movedBlock) //if improved then keep the move
-                {
-                    anyShifted = true; 
-                    continue; 
-                }
-
-                int currentShift = state.GetShift(project);
-                int bestShift = currentShift;
-                var best = scheduleHandler.EvaluateMoveDelta(project, currentShift); //baseline
-
-                foreach (int candidate in state.GetValidShifts(project)) //all allowed shifts ie within dates
-                {
-                    var test = scheduleHandler.EvaluateMoveDelta(project, candidate);
-
-                    bool better = false;
-                    if (test > best)
-                    {
-                        better = true;
-                    }
-
-                    if (better)
-                    {
-                        bestShift = candidate; //tracks best shift
-                        best = test; //keeps the best
-                    }
-                }
-
-                if (bestShift != currentShift)
-                {
-                    state.ApplyShift(project, bestShift); //implements the move
-                    anyShifted = true;  //used to make sure changes occurred
-                }
-            }
-            if (MoveBetweenRoles(state))
-            {
-                anyShifted = true;
-            }
-
-            int total = state.PersonWeekGrid.Values.Sum();//only occupied person/weeks
-            int notDoubleBookedCells = state.PersonWeekGrid.Where(kv => kv.Value == 1).Sum(kv => kv.Value);
-
-            double pct;
-
-            if (total == 0)
-            {
-                pct = 100.0;
-            }
-            else
-            {
-                pct = (double)notDoubleBookedCells / total * 100.0;
-            }
-
-            printStats($"Greedy Pass {pass}", state);
-
-            if (!anyShifted) break; //ends if nothing moves so we really could have the passes be pretty high for safety
+            ApplyMoveChoice(state, bestMove); //Apply one move
+            printStats("Greedy Pass " + pass, state);
         }
     }
+
 
     private List<Project> GetProjectsForPersonWeek(ScheduleState state, int personId, int week)
     {
@@ -157,12 +69,331 @@ public class GreedyAlg
         return result;
     }
 
+    private void KeepBetter(ref MoveChoice best, MoveChoice candidate)
+    {
+        if (candidate == null)
+        {
+            return;
+        }
+
+        if (best == null || candidate.Delta > best.Delta) //replace best if better schedule is here
+        {
+            best = candidate;
+        }
+    }
+
+    private MoveChoice GetBestMoveForWorstCell(ScheduleState state, ScheduleHandler scheduleHandler, ScheduleState.OverloadCell worst)
+    {
+        MoveChoice best = null;
+
+        List<Project> ordered = GetProjectsForPersonWeek(state, worst.PersonId, worst.Week); //only projects a part of the overloaded cell
+
+        foreach (Project project in ordered)
+        {
+            MoveChoice weekChoice = GetBestProjectWeekMoveOrSplit(state, scheduleHandler, project, worst.Week); //try to move/split projects overloaded weeks
+            KeepBetter(ref best, weekChoice);
+
+            MoveChoice shiftChoice = GetBestProjectShiftMove(state, scheduleHandler, project); //move whole project shift
+            KeepBetter(ref best, shiftChoice);
+        }
+
+        MoveChoice roleChoice = GetBestRoleReassignMove(state, scheduleHandler, worst, ordered); //move hours to another person in same role
+        KeepBetter(ref best, roleChoice);
+
+        return best;
+    }
+
+    private MoveChoice GetBestProjectShiftMove(ScheduleState state, ScheduleHandler scheduleHandler, Project project)
+    {
+        int currentShift = state.GetShift(project);
+        MoveChoice best = null;
+
+        foreach (int candidateShift in state.GetValidShifts(project))
+        {
+            double delta = scheduleHandler.EvaluateMoveDelta(project, candidateShift); //score impact of this shift
+
+            if (delta <= 0) //didn't improve
+            {
+                continue;
+            }
+
+            MoveChoice choice = new MoveChoice();
+            choice.Type = MoveType.ProjectShift;
+            choice.Project = project;
+            choice.CandidateShift = candidateShift;
+            choice.Delta = delta;
+
+            KeepBetter(ref best, choice); //best shift 
+        }
+
+        return best;
+    }
+
+    private List<int> GetCandidateTargetRawWeeks(ScheduleState state, Project project, int sourceRawWeek)
+    {
+        List<int> targets = new List<int>();
+        int currentShift = state.GetShift(project);
+
+        foreach (int candidateShift in state.GetValidShifts(project))
+        {
+            int delta = candidateShift - currentShift; //how far is the shift
+            int targetRawWeek = sourceRawWeek + delta;
+
+            if (targetRawWeek < 1 || targetRawWeek > 52) //stays in calendar
+            {
+                continue;
+            }
+
+            if (targetRawWeek == sourceRawWeek)
+            {
+                continue;
+            }
+
+            if (!targets.Contains(targetRawWeek))
+            {
+                targets.Add(targetRawWeek); //prevents dups
+            }
+        }
+
+        return targets;
+    }
+
+    private MoveChoice GetBestProjectWeekMoveOrSplit(ScheduleState state, ScheduleHandler scheduleHandler, Project project, int overloadedShiftedWeek)
+    {
+        int projectShift = state.GetShift(project);
+        int sourceRawWeek = overloadedShiftedWeek - projectShift;
+
+        if (sourceRawWeek < 1 || sourceRawWeek > 52)
+        {
+            return null;
+        }
+
+        if (!ProjectHasRawWeek(project, sourceRawWeek)) //make sure week exists
+        {
+            return null;
+        }
+
+        List<int> targets = GetCandidateTargetRawWeeks(state, project, sourceRawWeek);
+        MoveChoice best = null;
+
+        foreach (int targetRawWeek in targets)
+        {
+            AssignmentSnapshot snapMove = CaptureSnapshot(state); //try to move entire week block
+            double beforeMove = scheduleHandler.CalculateFitnessScore(state);
+            bool moved = TryMoveProjectWeekBlock(state, project, sourceRawWeek, targetRawWeek);
+            if (moved)
+            {
+                double afterMove = scheduleHandler.CalculateFitnessScore(state);
+                double deltaMove = afterMove - beforeMove;
+
+                if (deltaMove > 0)
+                {
+                    MoveChoice choice = new MoveChoice();
+                    choice.Type = MoveType.WeekMove;
+                    choice.Project = project;
+                    choice.SourceRawWeek = sourceRawWeek;
+                    choice.TargetRawWeek = targetRawWeek;
+                    choice.Delta = deltaMove;
+                    KeepBetter(ref best, choice);
+                }
+            }
+            RestoreSnapshot(state, snapMove);
+
+            int[] splitPercents = new int[] { 25, 50, 75 };             //Split candidates (same project-week block, split across two weeks) if they are too large
+            foreach (int splitPercent in splitPercents)
+            {
+                AssignmentSnapshot snapSplit = CaptureSnapshot(state);
+                double beforeSplit = scheduleHandler.CalculateFitnessScore(state);
+                bool splitMoved = TrySplitProjectWeekBlock(state, project, sourceRawWeek, targetRawWeek, splitPercent); //partial hours movement
+
+                if (splitMoved)
+                {
+                    double afterSplit = scheduleHandler.CalculateFitnessScore(state);
+                    double deltaSplit = afterSplit - beforeSplit;
+
+                    if (deltaSplit > 0)
+                    {
+                        MoveChoice splitChoice = new MoveChoice();
+                        splitChoice.Type = MoveType.WeekSplit;
+                        splitChoice.Project = project;
+                        splitChoice.SourceRawWeek = sourceRawWeek;
+                        splitChoice.TargetRawWeek = targetRawWeek;
+                        splitChoice.SplitPercent = splitPercent;
+                        splitChoice.Delta = deltaSplit;
+                        KeepBetter(ref best, splitChoice);
+                    }
+                }
+
+                RestoreSnapshot(state, snapSplit);
+            }
+        }
+
+        return best;
+    }
+
+    private MoveChoice GetBestRoleReassignMove(ScheduleState state, ScheduleHandler scheduleHandler, ScheduleState.OverloadCell worst, List<Project> orderedProjects)
+    {
+        MoveChoice best = null;
+
+        Person overloadedPerson = null;
+        foreach (Person person in state.People)
+        {
+            if (person.id == worst.PersonId)
+            {
+                overloadedPerson = person;
+                break;
+            }
+        }
+
+        if (overloadedPerson == null)
+        {
+            return null;
+        }
+
+        foreach (Project project in orderedProjects)
+        {
+            int projectShift = state.GetShift(project);
+            int rawWeek = worst.Week - projectShift;
+
+            if (rawWeek < 1 || rawWeek > 52)
+            {
+                continue;
+            }
+
+            int rawHours = overloadedPerson.getHoursForProjecForWeek(project, rawWeek); //possible reassignments
+            int moveHours = NormalizeHoursByRule(rawHours); //keeps the 5 and 10 rules from earlier
+            if (moveHours < 10)
+            {
+                continue;
+            }
+
+            foreach (Person candidate in state.People)
+            {
+                if (candidate.id == overloadedPerson.id) //cannot be same person
+                {
+                    continue;
+                }
+
+                if (candidate.role != overloadedPerson.role) //has to be same role
+                {
+                    continue;
+                }
+
+                if (!CanTakeHours(state, candidate, worst.Week, moveHours)) //has to have capacity
+                {
+                    continue;
+                }
+
+                AssignmentSnapshot snap = CaptureSnapshot(state); //checks move
+                double before = scheduleHandler.CalculateFitnessScore(state);
+
+                bool moved = MoveHoursToReplacement(state, project, overloadedPerson, candidate, rawWeek, worst.Week, moveHours);
+
+                if (moved)
+                {
+                    double after = scheduleHandler.CalculateFitnessScore(state);
+                    double delta = after - before;
+
+                    if (delta > 0) //only keep improvements
+                    {
+                        MoveChoice choice = new MoveChoice();
+                        choice.Type = MoveType.RoleReassign;
+                        choice.Project = project;
+                        choice.FromPerson = overloadedPerson;
+                        choice.ToPerson = candidate;
+                        choice.RawWeek = rawWeek;
+                        choice.ShiftedWeek = worst.Week;
+                        choice.MoveHours = moveHours;
+                        choice.Delta = delta;
+                        KeepBetter(ref best, choice);
+                    }
+                }
+
+                RestoreSnapshot(state, snap);
+            }
+        }
+
+        return best;
+    }
+
+    private void ApplyMoveChoice(ScheduleState state, MoveChoice choice)
+    {
+        if (choice.Type == MoveType.ProjectShift)
+        {
+            state.ApplyShift(choice.Project, choice.CandidateShift); //apply move since it improves fitness
+            return;
+        }
+
+        if (choice.Type == MoveType.WeekMove) //moves entire week block for project
+        {
+            TryMoveProjectWeekBlock(state, choice.Project, choice.SourceRawWeek, choice.TargetRawWeek);
+            return;
+        }
+
+        if (choice.Type == MoveType.WeekSplit) //splits week 
+        {
+            TrySplitProjectWeekBlock(state, choice.Project, choice.SourceRawWeek, choice.TargetRawWeek, choice.SplitPercent);
+            return;
+        }
+
+        if (choice.Type == MoveType.RoleReassign) //work assigned to another person in role
+        {
+            MoveHoursToReplacement(
+                state,
+                choice.Project,
+                choice.FromPerson,
+                choice.ToPerson,
+                choice.RawWeek,
+                choice.ShiftedWeek,
+                choice.MoveHours);
+        }
+    }
+
+
     private class WeekMoveEntry //one person impacted by a project-week block move.
     {
         public Person Person;
         public int SourceHours;
         public int TargetHours;
     }
+
+    private class WeekSplitEntry //Per person values to apply
+    {
+        public Person Person;
+        public int SourceAfter;
+        public int TargetAfter;
+    }
+
+    private enum MoveType //Checks moves 
+    {
+        WeekMove,
+        WeekSplit,
+        ProjectShift,
+        RoleReassign
+    }
+
+    private class MoveChoice //One potential canidate to apply move to
+    {
+        public MoveType Type;
+        public Project Project;
+        public int SourceRawWeek;
+        public int TargetRawWeek;
+        public int SplitPercent;
+        public int CandidateShift;
+        public Person FromPerson;
+        public Person ToPerson;
+        public int RawWeek;
+        public int ShiftedWeek;
+        public int MoveHours;
+        public double Delta;
+    }
+
+    private class AssignmentSnapshot //Snapshot of move
+    {
+        public Dictionary<Person, Dictionary<Project, Dictionary<int, int>>> PersonAssignments;
+        public Dictionary<Project, HashSet<Person>> ProjectPeople;
+    }
+
 
     private bool ProjectHasRawWeek(Project project, int rawWeek) //check if proj has any work assigned on unshifted week
     {
@@ -182,72 +413,80 @@ public class GreedyAlg
 
         return false;
     }
-    private bool TryMoveProjectWeekBlock(ScheduleState state, Project project, int sourceRawWeek, int targetRawWeek) //makes sure if project week moves then everyone on it moves
+    private bool TryMoveProjectWeekBlock(ScheduleState state, Project project, int sourceRawWeek, int targetRawWeek)
     {
-        if (sourceRawWeek == targetRawWeek) //same weeks 
+        if (sourceRawWeek == targetRawWeek) //cannot equal same week
         {
             return false;
         }
-        bool okOrder = state.PreservesProjectWeekOrder(project, sourceRawWeek, targetRawWeek); //makes sure a week doesn't jump or cross anoher
+
+        bool okOrder = state.PreservesProjectWeekOrder(project, sourceRawWeek, targetRawWeek); //keeps work in order
         if (!okOrder)
         {
             return false;
         }
 
-        List<WeekMoveEntry> entries = new List<WeekMoveEntry>();
+        int projectShift = state.GetShift(project); //current shift
+        int shiftedTargetWeek = targetRawWeek + projectShift;
 
-        foreach (Person person in project.people) //all or nothing move making sure all people are good to move
+        List<WeekMoveEntry> entries = new List<WeekMoveEntry>(); //all people and hours impacted by this block move
+
+        foreach (Person person in project.people)
         {
             Dictionary<int, int> weekHours;
-            if (!person.projects.TryGetValue(project, out weekHours))
+            if (!person.projects.TryGetValue(project, out weekHours)) //person has no hours on this project
             {
                 continue;
             }
 
             int sourceHours;
-            if (!weekHours.TryGetValue(sourceRawWeek, out sourceHours))
+            if (!weekHours.TryGetValue(sourceRawWeek, out sourceHours)) //no hours in source week
             {
-                continue; //Person not on source week
+                continue;
             }
 
-            int targetHours = 0;
-            weekHours.TryGetValue(targetRawWeek, out targetHours);
+            int targetHours = 0; //no existing hours ie blank
+            weekHours.TryGetValue(targetRawWeek, out targetHours); //existing target hours
 
             if (sourceHours < 10 || sourceHours % 5 != 0)
             {
                 return false;
             }
 
-            int combined = targetHours + sourceHours;
-
+            int combined = targetHours + sourceHours; //after move hours
             if (combined < 10 || combined % 5 != 0)
             {
                 return false;
             }
 
-            WeekMoveEntry entry = new WeekMoveEntry();
+            if (!CanTakeHours(state, person, shiftedTargetWeek, sourceHours)) //is person under 40 hours
+            {
+                return false;
+            }
+
+            WeekMoveEntry entry = new WeekMoveEntry(); //all updates done together
             entry.Person = person;
             entry.SourceHours = sourceHours;
             entry.TargetHours = targetHours;
             entries.Add(entry);
         }
 
-        if (entries.Count == 0)
+        if (entries.Count == 0) //no change
         {
-            return false; //No people on source week to move
+            return false;
         }
 
-
-        foreach (WeekMoveEntry entry in entries)   //Applies move  across all impacted people
+        foreach (WeekMoveEntry entry in entries) //actually makes the move
         {
             Dictionary<int, int> weekHours = entry.Person.projects[project];
-            weekHours.Remove(sourceRawWeek); //Remove source block
-            weekHours[targetRawWeek] = entry.TargetHours + entry.SourceHours; //Add to target
+            weekHours.Remove(sourceRawWeek);
+            weekHours[targetRawWeek] = entry.TargetHours + entry.SourceHours;
         }
 
         state.RebuildGrid();
         return true;
     }
+
 
     private bool TryBestProjectWeekMove(ScheduleState state, ScheduleHandler scheduleHandler, Project project, int overloadedShiftedWeek) //Look for small moves and apply best move/delta
     {
@@ -315,10 +554,10 @@ public class GreedyAlg
 
 
     //something to think about on this method is it replaces it with the first available person. Maybe that is fine, maybe not but good to discuss
-        public bool MoveBetweenRoles(ScheduleState state)
+    public bool MoveBetweenRoles(ScheduleState state)
     {
         List<ScheduleState.PersonWeekKey> conflictedPersons = new List<ScheduleState.PersonWeekKey>(); //person weeks over 40 hours
-        bool changed = false; 
+        bool changed = false;
 
         foreach (KeyValuePair<ScheduleState.PersonWeekKey, int> entry in state.PersonWeekHours)
         {
@@ -378,7 +617,7 @@ public class GreedyAlg
 
                 int projectShift = state.GetShift(project);
 
-                int rawWeek = shiftedWeek - projectShift;                 
+                int rawWeek = shiftedWeek - projectShift;
                 if (rawWeek < 1 || rawWeek > 52)
                 {
                     continue;
@@ -405,7 +644,7 @@ public class GreedyAlg
 
                 if (moveHours < 10)
                 {
-                    continue; 
+                    continue;
                 }
 
                 Person replacementPerson = null;
@@ -437,15 +676,15 @@ public class GreedyAlg
                     continue; //No one cn take work
                 }
 
-                bool moved = MoveHoursToReplacement(state,project, overloadedPerson, replacementPerson,rawWeek, moveHours);
+                bool moved = MoveHoursToReplacement(state, project, overloadedPerson, replacementPerson, rawWeek, moveHours);
                 if (moved)
                 {
-                    changed = true; 
+                    changed = true;
                 }
             }
         }
 
-        return changed; 
+        return changed;
     }
 
 
