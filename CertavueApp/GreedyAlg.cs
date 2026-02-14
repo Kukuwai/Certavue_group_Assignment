@@ -338,14 +338,7 @@ public class GreedyAlg
 
         if (choice.Type == MoveType.RoleReassign) //work assigned to another person in role
         {
-            MoveHoursToReplacement(
-                state,
-                choice.Project,
-                choice.FromPerson,
-                choice.ToPerson,
-                choice.RawWeek,
-                choice.ShiftedWeek,
-                choice.MoveHours);
+            MoveHoursToReplacement(state, choice.Project, choice.FromPerson, choice.ToPerson, choice.RawWeek, choice.ShiftedWeek, choice.MoveHours);
         }
     }
 
@@ -486,6 +479,105 @@ public class GreedyAlg
         state.RebuildGrid();
         return true;
     }
+
+    private bool TrySplitProjectWeekBlock(ScheduleState state, Project project, int sourceRawWeek, int targetRawWeek, int splitPercent)
+    {
+        if (splitPercent <= 0 || splitPercent >= 100) //Partial split
+        {
+            return false; //Invalid percent
+        }
+
+        bool okOrder = state.PreservesProjectWeekOrder(project, sourceRawWeek, targetRawWeek); //Keep project week order valid
+        if (!okOrder)
+        {
+            return false; //Cannot change the sequence
+        }
+
+        int projectShift = state.GetShift(project); //Read current project shift
+        int shiftedTargetWeek = targetRawWeek + projectShift; //raw target week to shifted week for capacity checks
+
+        List<WeekSplitEntry> entries = new List<WeekSplitEntry>();
+
+        foreach (Person person in project.people) //Project week split must be consistent
+        {
+            Dictionary<int, int> weekHours;
+            if (!person.projects.TryGetValue(project, out weekHours)) //Person has no hours for this project
+            {
+                continue;
+            }
+
+            int sourceHours;
+            if (!weekHours.TryGetValue(sourceRawWeek, out sourceHours)) //Person has no source week hours
+            {
+                continue;
+            }
+
+            int targetHours = 0;
+            weekHours.TryGetValue(targetRawWeek, out targetHours);
+
+            int moveHours = (sourceHours * splitPercent) / 100; //Calc requested split amount
+            moveHours = (moveHours / 5) * 5; //Multiples of 5
+
+            if (moveHours < 10) //Must have 10 hours
+            {
+                return false;
+            }
+
+            int sourceAfter = sourceHours - moveHours; //Remaining source/week hours after split.
+            int targetAfter = targetHours + moveHours; //After split hours
+
+            if (sourceAfter > 0 && sourceAfter < 10) //Must be at least 10
+            {
+                return false;
+            }
+
+            if (sourceAfter > 0 && sourceAfter % 5 != 0) //5 hour increments
+            {
+                return false;
+            }
+
+            if (targetAfter < 10 || targetAfter % 5 != 0) //Target block check
+            {
+                return false;
+            }
+
+            if (!CanTakeHours(state, person, shiftedTargetWeek, moveHours))
+            {
+                return false; //False if person would exceed capacity after split
+            }
+
+            WeekSplitEntry entry = new WeekSplitEntry(); //Update for this person
+            entry.Person = person;
+            entry.SourceAfter = sourceAfter;
+            entry.TargetAfter = targetAfter;
+            entries.Add(entry);
+        }
+
+        if (entries.Count == 0)
+        {
+            return false;
+        }
+
+        foreach (WeekSplitEntry entry in entries) //All updates happen
+        {
+            Dictionary<int, int> weekHours = entry.Person.projects[project]; //Person/project/week
+
+            if (entry.SourceAfter == 0)
+            {
+                weekHours.Remove(sourceRawWeek);
+            }
+            else
+            {
+                weekHours[sourceRawWeek] = entry.SourceAfter;
+            }
+
+            weekHours[targetRawWeek] = entry.TargetAfter; //New week total
+        }
+
+        state.RebuildGrid();
+        return true;
+    }
+
 
 
     private bool TryBestProjectWeekMove(ScheduleState state, ScheduleHandler scheduleHandler, Project project, int overloadedShiftedWeek) //Look for small moves and apply best move/delta
@@ -676,7 +768,7 @@ public class GreedyAlg
                     continue; //No one cn take work
                 }
 
-                bool moved = MoveHoursToReplacement(state, project, overloadedPerson, replacementPerson, rawWeek, moveHours);
+                bool moved = MoveHoursToReplacement(state, project, overloadedPerson, replacementPerson, rawWeek, shiftedWeek, moveHours);
                 if (moved)
                 {
                     changed = true;
@@ -712,73 +804,89 @@ public class GreedyAlg
 
         return (current + hoursToAdd) <= capacity; //Hours stay within limit
     }
-    public static bool MoveHoursToReplacement(ScheduleState state, Project project, Person from, Person to, int week, int hoursToMove) //this is about to be so much code 
+    public static bool MoveHoursToReplacement(ScheduleState state, Project project, Person from, Person to, int rawWeek, int shiftedWeek, int hoursToMove)
     {
-        if (hoursToMove < 10) //Puts someone under 10
+        if (hoursToMove < 10) //Must be 10 hours
         {
             return false;
         }
-        if (hoursToMove % 5 != 0) //Moves in 5 hours increments
+
+        if (hoursToMove % 5 != 0) //Multiples of 5
         {
             return false;
         }
-        if (from.role != to.role) //Has to be same role to trade
+
+        if (from.role != to.role) //Role must match
         {
             return false;
         }
-        if (!from.projects.ContainsKey(project)) //Has to have that project (not removed earlier)
+
+        if (!from.projects.ContainsKey(project)) //Source person must actually be on this project
         {
             return false;
         }
-        if (!from.projects[project].ContainsKey(week)) //Must have this week 
+
+        if (!from.projects[project].ContainsKey(rawWeek)) //Source person must have hours in this week (prior moves)
         {
             return false;
         }
-        if (!CanTakeHours(state, to, week, hoursToMove)) //To person cannot be over worked already
+
+        if (!CanTakeHours(state, to, shiftedWeek, hoursToMove)) //Make sure receiving person can take these hours in calendar week view
         {
             return false;
         }
-        int fromHours = from.projects[project][week]; //Current from hours
-        if (fromHours < hoursToMove) //Cannot go negative
+
+        int fromHours = from.projects[project][rawWeek]; //Current source person hours on this project/week
+        if (fromHours < hoursToMove) //Cannot move more than source currently has
         {
             return false;
         }
-        int toHours = 0; //Initial target hours
-        if (to.projects.ContainsKey(project) && to.projects[project].ContainsKey(week)) //To person has this week 
+
+        int toHours = 0;
+        if (to.projects.ContainsKey(project) && to.projects[project].ContainsKey(rawWeek)) //Check if to person has hours on same week
         {
-            toHours = to.projects[project][week]; //Target hours now
+            toHours = to.projects[project][rawWeek];
         }
-        int fromAfter = fromHours - hoursToMove; //Hours for to person
-        int toAfter = toHours + hoursToMove; //Updated hours
-        if (fromAfter > 0 && fromAfter < 10) //Hours has to be at least 10
+
+        int fromAfter = fromHours - hoursToMove; //From hours after move
+        int toAfter = toHours + hoursToMove; //To hours after move
+
+        if (fromAfter > 0 && fromAfter < 10) //10 hour rule
         {
             return false;
         }
-        if (toAfter > 0 && toAfter < 10) // Rule:to person aso needs to be at least 10
+
+        if (toAfter > 0 && toAfter < 10) //To has to meet 10 hours also
         {
             return false;
         }
-        if (fromAfter == 0) //From person has 0 hours left remove them
+
+        if (fromAfter == 0)
         {
-            from.projects[project].Remove(week);
+            from.projects[project].Remove(rawWeek); //remove that week entry if empty now
         }
         else
         {
-            from.projects[project][week] = fromAfter; //Saves remaining hours
+            from.projects[project][rawWeek] = fromAfter; //Change to lower hours
         }
-        if (!to.projects.ContainsKey(project)) //Dictionary exists or not
+
+        if (!to.projects.ContainsKey(project)) //Create project/week
         {
             to.projects[project] = new Dictionary<int, int>();
         }
-        to.projects[project][week] = toAfter; //Updated to person hours
-        if (from.projects[project].Count == 0) //If from isn't on proj anymore remove them
+
+        to.projects[project][rawWeek] = toAfter;
+
+        if (from.projects[project].Count == 0) //If source has no remaining weeks on this project then delete them
         {
             project.people.Remove(from);
         }
-        project.people.Add(to); //To is added to proj people
+
+        project.people.Add(to);
         state.RebuildGrid();
-        return true; //Move made
+        return true;
     }
+
 
     //Checking person's schedule for open week
     public static bool IsPersonFree(ScheduleState state, Person person, Project project, int week) //boolean that returns true/false if person is free or not
