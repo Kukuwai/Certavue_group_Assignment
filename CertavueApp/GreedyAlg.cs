@@ -67,7 +67,6 @@ public class GreedyAlg
 
             bool anyShifted = false; //Changes made
 
-
             foreach (var project in ordered)  //tracks projects in order
             {
                 int currentShift = state.GetShift(project);
@@ -274,11 +273,11 @@ public class GreedyAlg
     private static bool CanTakeHours(ScheduleState state, Person person, int week, int hoursToAdd) //Weekly cap target
     {
         int current = 0; //If nothing exists
-        ScheduleState.PersonWeekKey key = new ScheduleState.PersonWeekKey(person.id, week); 
+        ScheduleState.PersonWeekKey key = new ScheduleState.PersonWeekKey(person.id, week);
         state.PersonWeekHours.TryGetValue(key, out current); //Get current week total
 
         int capacity = person.capacity; //Person's capacity
-        if (capacity <= 0) 
+        if (capacity <= 0)
         {
             capacity = 40; //default to 40
         }
@@ -287,7 +286,70 @@ public class GreedyAlg
     }
     public static bool MoveHoursToReplacement(ScheduleState state, Project project, Person from, Person to, int week, int hoursToMove) //this is about to be so much code 
     {
-        return true;
+        if (hoursToMove < 10) //Puts someone under 10
+        {
+            return false;
+        }
+        if (hoursToMove % 5 != 0) //Moves in 5 hours increments
+        {
+            return false;
+        }
+        if (from.role != to.role) //Has to be same role to trade
+        {
+            return false;
+        }
+        if (!from.projects.ContainsKey(project)) //Has to have that project (not removed earlier)
+        {
+            return false;
+        }
+        if (!from.projects[project].ContainsKey(week)) //Must have this week 
+        {
+            return false;
+        }
+        if (!CanTakeHours(state, to, week, hoursToMove)) //To person cannot be over worked already
+        {
+            return false;
+        }
+        int fromHours = from.projects[project][week]; //Current from hours
+        if (fromHours < hoursToMove) //Cannot go negative
+        {
+            return false;
+        }
+        int toHours = 0; //Initial target hours
+        if (to.projects.ContainsKey(project) && to.projects[project].ContainsKey(week)) //To person has this week 
+        {
+            toHours = to.projects[project][week]; //Target hours now
+        }
+        int fromAfter = fromHours - hoursToMove; //Hours for to person
+        int toAfter = toHours + hoursToMove; //Updated hours
+        if (fromAfter > 0 && fromAfter < 10) //Hours has to be at least 10
+        {
+            return false;
+        }
+        if (toAfter > 0 && toAfter < 10) // Rule:to person aso needs to be at least 10
+        {
+            return false;
+        }
+        if (fromAfter == 0) //From person has 0 hours left remove them
+        {
+            from.projects[project].Remove(week);
+        }
+        else
+        {
+            from.projects[project][week] = fromAfter; //Saves remaining hours
+        }
+        if (!to.projects.ContainsKey(project)) //Dictionary exists or not
+        {
+            to.projects[project] = new Dictionary<int, int>();
+        }
+        to.projects[project][week] = toAfter; //Updated to person hours
+        if (from.projects[project].Count == 0) //If from isn't on proj anymore remove them
+        {
+            project.people.Remove(from);
+        }
+        project.people.Add(to); //To is added to proj people
+        state.RebuildGrid();
+        return true; //Move made
     }
 
     //Checking person's schedule for open week
