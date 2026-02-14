@@ -51,24 +51,24 @@ public class ScheduleState
 
     private readonly Dictionary<Project, Window> window; //considers start and end dates to know what valid moves are 
     private readonly Dictionary<Project, int> shift; //current shift of project
-    private readonly Dictionary<Project, List<int>> orderedProjectWeeks = new Dictionary<Project, List<int>>();
+    private readonly Dictionary<Project, List<int>> orderedProjectWeeks = new Dictionary<Project, List<int>>(); //using to cache the order of projects so week 3 doesn't go before week 2 for example
 
 
     public ScheduleState(List<Person> people, List<Project> projects)
     {
         People = people;
         Projects = projects;
-        window = new Dictionary<Project, Window>();
+        window = new Dictionary<Project, Window>();//valid moves for each project
         foreach (var proj in projects)
         {
-            window[proj] = new Window(proj.startDate, proj.endDate);
+            window[proj] = new Window(proj.startDate, proj.endDate); //saves the start and end date to verify valid moves
         }
 
-        shift = new Dictionary<Project, int>();
+        shift = new Dictionary<Project, int>(); //shift tracking per project
         foreach (var proj in projects)
         {
             shift[proj] = 0;   // all projects start with shift 0
-            CacheOrderedProjectWeeks(proj);
+            CacheOrderedProjectWeeks(proj); //makes sure projects stay in order
         }
 
         RebuildGrid();
@@ -84,7 +84,7 @@ public class ScheduleState
     }
     public void SetShift(Project p, int shiftToDo)
     {
-        shift[p] = shiftToDo;
+        shift[p] = shiftToDo; //saves shift value so when it is rebuilt that project goes to the right cell
     }
 
     public void AddProject(Project p)  //added this to fix it @Luca your project wasn't stored anywhere 
@@ -102,45 +102,47 @@ public class ScheduleState
     //finds all valid shifts for each project 
     public List<int> GetValidShifts(Project p)
     {
-        var weeks = p.people //all work weeks on project
-            .SelectMany(person => person.projects[p])  //returns weeks a person works
-            .Distinct()  //removes duplicates aka 2 people workinf
-            .ToList();
+        List<int> assignedWeeks = new List<int>(); //every week work is assigned
 
-        if (weeks.Count == 0)
+        foreach (Person person in p.people)
         {
-            return new List<int> { 0 }; //breaks without this do not remove
-        }
-        int baselineStart = weeks[0].Key;
-        int baselineEnd = weeks[0].Key;
-        foreach (KeyValuePair<int, int> entry in weeks)
-        {
-            if (entry.Key < baselineStart) //earliest x
+            if (!person.projects.ContainsKey(p))
             {
-                baselineStart = entry.Key;
+                continue; //Missing a person/week
             }
-            if (entry.Key > baselineEnd) //latest x
+
+            foreach (int week in person.projects[p].Keys)
             {
-                baselineEnd = entry.Key;
+                if (!assignedWeeks.Contains(week))
+                {
+                    assignedWeeks.Add(week); //Only unique weeks 
+                }
             }
         }
 
-        int duration = baselineEnd - baselineStart + 1; //how wide the project is or long
-
-        int earliestStart = window[p].Start + 1;  //valid moves left
-        int latestEnd = window[p].End - 1;        //valid moves right
-
-
-        int minShift = Math.Max(-baselineStart + 1, earliestStart - baselineStart); //how far left can it go
-        int maxShift = Math.Min(52 - baselineEnd, latestEnd - baselineEnd); // how far right
-
-        if (maxShift < minShift)
+        if (assignedWeeks.Count == 0)
         {
-            return new List<int>();  //gave an error on some if constraints didn't allow movement
+            return new List<int> { 0 }; //No assignment yet so stay
         }
 
-        return Enumerable.Range(minShift, maxShift - minShift + 1).ToList(); //list of valid shfts
+        assignedWeeks.Sort();
+        int firstWeek = assignedWeeks[0];
+        int lastWeek = assignedWeeks[assignedWeeks.Count - 1];
+
+        int earliestAllowedWeek = window[p].Start + 1; //allowed moves left and right
+        int latestAllowedWeek = window[p].End - 1;
+
+        int minShift = Math.Max(1 - firstWeek, earliestAllowedWeek - firstWeek); //smallest and largest allowed shifts
+        int maxShift = Math.Min(Weeks - lastWeek, latestAllowedWeek - lastWeek);
+
+        if (minShift > maxShift)
+        {
+            return new List<int>(); //No moves possible
+        }
+
+        return Enumerable.Range(minShift, maxShift - minShift + 1).ToList();
     }
+
     //This is what actually moves the weeks. It takes a project and shift and moves ever person's weeks by the shift #
     public List<WeekKey> GetGrid(Project p, int shift)  //basically the view for the project and weeks like our excel sheets
     {
@@ -161,10 +163,10 @@ public class ScheduleState
         }
         return cells;
     }
-    public struct GridCellHours
+    public struct GridCellHours //used for one shifted cell and the exact hours assigned
     {
-        public WeekKey Key;
-        public int Hours;
+        public WeekKey Key; //locates person/project/week
+        public int Hours; //stores hours for a cell
 
         public GridCellHours(WeekKey key, int hours)
         {
@@ -173,34 +175,34 @@ public class ScheduleState
         }
     }
 
-    public List<GridCellHours> GetGridWithHours(Project p, int shift)
+    public List<GridCellHours> GetGridWithHours(Project p, int shift) //builds the grid with the shifted hours
     {
-        List<GridCellHours> cells = new List<GridCellHours>();
+        List<GridCellHours> cells = new List<GridCellHours>(); //stores all valid shifts for a project
 
-        foreach (Person person in p.people)
+        foreach (Person person in p.people) //loop on each person on a project
         {
-            if (!person.projects.ContainsKey(p))
+            if (!person.projects.ContainsKey(p)) //breaks without this please do not change I do not know why
             {
                 continue;
             }
 
-            foreach (KeyValuePair<int, int> originalWeek in person.projects[p])
+            foreach (KeyValuePair<int, int> originalWeek in person.projects[p]) //week hours for a person
             {
-                int shiftedWeek = originalWeek.Key + shift;
-                int hours = originalWeek.Value;
+                int shiftedWeek = originalWeek.Key + shift; //aplies the shift
+                int hours = originalWeek.Value; //find hours for that week
 
-                if (shiftedWeek < 1 || shiftedWeek > 52)
+                if (shiftedWeek < 1 || shiftedWeek > 52) //keeps in the schedule
                 {
                     continue;
                 }
 
-                if (hours <= 0)
+                if (hours <= 0) //this shouldn't happen when done but while testing would randomly drop below 0 so this is a temp fix
                 {
                     continue;
                 }
 
-                WeekKey key = new WeekKey(person.id, p.id, shiftedWeek);
-                cells.Add(new GridCellHours(key, hours));
+                WeekKey key = new WeekKey(person.id, p.id, shiftedWeek); //stores shifted assignments
+                cells.Add(new GridCellHours(key, hours)); //used later to adjust hours total
             }
         }
 
@@ -211,12 +213,12 @@ public class ScheduleState
     //used at beginning to build the grid and add projects to it
     public void RebuildGrid() //has to clear 2 dictionaries now
     {
-        PersonWeekGrid.Clear();
-        PersonWeekHours.Clear();
+        PersonWeekGrid.Clear(); //person/proj/week grid cleared
+        PersonWeekHours.Clear(); //person/week cleared
 
         foreach (Project p in Projects)
         {
-            AddProjectToGrid(p);
+            AddProjectToGrid(p); //adds the project back with shift
         }
     }
 
@@ -227,14 +229,14 @@ public class ScheduleState
         SetShift(p, shift);         //takes the new one post shift
         AddProjectToGrid(p);    //adds the proj back
     }
-    public struct OverloadCell
+    public struct OverloadCell //a person and week combo over 40 hours or capacity
     {
         public int PersonId;
         public int Week;
-        public int AssignedHours;
-        public int Capacity;
+        public int AssignedHours; //sum for the week
+        public int Capacity; //should always be 40 right now
 
-        public int GetOverload()
+        public int GetOverload() //calcs how many hours over 40 someone is
         {
             if (AssignedHours > Capacity)
             {
@@ -247,96 +249,94 @@ public class ScheduleState
 
     public bool TryGetWorstOverloadCell(out OverloadCell worst)
     {
-        worst = new OverloadCell();
-        bool found = false;
+        worst = default; //2nd output used
+        int worstOverload = 0; //Tracks largest overworked
 
-        foreach (KeyValuePair<PersonWeekKey, int> kv in PersonWeekHours)
+        Dictionary<int, int> capacityByPersonId = new Dictionary<int, int>(People.Count); //person id to capacity lookup
+        foreach (Person p in People)
         {
-            Person person = null;
-
-            foreach (Person p in People)
+            if (p.capacity > 0) //Should be good for everyone
             {
-                if (p.id == kv.Key.PersonId)
-                {
-                    person = p;
-                    break;
-                }
+                capacityByPersonId[p.id] = p.capacity; //Stores capacity for this person
             }
-
-            if (person == null)
+            else
             {
-                continue;
-            }
-
-            int cap = 40;
-            if (person.capacity > 0)
-            {
-                cap = person.capacity;
-            }
-
-            OverloadCell cell = new OverloadCell();
-            cell.PersonId = kv.Key.PersonId;
-            cell.Week = kv.Key.Week;
-            cell.AssignedHours = kv.Value;
-            cell.Capacity = cap;
-
-            if (cell.GetOverload() <= 0)
-            {
-                continue;
-            }
-
-            if (!found || cell.GetOverload() > worst.GetOverload())
-            {
-                worst = cell;
-                found = true;
+                capacityByPersonId[p.id] = 40; //Uses default 40. Right now sometimes without this it fails, should be ok later though once all together
             }
         }
 
-        return found;
-    }
+        foreach (KeyValuePair<PersonWeekKey, int> kv in PersonWeekHours) //Every person/week
+        {
+            if (!capacityByPersonId.TryGetValue(kv.Key.PersonId, out int capacity)) //Skips anyone missing 
+            {
+                continue;
+            }
 
+            if (kv.Value <= capacity) //40 hours or less cannot be overworked
+            {
+                continue;
+            }
+
+            int overload = kv.Value - capacity; //How many hours over?
+            if (overload <= worstOverload) //Skips if not worse than worst
+            {
+                continue;
+            }
+
+            worstOverload = overload; //New worst
+            worst = new OverloadCell //Full details for use later
+            {
+                PersonId = kv.Key.PersonId,
+                Week = kv.Key.Week,
+                AssignedHours = kv.Value,
+                Capacity = capacity
+            };
+        }
+
+        return worstOverload > 0; //only returns if one over loaded person found
+    }
 
     //removes a project from the grid when it is being shifted
     private void RemoveProjectFromGrid(Project p)
     {
-        int shift = GetShift(p);
+        int shift = GetShift(p); //reads current shift to get right cell
 
-        foreach (GridCellHours cell in GetGridWithHours(p, shift))
+        foreach (GridCellHours cell in GetGridWithHours(p, shift)) //iterates all shofted cells for a project
         {
             WeekKey key = cell.Key;
             int hours = cell.Hours;
 
-            if (key.Week < 1 || key.Week > Weeks)
+            if (key.Week < 1 || key.Week > Weeks) //in bounds?
             {
                 continue;
             }
 
-            int current;
-            if (PersonWeekGrid.TryGetValue(key, out current))
+            int current; //temp holder for current hours in a cell
+            if (PersonWeekGrid.TryGetValue(key, out current)) //Proceeds only if cell exists
             {
-                int next = current - hours;
-                if (next <= 0)
+                int next = current - hours; //remaining hours after removing projects hours
+                if (next <= 0) //if no hours left remove 
                 {
-                    PersonWeekGrid.Remove(key);
+                    PersonWeekGrid.Remove(key); //deletes empty cell
                 }
                 else
                 {
-                    PersonWeekGrid[key] = next;
+                    PersonWeekGrid[key] = next; //stoes cells new hours
                 }
             }
 
-            PersonWeekKey pwKey = new PersonWeekKey(key.PersonId, key.Week);
-            int total;
-            if (PersonWeekHours.TryGetValue(pwKey, out total))
+            PersonWeekKey pwKey = new PersonWeekKey(key.PersonId, key.Week); //key for person/weeks
+            int total; //holder for aggregated person week hours
+            if (PersonWeekHours.TryGetValue(pwKey, out total)) //proceeds only if it exists
             {
-                int nextTotal = total - hours;
-                if (nextTotal <= 0)
+                int nextTotal = total - hours; //Total after subtraction
+                if (nextTotal <= 0) //Removes emtpy entires
                 {
                     PersonWeekHours.Remove(pwKey);
                 }
                 else
                 {
-                    PersonWeekHours[pwKey] = nextTotal;
+                    PersonWeekHours[pwKey] = nextTotal; //stores reduced person/week total
                 }
             }
         }
@@ -344,42 +344,42 @@ public class ScheduleState
 
     private void AddProjectToGrid(Project p)
     {
-        int shift = GetShift(p);
+        int shift = GetShift(p); //current shift of proj
 
-        foreach (GridCellHours cell in GetGridWithHours(p, shift))
+        foreach (GridCellHours cell in GetGridWithHours(p, shift)) //iterates each shift
         {
             WeekKey key = cell.Key;
             int hours = cell.Hours;
 
-            if (key.Week < 1 || key.Week > Weeks)
+            if (key.Week < 1 || key.Week > Weeks) //in bounds check
             {
                 continue;
             }
 
-            int existing = 0;
-            PersonWeekGrid.TryGetValue(key, out existing);
-            PersonWeekGrid[key] = existing + hours;
+            int existing = 0; //makes detailed cell value when no key found
+            PersonWeekGrid.TryGetValue(key, out existing); //returns detailed value if present
+            PersonWeekGrid[key] = existing + hours; //adds hours into person/proj/week dictionary
 
-            PersonWeekKey pwKey = new PersonWeekKey(key.PersonId, key.Week);
-            int total = 0;
-            PersonWeekHours.TryGetValue(pwKey, out total);
+            PersonWeekKey pwKey = new PersonWeekKey(key.PersonId, key.Week); //person/week totals updated
+            int total = 0; //sum of total hours 
+            PersonWeekHours.TryGetValue(pwKey, out total); //
             PersonWeekHours[pwKey] = total + hours;
         }
     }
 
-    private void CacheOrderedProjectWeeks(Project p)
+    private void CacheOrderedProjectWeeks(Project p) //projs original week sequence 
     {
-        List<int> weeks = new List<int>();
+        List<int> weeks = new List<int>(); //stores distinct weeks
 
-        foreach (Person person in p.people)
+        foreach (Person person in p.people) //each person on project
         {
-            Dictionary<int, int> weekHours;
-            if (!person.projects.TryGetValue(p, out weekHours))
+            Dictionary<int, int> weekHours; //holds week/hours for person
+            if (!person.projects.TryGetValue(p, out weekHours)) //skips someone not working
             {
                 continue;
             }
 
-            foreach (int week in weekHours.Keys)
+            foreach (int week in weekHours.Keys) //makes sure no dup weeks and adds to list
             {
                 if (!weeks.Contains(week))
                 {
@@ -388,44 +388,44 @@ public class ScheduleState
             }
         }
 
-        weeks.Sort();
-        orderedProjectWeeks[p] = weeks;
+        weeks.Sort(); //sorts so stays in order
+        orderedProjectWeeks[p] = weeks; //saves for later checks
     }
 
-    public bool PreservesProjectWeekOrder(Project p, int sourceWeek, int targetWeek)
+    public bool PreservesProjectWeekOrder(Project p, int sourceWeek, int targetWeek) //makes sure no cross overs
     {
-        if (!orderedProjectWeeks.ContainsKey(p))
+        if (!orderedProjectWeeks.ContainsKey(p)) //Nothing to follow just move on
         {
             return true;
         }
 
-        List<int> ordered = orderedProjectWeeks[p];
-        int index = ordered.IndexOf(sourceWeek);
+        List<int> ordered = orderedProjectWeeks[p]; //Sorted original weeks
+        int index = ordered.IndexOf(sourceWeek); //finds position in list
 
-        if (index < 0)
+        if (index < 0) //not added to list right
         {
             return true;
         }
 
-        int leftBound = 1;
-        int rightBound = 52;
+        int leftBound = 1; //default earliest
+        int rightBound = 52; //default latest
 
-        if (index > 0)
+        if (index > 0) //sets lower bound
         {
             leftBound = ordered[index - 1] + 1;
         }
 
-        if (index < ordered.Count - 1)
+        if (index < ordered.Count - 1) //sets upper bound
         {
             rightBound = ordered[index + 1] - 1;
         }
 
-        if (targetWeek < leftBound)
+        if (targetWeek < leftBound) //rejects move too far left
         {
             return false;
         }
 
-        if (targetWeek > rightBound)
+        if (targetWeek > rightBound) //rejects move too far right 
         {
             return false;
         }
