@@ -392,46 +392,49 @@ public class ScheduleState
         orderedProjectWeeks[p] = weeks; //saves for later checks
     }
 
-    public bool PreservesProjectWeekOrder(Project p, int sourceWeek, int targetWeek) //makes sure no cross overs
+    public bool PreservesProjectWeekOrder(Project p, int sourceWeek, int targetWeek)
     {
-        if (!orderedProjectWeeks.ContainsKey(p)) //Nothing to follow just move on
+        CacheOrderedProjectWeeks(p); //Refresh ordered weeks from current assignments so checks are not old
+
+        if (!orderedProjectWeeks.ContainsKey(p)) //No order data means no restriction to enforce
         {
             return true;
         }
 
-        List<int> ordered = orderedProjectWeeks[p]; //Sorted original weeks
-        int index = ordered.IndexOf(sourceWeek); //finds position in list
+        List<int> ordered = orderedProjectWeeks[p]; 
+        int index = ordered.IndexOf(sourceWeek); //Position of week being moved
 
-        if (index < 0) //not added to list right
+        if (index < 0) 
         {
             return true;
         }
 
-        int leftBound = 1; //default earliest
-        int rightBound = 52; //default latest
+        int leftBound = 1;  //lower bound.
+        int rightBound = 52; //upper bound.
 
-        if (index > 0) //sets lower bound
+        if (index > 0) // If there is a prior week, target week can't be before it
         {
             leftBound = ordered[index - 1] + 1;
         }
 
-        if (index < ordered.Count - 1) //sets upper bound
+        if (index < ordered.Count - 1) //If there is a next week, target cannot jump it
         {
             rightBound = ordered[index + 1] - 1;
         }
 
-        if (targetWeek < leftBound) //rejects move too far left
+        if (targetWeek < leftBound) //Past left
         {
             return false;
         }
 
-        if (targetWeek > rightBound) //rejects move too far right 
+        if (targetWeek > rightBound) //Past right
         {
             return false;
         }
 
         return true;
     }
+
 
 
 
