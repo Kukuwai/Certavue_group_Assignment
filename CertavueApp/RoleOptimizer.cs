@@ -4,7 +4,10 @@ using System.Linq;
 
 public class RoleOptimizer
 {
+<<<<<<< HEAD
 <<<<<<< ours
+=======
+>>>>>>> 4e8a2bcd14597516a9c58936fc33663b0efee747
     public OptimizationResult Optimize(ScheduleState state, int maxPasses = 99999999) //I set this ridicuously high to test speed first. I think this shouldn't have speed concerns but good to be safe?0
     {
         var handler = new ScheduleHandler(state); //will be used to measure fitness of schedules
@@ -38,6 +41,7 @@ public class RoleOptimizer
             }
         }
         return new OptimizationResult   //can be used to print on output @Millar
+<<<<<<< HEAD
 =======
     public OptimizationResult Optimize(ScheduleState state, int maxPasses = 5000)
     {
@@ -79,11 +83,16 @@ public class RoleOptimizer
 
         return new OptimizationResult
 >>>>>>> theirs
+=======
+>>>>>>> 4e8a2bcd14597516a9c58936fc33663b0efee747
         {
             BestState = state,
             Improved = improvedAny,
             FinalFitness = currentFitness,
+<<<<<<< HEAD
 <<<<<<< ours
+=======
+>>>>>>> 4e8a2bcd14597516a9c58936fc33663b0efee747
             WeeksImproved = weeksImproved,
             CombinationsChecked = combinationsChecked
         };
@@ -193,6 +202,7 @@ public class RoleOptimizer
         foreach (Person person in state.People)
         {
             if (person.id == task.OverloadedPerson.id) //avoids replacing self
+<<<<<<< HEAD
 =======
             WeeksImproved = movesApplied,
             CombinationsChecked = combinationsChecked
@@ -210,10 +220,13 @@ public class RoleOptimizer
         {
             Person overloadedPerson = FindPersonById(state, overload.PersonId);
             if (overloadedPerson == null)
+=======
+>>>>>>> 4e8a2bcd14597516a9c58936fc33663b0efee747
             {
                 continue;
             }
 
+<<<<<<< HEAD
             List<SourceAssignment> sourceAssignments = BuildSourceAssignments(state, overloadedPerson, overload.Week);
             if (sourceAssignments.Count == 0)
             {
@@ -363,11 +376,17 @@ public class RoleOptimizer
 =======
             if (!string.Equals(person.role, overloadedPerson.role, StringComparison.Ordinal))
 >>>>>>> theirs
+=======
+            if (!string.Equals(person.role, task.OverloadedPerson.role, StringComparison.OrdinalIgnoreCase)) //verifies same role
+>>>>>>> 4e8a2bcd14597516a9c58936fc33663b0efee747
             {
                 continue;
             }
 
+<<<<<<< HEAD
 <<<<<<< ours
+=======
+>>>>>>> 4e8a2bcd14597516a9c58936fc33663b0efee747
             if (!GreedyAlg.IsPersonFree(state, person, task.Project, task.Week)) //makes sure they are free this week
             {
                 continue;
@@ -458,6 +477,7 @@ public class RoleOptimizer
         public bool Improved { get; set; }
         public double BestFitness { get; set; }
         public int CombinationsChecked { get; set; }
+<<<<<<< HEAD
 =======
             int availableCapacity = GetRemainingCapacity(state, person, shiftedWeek);
             if (availableCapacity < 10)
@@ -616,13 +636,18 @@ public class RoleOptimizer
         public double FitnessDelta { get; set; }
         public int OverloadReduction { get; set; }
 >>>>>>> theirs
+=======
+>>>>>>> 4e8a2bcd14597516a9c58936fc33663b0efee747
     }
 
     private class AssignmentSnapshot //copies of states to compare
     {
         public Dictionary<Person, Dictionary<Project, Dictionary<int, int>>> PersonAssignments { get; set; }
         public Dictionary<Project, HashSet<Person>> ProjectPeople { get; set; }
+<<<<<<< HEAD
 <<<<<<< ours
+=======
+>>>>>>> 4e8a2bcd14597516a9c58936fc33663b0efee747
     }
 
     public class OptimizationResult //returned best result
@@ -633,6 +658,7 @@ public class RoleOptimizer
         public int WeeksImproved { get; set; }
         public int CombinationsChecked { get; set; }
     }
+<<<<<<< HEAD
 }
 =======
     }
@@ -647,3 +673,6 @@ public class RoleOptimizer
     }
 }
 >>>>>>> theirs
+=======
+}
+>>>>>>> 4e8a2bcd14597516a9c58936fc33663b0efee747
