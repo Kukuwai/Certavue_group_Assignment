@@ -43,6 +43,11 @@ public class Program
         foreach (string file in files)
         {
             var originalState = loadData(file);
+            foreach (var p in originalState.Projects) 
+            {
+             p.InitialBaselineSpan = p.durationProjectFinder();
+            }
+
             ScheduleHandler handler = new ScheduleHandler(originalState);
             Console.WriteLine(">>> initial state analye:");
             handler.DebugConflictDetails(originalState);
@@ -107,7 +112,7 @@ public class Program
             //output.ExportToHtml(file, finalState, "Final_CPSAT_Result");
             printStats("CP-SAT Optimized", finalState, file, true);
 
-            projects[0].printPeopleOnProject();
+            // projects[0].printPeopleOnProject();
             Console.WriteLine("-------");
             people[0].printProjectsForPerson();
 

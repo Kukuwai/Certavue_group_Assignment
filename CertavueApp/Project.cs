@@ -9,7 +9,7 @@ public class Project
     public int id {get;}
     public string name {get; set;}
     public HashSet<Person> people { get; } = new();
-    public HashSet<int> originalPeopleIds { get; } = new();
+    public HashSet<int> originalPeopleIds { get; } = new(); 
     public int startDate {get; set;}
     public int endDate {get; set;} 
     public int duration {get; set;}
@@ -18,6 +18,8 @@ public class Project
     public int capacityStartWeek {get; set;}
     public int capacityEndWeek {get; set;}
     public int capacity {get; set;}
+    public double InitialBaselineSpan { get; set; }
+
 
     public Project(string name, int startDate, int endDate, int hoursNeeded)
     {
@@ -36,37 +38,26 @@ public class Project
         this.startDate = startDate;
     }
 
+    // --- 修复版 updateCapacity ---
     public void updateCapacity()
     {
+        int? earliest = null;
+        int? latest = null;
 
-        int ? earliest = null;
-        int ? latest = null;
-        // find the weeks where people are assigned to project.
-        Dictionary<int, int> weeks = new Dictionary<int, int>();
         foreach (Person p in this.people)
         {
-            // check if project is contained within dictiornary and that it onl has one person
-            if (!p.projects.TryGetValue(this, out Dictionary<int,int> weeksForProject))
+            if (!p.projects.TryGetValue(this, out var weeksForProject))
             {
-                // skip if not
                 continue;   
             }
-            // go through each week project is in
+
             foreach (int week in weeksForProject.Keys)
             {
-                // get earliest week
-                if (earliest == null || week < earliest)
-                {
-                    earliest = week;
-                }
-                // get latest week
-                if (latest == null || week > latest)
-                {
-                    latest = week;
-                }
+                if (earliest == null || week < earliest) earliest = week;
+                if (latest == null || week > latest) latest = week;
             }
         }
-        // default to 0 if invalid
+
         if (earliest == null || latest == null)
         {
             capacityStartWeek = 0;
@@ -77,41 +68,31 @@ public class Project
         {
             capacityStartWeek = earliest.Value;
             capacityEndWeek = latest.Value;
-            capacity = capacityEndWeek - capacityStartWeek + 1;
+            capacity = (capacityEndWeek - capacityStartWeek) + 1;
         }
     }
 
+    // --- 修复版 durationProjectFinder ---
     public int durationProjectFinder()
     {
+        int? earliest = null;
+        int? latest = null;
 
-        int ? earliest = null;
-        int ? latest = null;
-        // find the weeks where people are assigned to project.
-        Dictionary<int, int> weeks = new Dictionary<int, int>();
         foreach (Person p in this.people)
         {
-            // check if project is contained within dictiornary and that it onl has one person
-            if (!p.projects.TryGetValue(this, out Dictionary<int,int> weeksForProject))
+            // change to force access
+            if (!p.projects.TryGetValue(this, out var weeksForProject))
             {
-                // skip if not
                 continue;   
             }
-            // go through each week project is in
+
             foreach (int week in weeksForProject.Keys)
             {
-                // get earliest week
-                if (earliest == null || week < earliest)
-                {
-                    earliest = week;
-                }
-                // get latest week
-                if (latest == null || week > latest)
-                {
-                    latest = week;
-                }
+                if (earliest == null || week < earliest) earliest = week;
+                if (latest == null || week > latest) latest = week;
             }
         }
-        // default to 0 if invalid
+
         if (earliest == null || latest == null)
         {
             capacityStartWeek = 0;
@@ -120,46 +101,39 @@ public class Project
         }
         else
         {
-            capacityStartWeek = earliest.Value;
-            capacityEndWeek = latest.Value;
-            capacity = capacityEndWeek - capacityStartWeek + 1;
+            this.capacity = (latest.Value - earliest.Value) + 1;
         }
         return capacity;
     }
 
-   public void ReplaceStaff(Person person, Person oldperson){
-
-    foreach(Person p in people)
+    public void ReplaceStaff(Person person, Person oldperson)
     {
-        if (p.Equals(person))
+
+        if (this.people.Contains(oldperson))
         {
             this.people.Remove(oldperson);
             this.people.Add(person);
         }
     }
 
-   }
-
-   public List<Person> getPeopleOnProject()
+    public List<Person> getPeopleOnProject()
     {
-        List<Person> peopleOnProject = new List<Person>();
-        foreach (Person p in this.people)
-        {
-            peopleOnProject.Add(p);
-        }
-        return peopleOnProject;
+        return new List<Person>(this.people);
     }
 
-    public void printPeopleOnProject()
-    {
-        foreach (Person p in people)
-        {
-            Dictionary<int,int> projectWeekHours = p.projects.GetValueOrDefault(this);
-            foreach (KeyValuePair<int, int> entry in projectWeekHours)
-            {
-                Console.WriteLine($"{p.name} | {p.role} | {this.name} | Week {entry.Key}: | {entry.Value}");
-            }
-        }
-    }
-    
+    // --- 修复版 printPeopleOnProject ---
+    // public void printPeopleOnProject()
+    // {
+    //     foreach (Person p in people)
+    //     {
+    //         // 修复：使用 List<int> 并且移除不存在的 projectWeekHours
+    //         if (p.projects.TryGetValue(this, out List<int> weeksForProject))
+    //         {
+
+    //             weeksForProject.Sort(); 
+    //             string weeksStr = string.Join(", ", weeksForProject);
+    //             Console.WriteLine($"{p.name} | {p.role} | {this.name} | Weeks: [{weeksStr}]");
+    //         }
+    //     }
+    // }
 }

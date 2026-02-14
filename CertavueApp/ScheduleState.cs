@@ -68,11 +68,27 @@ public class ScheduleState
 
         RebuildGrid();
     }
-    //duration should be from start date week +1 to end date week -1 but need to check my maths on this one on paper
+    //fix: ⚠️here should hold the newest state's duaration since alg and hanndler use them to compare with initial duration
+    //pervious method is call the durationProjectFinder which is hold initial duration
+    
     public int GetDuration(Project p)
     {
-        return p.durationProjectFinder();
+    // 1. 获取该项目当前的偏移量
+       int currentShift = GetShift(p);
+    
+    // 2. 获取该偏移量下真实的格子分布 (这是动态计算的)
+       var cells = GetGrid(p, currentShift);
+    
+       if (cells == null || !cells.Any()) return 0;
+
+    // 3. 算出当前状态下的跨度
+       int earliest = cells.Min(c => c.Week);
+       int latest = cells.Max(c => c.Week);
+    
+       return (latest - earliest) + 1;
     }
+
+
     public int GetShift(Project p)
     {
         return _shift[p];
@@ -165,6 +181,18 @@ public class ScheduleState
             AddProjectToGrid(p);
 
         }
+    }
+
+    // 在 ScheduleState.cs 里面添加
+    public int GetCurrentSpan(Project p)
+    {
+        int currentShift = GetShift(p);
+        var cells = GetGrid(p, currentShift);
+        if (cells == null || !cells.Any()) return 0;
+
+        int earliest = cells.Min(c => c.Week);
+        int latest = cells.Max(c => c.Week);
+        return (latest - earliest) + 1;
     }
     //updates the grid with shifts
     public void ApplyShift(Project p, int shift)

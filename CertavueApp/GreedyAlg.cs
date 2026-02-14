@@ -66,7 +66,7 @@ public class GreedyAlg
                 var best = scheduleHandler.EvaluateMoveDelta(project, currentShift); //baseline
 
                 foreach (int candidate in state.GetValidShifts(project)) //all allowed shifts ie within dates
-                {
+                { 
                     var test = scheduleHandler.EvaluateMoveDelta(project, candidate);
 
                     bool better = false;
@@ -86,6 +86,8 @@ public class GreedyAlg
                 {
                     state.ApplyShift(project, bestShift); //implements the move
                     anyShifted = true;  //used to make sure changes occurred
+                    // ⚠️add to debug 
+                   // Console.WriteLine($"[SUCCESS] Project {project.name} moved: {currentShift} -> {bestShift} (Improvement: {best:F4})");
                 }
             }
             if (MoveBetweenRoles(state))

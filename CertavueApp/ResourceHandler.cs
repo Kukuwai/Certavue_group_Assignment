@@ -62,35 +62,51 @@ public class RoleGapReport
            (durationScore * 0.1);
     }
 
+
+
+//try reference time fold 
+//     public double CalculateFitnessScore(ScheduleState state)
+// {
+//     double conflictScore = GetConflictScore(state);     
+    
+//     // 🌟 Timefold 思想：如果硬约束没达标，软约束的权重就要被极度压低
+//     if (conflictScore < 1.0) 
+//     {
+
+//         return conflictScore; 
+//     }
+
+//     // 🌟 只有当冲突消失了（1.0），才开始细品软约束的“优劣”
+//     double movementScore = GetMovementScore(state);
+//     double focusScore = GetFocusScore(state);
+//     double continuityScore = GetContinuityScore(state);
+//     double durationScore = GetDurationScore(state);
+
+//     return (conflictScore * 0.4) + // 此时 conflictScore 是 1.0
+//            (movementScore * 0.2) + 
+//            (focusScore * 0.2) + 
+//            (continuityScore * 0.1) + 
+//            (durationScore * 0.1);
+// }
+
     public double GetConflictScore(ScheduleState state)
-    {
-    // 1. if grid is empty
+{
     if (state.PersonWeekGrid == null || state.PersonWeekGrid.Count == 0) return 1.0;
 
-    double totalOverloadPenalty = 0;
+    int totalExtraTasks = 0;
     
-    // 2. denominator
-    double totalCapacityHours = state.PersonWeekGrid.Count * 40.0; 
-
+    // 1. 直接统计所有超载的任务单元
     foreach (var entry in state.PersonWeekGrid)
     {
-        int projectCount = entry.Value;
-
-        if (projectCount > 1)
+        if (entry.Value > 1)
         {
-            // 3. caculate over worok hour
-            double extraHours = (projectCount - 1) * 40.0;
-            
-            // 4. Quadratic Penalty , reduce the extramly overloaded
-            totalOverloadPenalty += Math.Pow(extraHours, 2);
+            totalExtraTasks += (entry.Value - 1);
         }
     }
 
-    // 5. normaliztaion
-    double normalizedPenalty = totalOverloadPenalty / (totalCapacityHours * 10.0);
-    
-    return Math.Exp(-normalizedPenalty);
-    }
+    if (totalExtraTasks == 0) return 1.0;
+    return 1.0 / (1.0 + (totalExtraTasks * 0.05));
+}
 
 
 
@@ -110,6 +126,7 @@ public class RoleGapReport
         // 公式： (总项目数 - 移动的项目数) / 总项目数
         return (double)(state.Projects.Count - movedCount) / state.Projects.Count;
     }
+    
 
    public double GetFocusScore(ScheduleState state)
     {
@@ -207,41 +224,25 @@ public double GetContinuityScore(ScheduleState state)
 }
 
 
-    public double GetDurationScore(ScheduleState state)
+public double GetDurationScore(ScheduleState state)
 {
     double totalScore = 0;
-    int projectCount = 0;
+    int count = 0;
 
     foreach (var project in state.Projects)
     {
-        // --- 绕路开始：安全获取 InitialBaselineSpan ---
-        double ideal = 0;
-        var property = project.GetType().GetProperty("InitialBaselineSpan");
-        if (property != null)
-        {
-            ideal = Convert.ToDouble(property.GetValue(project));
-        }
-        else
-        {
-            // 如果实在找不到，默认给个 1.0 避免除以 0，确保程序不崩溃
-            ideal = 1.0; 
-        }
-        // --- 绕路结束 ---
+        double ideal = project.InitialBaselineSpan; 
+        double actual = state.GetCurrentSpan(project); 
 
-        int currentShift = state.GetShift(project);
-        var cells = state.GetGrid(project, currentShift);
-        if (cells == null || !cells.Any()) continue;
-
-        int actual = (cells.Max(c => c.Week) - cells.Min(c => c.Week)) + 1;
-
-        if (actual > 0)
+        if (actual > 0 && ideal > 0)
         {
-            totalScore += Math.Min(1.0, ideal / (double)actual);
-            projectCount++;
+            totalScore += Math.Min(1.0, ideal / actual);
+            count++;
         }
     }
-    return projectCount == 0 ? 1.0 : totalScore / projectCount;
+    return count == 0 ? 1.0 : totalScore / count;
 }
+
 
 //----------------------------------------
     public ScheduleState GetCurrentState() => _state;
