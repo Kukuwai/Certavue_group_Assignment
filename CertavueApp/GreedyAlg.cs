@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.WebSockets;
+using Google.OrTools.ConstraintSolver;
 using static ScheduleState;
 
 public class GreedyAlg
@@ -50,14 +51,22 @@ public class GreedyAlg
 
         for (int pass = 1; pass <= maxPasses; pass++)
         {
-            var ordered = state.Projects
-     .OrderByDescending(p => GetConflictScore(p))
-     .ThenByDescending(p => state.GetDuration(p))
-     .ThenByDescending(p => p.people.Count)
-     .ToList();
+            ScheduleState.OverloadCell worst; //Holds worst person/week.
+            bool hasWorst = state.TryGetWorstOverloadCell(out worst); //Returns the worst overload
 
+            if (!hasWorst) //Nothing over worked
+            {
+                break;
+            }
 
-            bool anyShifted = false; //track if any schedules are moved 
+            List<Project> ordered = GetProjectsForPersonWeek(state, worst.PersonId, worst.Week); //Only projects causing this overload
+            if (ordered.Count == 0) //If missing
+            {
+                break;
+            }
+
+            bool anyShifted = false; //Changes made
+
 
             foreach (var project in ordered)  //tracks projects in order
             {
@@ -112,6 +121,35 @@ public class GreedyAlg
             if (!anyShifted) break; //ends if nothing moves so we really could have the passes be pretty high for safety
         }
     }
+
+    private List<Project> GetProjectsForPersonWeek(ScheduleState state, int personId, int week)
+    {
+        List<Project> result = new List<Project>();
+
+        foreach (Project project in state.Projects)
+        {
+            int shift = state.GetShift(project); //Current proj shift
+            List<ScheduleState.WeekKey> grid = state.GetGrid(project, shift); //Shifted cells
+
+            bool assigned = false; //Is proj in person/week
+            foreach (ScheduleState.WeekKey cell in grid)
+            {
+                if (cell.PersonId == personId && cell.Week == week) //Match overloaded person week
+                {
+                    assigned = true;
+                    break;
+                }
+            }
+
+            if (assigned) //
+            {
+                result.Add(project); //Add for review
+            }
+        }
+
+        return result;
+    }
+
 
     //something to think about on this method is it replaces it with the first available person. Maybe that is fine, maybe not but good to discuss
     public bool MoveBetweenRoles(ScheduleState state)
@@ -201,9 +239,20 @@ public class GreedyAlg
 
                 if (replacementPerson != null)
                 {
-                    MoveWeekToReplacement(state, project, overloadedPerson, replacementPerson, week);
-                    changed = true; //successfully fixed
+                    int rawHours = overloadedPerson.getHoursForProjecForWeek(project, week); //current hours for the project on weekly basis
+                    int moveHours = NormalizeHoursByRule(rawHours); //move hours by 5
+
+                    if (moveHours >= 10) //hours has to be over 10
+                    {
+                        bool moved = MoveHoursToReplacement(state, project, overloadedPerson, replacementPerson, week, moveHours); //Partial movement logic
+                        if (moved) //Move happened
+                        {
+                            changed = true;
+                        }
+                    }
                 }
+
+
             }
 
         }
@@ -212,28 +261,33 @@ public class GreedyAlg
     }
 
 
-    //we can probably move this method out somewhere else later but just the initial handoff shift logic
-    public static void MoveWeekToReplacement(ScheduleState state, Project project, Person from, Person to, int week)
+    private static int NormalizeHoursByRule(int hours)
     {
-
-        if (!from.projects.ContainsKey(project) || !from.projects[project].Remove(week)) //error was happening if someone was previously removed from a project
+        int rounded = (hours / 5) * 5; //Round down to nearest multiple of 5
+        if (rounded < 10) //Minimum legal nonzero move is 10
         {
-            return;
-        }
-        if (!to.projects.ContainsKey(project)) //iff the new person doesn't hae this project already add it to their list
-        {
-            to.projects[project] = new Dictionary<int, int>();
-        }
-        to.projects[project].Add(week, from.getHoursForProjecForWeek(project, week)); //assigns the week being traded //assigns the week being traded 
-
-        project.people.Add(to);
-        if (from.projects[project].Count == 0) //removes old person if their project weeks are 0 aka no longer on project
-        {
-            project.people.Remove(from);
-
+            return 0; //No moves
         }
 
-        state.RebuildGrid(); //rebuilds the state with changes
+        return rounded;
+    }
+    private static bool CanTakeHours(ScheduleState state, Person person, int week, int hoursToAdd) //Weekly cap target
+    {
+        int current = 0; //If nothing exists
+        ScheduleState.PersonWeekKey key = new ScheduleState.PersonWeekKey(person.id, week); 
+        state.PersonWeekHours.TryGetValue(key, out current); //Get current week total
+
+        int capacity = person.capacity; //Person's capacity
+        if (capacity <= 0) 
+        {
+            capacity = 40; //default to 40
+        }
+
+        return (current + hoursToAdd) <= capacity; //Hours stay within limit
+    }
+    public static bool MoveHoursToReplacement(ScheduleState state, Project project, Person from, Person to, int week, int hoursToMove) //this is about to be so much code 
+    {
+        return true;
     }
 
     //Checking person's schedule for open week
