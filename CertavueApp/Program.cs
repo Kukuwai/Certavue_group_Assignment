@@ -9,6 +9,7 @@ using static ScheduleState;
 using System.IO;
 using System.Linq;
 using System.Text;
+using static OpenAI;
 
 
 public class Program
@@ -24,6 +25,9 @@ public class Program
     {
         var dataDirectory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Data"));
         string[] files = Directory.GetFiles(dataDirectory, "*.csv");
+        var outputCsvDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Data", "Outputcsv"));
+        Directory.CreateDirectory(outputCsvDir);
+
 
         ScheduleState finalState = null;
 
@@ -51,7 +55,22 @@ public class Program
             // greedy algorithm starts, inluding export of output to html
             Console.WriteLine($"Greeding Running File - {System.IO.Path.GetFileName(file)}\n");
             var scheduleAfterGreedy = new GreedyAlg().StartGreedy(people, projects);
+            string baseName = Path.GetFileNameWithoutExtension(file);
+            string outputPath = Path.Combine(outputCsvDir, baseName + "_after_greedy.csv");
+
+            ScheduleCsvExporter.ExportStateToWeeklyTableCsv(scheduleAfterGreedy, outputPath);
+            Console.WriteLine("Wrote CSV: " + outputPath);
+
             output.ExportToHtml(file, scheduleAfterGreedy, "after_greedy");
+
+            string apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+            OpenAI openAI = new OpenAI(apiKey, "gpt-5-mini");
+
+            Console.WriteLine("Model: " + openAI.GetModel());
+            Console.WriteLine("Connected: " + openAI.IsConnected());
+
+            openAI.Close();
+
 
 
             // var roleOpt = new RoleOptimizer();
@@ -74,7 +93,7 @@ public class Program
             // }
         }
 
-      //  ProcessNewProjectInsertion(finalState);
+        //  ProcessNewProjectInsertion(finalState);
     }
 
 
@@ -147,6 +166,14 @@ public class Program
     static void Main(string[] args)
     {
         new Program();
+        // string apiKey = Environment.GetEnvironmentVariable("");
+        // OpenAI openAI = new OpenAI("", "gpt-5-mini");
+
+        // string reply = openAI.SendPrompt("What is the capital of france?");
+        // Console.WriteLine(reply);
+
+        // openAI.Close();
+
     }
 
     public void printStats(string dataName, ScheduleState state, string path, bool end)
