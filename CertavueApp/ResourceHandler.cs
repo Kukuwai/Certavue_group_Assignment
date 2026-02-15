@@ -64,30 +64,6 @@ public class RoleGapReport
 
 
 
-//try reference time fold 
-//     public double CalculateFitnessScore(ScheduleState state)
-// {
-//     double conflictScore = GetConflictScore(state);     
-    
-//     // 🌟 Timefold 思想：如果硬约束没达标，软约束的权重就要被极度压低
-//     if (conflictScore < 1.0) 
-//     {
-
-//         return conflictScore; 
-//     }
-
-//     // 🌟 只有当冲突消失了（1.0），才开始细品软约束的“优劣”
-//     double movementScore = GetMovementScore(state);
-//     double focusScore = GetFocusScore(state);
-//     double continuityScore = GetContinuityScore(state);
-//     double durationScore = GetDurationScore(state);
-
-//     return (conflictScore * 0.4) + // 此时 conflictScore 是 1.0
-//            (movementScore * 0.2) + 
-//            (focusScore * 0.2) + 
-//            (continuityScore * 0.1) + 
-//            (durationScore * 0.1);
-// }
 
     public double GetConflictScore(ScheduleState state)
 {
