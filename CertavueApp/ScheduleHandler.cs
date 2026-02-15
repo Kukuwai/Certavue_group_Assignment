@@ -226,13 +226,13 @@ public class ScheduleHandler
             int actualEnd = projectCells.Max(c => c.Week);
             int actualSpan = (actualEnd - actualStart) + 1;
             // Determine the original planned duration as the socre for efficiency
-            int plannedSpan = project.durationProjectFinder();
+            int plannedSpan = project.OriginalDurationSpan;
             if (plannedSpan <= 0)
             {
                 plannedSpan = actualSpan;
             }
             // A score of 1.0 means the project is perfectly compact.
-            double score = (double)plannedSpan / actualSpan;
+            double score = (double)Math.Min(plannedSpan, actualSpan) / Math.Max(plannedSpan, actualSpan);
             totalScore += Math.Min(1.0, score);
         }
         return state.Projects.Count > 0 ? totalScore / state.Projects.Count : 1.0;
