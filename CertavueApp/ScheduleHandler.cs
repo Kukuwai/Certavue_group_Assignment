@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using Google.OrTools.PDLP;
 
 public class ScheduleHandler
 {
@@ -66,27 +67,53 @@ public class ScheduleHandler
     // This is a overload punisher
     public double GetConflictScore(ScheduleState state)
     {
-        if (state.PersonWeekGrid.Count == 0) return 1.0;
+        if (state.PersonWeekHours.Count == 0) return 1.0;
 
         double totalOverworkHours = 0;
         double totalAssignedHours = 0;
-        const int CAPACITY_LIMIT = 40; // set a maxmium work hours
 
-        foreach (var projectCount in state.PersonWeekGrid.Values)
+        // create new dictionary for people and that personid for easy reference in loop below
+        var peopleById = new Dictionary<int, Person>();
+        foreach (Person p in state.People)
         {
-            // translete per week to be 40 hours
-            int hoursInThisCell = projectCount * 40;
-            totalAssignedHours += hoursInThisCell;
+            peopleById.Add(p.id, p);
+        }
+        
+        // changed to iterate person week totals not person-project weeks assigned
+        foreach (var personWeek in state.PersonWeekHours)
+        {
+            // get person id
+            var personId = personWeek.Key.PersonId;
+            // get assigned hours for that week / per person
+            var assignedHours = personWeek.Value;
 
-            // caculate the overwork hours
-            if (hoursInThisCell > CAPACITY_LIMIT)
-            { // caculate the total overwork hours
-                totalOverworkHours += (hoursInThisCell - CAPACITY_LIMIT);
+            int capacity = 40;
+            // get person by id using new dictionary created above and check if capacity above 0
+            if (peopleById.TryGetValue(personId, out var person) && person.capacity > 0)
+            {
+                capacity = person.capacity;
             }
-        }  //caculate percentage of overwork
-        double conflictRatio = totalOverworkHours / totalAssignedHours;
-        //Normalization
-        return Math.Max(0, 1.0 - conflictRatio);
+
+            totalAssignedHours += assignedHours;
+            totalOverworkHours += Math.Max(0, assignedHours - capacity);
+
+        /* caculate the overwork hours
+        if (hoursInThisCell > CAPACITY_LIMIT)
+        { // caculate the total overwork hours
+            totalOverworkHours += (hoursInThisCell - CAPACITY_LIMIT);
+        }*/
+    }  
+    // check if person is even assigned hours on project
+    if (totalAssignedHours <= 0)
+        {
+            // if no return default score
+            return 1.0;
+        }
+    
+    //caculate percentage of overwork
+    double conflictRatio = totalOverworkHours / totalAssignedHours;
+    //Normalization
+    return Math.Max(0, 1.0 - conflictRatio);
     }
 
 
@@ -104,10 +131,48 @@ public class ScheduleHandler
 
     public double GetFocusScore(ScheduleState state)
     {
+        // add empty state check to match other methods above??
+        if (state.PersonWeekGrid.Count == 0) return 1.0;
+
+        // make new dictionary to count how many projects each person has / per week
+        var projectsPerPersonPerWeek = new Dictionary<ScheduleState.PersonWeekKey, int>();
+
+        // iterate ovver person week grid to populate new dictionary for counting
+        foreach (var weekKey in state.PersonWeekGrid)
+        {
+            // skip any people with 0 weeks
+            if (weekKey.Value <= 0)
+            {
+                continue;
+            }
+            // think we have to make each weekKey into a personWeekKey
+            var keyOfWeekKey = new ScheduleState.PersonWeekKey(weekKey.Key.PersonId, weekKey.Key.Week);
+            // check if new, if new start count at 0
+            if (!projectsPerPersonPerWeek.ContainsKey(keyOfWeekKey))
+            {
+                projectsPerPersonPerWeek[keyOfWeekKey] = 0;
+            }
+            // if not new add 1 to count
+            projectsPerPersonPerWeek[keyOfWeekKey] += 1;
+        }
+
+        // check for invalide dictinary, if no weekeys saved
+        if (projectsPerPersonPerWeek.Count == 0){
+            return 1.0;
+        }
+        // need to do a count to see if there are multiple tasks someone is working on / per week
+        var multiTaskWeeks = projectsPerPersonPerWeek.Values.Count(projectCount => projectCount > 1);
+
+        // return the calc for focus score, or 0 if negative.
+        return Math.Max(0, 1.0 - ((double)multiTaskWeeks / projectsPerPersonPerWeek.Count));
+
+
+        /*
         // sum on average, how much projects each person takes on every week
         var multiTaskWeeks = state.PersonWeekGrid.Values.Count(v => v > 1);
         // normalization
         return Math.Max(0, 1.0 - ((double)multiTaskWeeks / state.PersonWeekGrid.Count));
+        */
     }
 
     public double GetContinuityScore(ScheduleState state)
@@ -161,9 +226,13 @@ public class ScheduleHandler
             int actualEnd = projectCells.Max(c => c.Week);
             int actualSpan = (actualEnd - actualStart) + 1;
             // Determine the original planned duration as the socre for efficiency
-            int plannedSpan = (project.endDate - project.startDate) + 1;
+            int plannedSpan = project.OriginalDurationSpan;
+            if (plannedSpan <= 0)
+            {
+                plannedSpan = actualSpan;
+            }
             // A score of 1.0 means the project is perfectly compact.
-            double score = (double)plannedSpan / actualSpan;
+            double score = (double)Math.Min(plannedSpan, actualSpan) / Math.Max(plannedSpan, actualSpan);
             totalScore += Math.Min(1.0, score);
         }
         return state.Projects.Count > 0 ? totalScore / state.Projects.Count : 1.0;

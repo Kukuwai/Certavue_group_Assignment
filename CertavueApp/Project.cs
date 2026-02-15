@@ -15,10 +15,10 @@ public class Project
     public int duration { get; set; }
     public int hoursNeeded { get; set; }
 
-    public int capacityStartWeek { get; set; }
-    public int capacityEndWeek { get; set; }
-    public int capacity { get; set; }
-    
+    public int capacityStartWeek {get; set;}
+    public int capacityEndWeek {get; set;}
+    public int capacity {get; set;}
+    public int OriginalDurationSpan {get; set;}
 
     public Project(string name, int startDate, int endDate, int hoursNeeded)
     {
