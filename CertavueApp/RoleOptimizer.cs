@@ -113,12 +113,12 @@ public class RoleOptimizer
                 {
                     int targetRemaining = GetRemainingCapacity(state, target, overload.Week); //To persons available hours
                     int maxHoursToMove = Math.Min(source.SourceHours, RoundDownToNearestFive(targetRemaining)); //Makes sure it goes by 5
-                    if (maxHoursToMove < 10) //Cannot be under 10
+                    if (maxHoursToMove < 20) //Cannot be under 10
                     {
                         continue;
                     }
 
-                    for (int hoursToMove = 10; hoursToMove <= maxHoursToMove; hoursToMove += 5) //Every move by 5
+                    for (int hoursToMove = 20; hoursToMove <= maxHoursToMove; hoursToMove += 10) //Every move by 5
                     {
                         moves.Add(new MoveCandidate
                         {
@@ -144,7 +144,7 @@ public class RoleOptimizer
             return 0;
         }
 
-        return (value / 5) * 5;
+        return (value / 10) * 10;
     }
 
 
@@ -206,7 +206,7 @@ public class RoleOptimizer
                 continue;
             }
 
-            if (sourceHours < 10) //Cannot have 1-9 houirs
+            if (sourceHours < 20) //Cannot have 1-9 houirs
             {
                 continue;
             }
@@ -239,7 +239,7 @@ public class RoleOptimizer
             }
 
             int availableCapacity = GetRemainingCapacity(state, person, shiftedWeek); //Updated capacity
-            if (availableCapacity < 10)
+            if (availableCapacity < 20)
             {
                 continue;
             }

@@ -55,32 +55,31 @@ public class Program
 
 
             // var roleOpt = new RoleOptimizer();
-            // var roleResult = roleOpt.Optimize(scheduleAfterGreedy, maxPasses: 999999999);
-            //Program.LatestState = roleResult.BestState;// * add newest state
-            output.ExportToHtml(file, scheduleAfterGreedy, "After Role Checks");
-            //printStats("Role optimiser Data", roleResult.BestState, file, true);
+            // var roleResult = roleOpt.Optimize(scheduleAfterGreedy, maxPasses: 1000);
+            // Program.LatestState = roleResult.BestState;
+            // output.ExportToHtml(file, roleResult.BestState, "After Role Checks");
+            // printStats("Role optimiser Data", roleResult.BestState, file, true);
+            // finalState = roleResult.BestState;
 
 
-            projects[0].printPeopleOnProject();
-            Console.WriteLine("-------");
-            people[0].printProjectsForPerson();
 
-            //finalState = roleResult.BestState;
+            // projects[0].printPeopleOnProject();
+            // Console.WriteLine("-------");
+            // people[0].printProjectsForPerson();
 
+            // Console.WriteLine("Find project by person test");
+            // foreach (Project p in projects)
+            // {
+            //     p.printPeopleOnProject();
+            // }
+        }
 
-            Console.WriteLine("Find project by person test");
-            foreach (Project p in projects)
-            {
-                p.printPeopleOnProject();
-            }
-            }
-
-        ProcessNewProjectInsertion(finalState);
+      //  ProcessNewProjectInsertion(finalState);
     }
-    
 
-        private void ProcessNewProjectInsertion(ScheduleState currentState)
-        {
+
+    private void ProcessNewProjectInsertion(ScheduleState currentState)
+    {
         if (currentState == null)
         {
             Console.WriteLine("[Error] No available global optimization state was found, and a new project could not be inserted.");
@@ -121,7 +120,7 @@ public class Program
                 }
             }
             Output finalOutput = new Output();
-            finalOutput.ExportToHtml("Global_Final_Schedule",currentState, "With_New_Projects.html");
+            finalOutput.ExportToHtml("Global_Final_Schedule", currentState, "With_New_Projects.html");
         }
 
         Console.WriteLine("[SYSTEM] The final shift schedule has been exported to an HTML file.");
