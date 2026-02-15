@@ -85,10 +85,71 @@ public class RoleOptimizer
 
 
 
-    private List<MoveCandidate> EnumerateLegalMoves(ScheduleState state) // Generates every legal single move from current state so DFS can build all sequences.
+    private List<MoveCandidate> EnumerateLegalMoves(ScheduleState state) //Every possible move
     {
-        return null;
+        var moves = new List<MoveCandidate>(); //All possible moves for state
+        List<OverloadCell> overloadCells = BuildOverloadCells(state); //Over 40 person/weeks
+
+        foreach (OverloadCell overload in overloadCells)
+        {
+            Person overloadedPerson = FindPersonById(state, overload.PersonId); 
+            if (overloadedPerson == null) 
+            {
+                continue; 
+            }
+
+            List<SourceAssignment> sources = BuildSourceAssignments(state, overloadedPerson, overload.Week); //finds all projects for person on the over hour week
+            if (sources.Count == 0) 
+            {
+                continue; 
+            }
+
+            List<Person> targets = GetReplacementCandidates(state, overloadedPerson, overload.Week); //Finds people with same role
+            if (targets.Count == 0) 
+            {
+                continue; 
+            }
+
+            foreach (SourceAssignment source in sources) //Project/week from person
+            {
+                foreach (Person target in targets) //To person
+                {
+                    int targetRemaining = GetRemainingCapacity(state, target, overload.Week); //To persons available hours
+                    int maxHoursToMove = Math.Min(source.SourceHours, RoundDownToNearestFive(targetRemaining)); //Makes sure it goes by 5
+                    if (maxHoursToMove < 10) //Cannot be under 10
+                    {
+                        continue; 
+                    }
+
+                    for (int hoursToMove = 10; hoursToMove <= maxHoursToMove; hoursToMove += 5) //Every move by 5
+                    {
+                        moves.Add(new MoveCandidate 
+                        {
+                            Project = source.Project, 
+                            OverloadedPerson = overloadedPerson, 
+                            ReplacementPerson = target, 
+                            RawWeek = source.RawWeek, 
+                            ShiftedWeek = overload.Week, 
+                            HoursToMove = hoursToMove 
+                        });
+                    }
+                }
+            }
+        }
+
+        return moves; 
     }
+
+    private static int RoundDownToNearestFive(int value) //Normalizes capacity to 5 hour increments. If this is too slow might need to make it 10 to cut moves in half 
+    {
+        if (value <= 0) //no negatives
+        {
+            return 0; 
+        }
+
+        return (value / 5) * 5; 
+    }
+
 
 
     private List<OverloadCell> BuildOverloadCells(ScheduleState state)
@@ -204,7 +265,7 @@ public class RoleOptimizer
         return null;
     }
 
-    private string BuildStateHash(ScheduleState state) // Builds deterministic fingerprint so identical states are explored only once.
+    private string BuildStateHash(ScheduleState state)
     {
         return "holde";
     }
@@ -229,7 +290,7 @@ public class RoleOptimizer
         {
             projectPeople[project] = new HashSet<Person>(project.people); //avoids future changes
         }
-        return new AssignmentSnapshot  // Return one snapshot object containing both views of the same schedule, person/project/weeks and project/people so we can build a full state
+        return new AssignmentSnapshot  //Return one snapshot object containing both views of the same schedule, person/project/weeks and project/people so we can build a full state
         {
             PersonAssignments = personAssignments,
             ProjectPeople = projectPeople
@@ -296,13 +357,13 @@ public class RoleOptimizer
         public int SourceHours { get; set; }
     }
 
-    private class MoveCandidate 
+    private class MoveCandidate
     {
-        public Project Project { get; set; } 
-        public Person OverloadedPerson { get; set; } 
-        public Person ReplacementPerson { get; set; } 
-        public int RawWeek { get; set; } 
-        public int ShiftedWeek { get; set; } 
+        public Project Project { get; set; }
+        public Person OverloadedPerson { get; set; }
+        public Person ReplacementPerson { get; set; }
+        public int RawWeek { get; set; }
+        public int ShiftedWeek { get; set; }
         public int HoursToMove { get; set; }
     }
 
