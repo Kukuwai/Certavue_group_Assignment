@@ -4,7 +4,7 @@ using System.Linq;
 
 public class RoleOptimizer
 {
-    public OptimizationResult Optimize(ScheduleState state, int maxPasses = int.MaxValue) //If speed is a concern
+    public OptimizationResult Optimize(ScheduleState state, int maxPasses = int.MaxValue) //If speed is a concern we can hard code it again
     {
         var handler = new ScheduleHandler(state); //Scoring check
         double initialFitness = handler.CalculateFitnessScore(state); //Baseline fitness
@@ -268,24 +268,39 @@ public class RoleOptimizer
 
     private Person FindPersonById(ScheduleState state, int personId)
     {
-        foreach (Person person in state.People) 
+        foreach (Person person in state.People)
         {
-            if (person.id == personId) 
+            if (person.id == personId)
             {
-                return person; 
+                return person;
             }
         }
 
-        return null; 
+        return null;
     }
 
-    private string BuildStateHash(ScheduleState state)
+    private string BuildStateHash(ScheduleState state) //builds logic so the same state is only explored once
     {
-        return "holde";
+        var parts = new List<string>(); //Normalized state 
+
+        foreach (Project project in state.Projects.OrderBy(p => p.id)) //Orders projects
+        {
+            parts.Add("SHIFT:" + project.id + ":" + state.GetShift(project)); 
+        }
+
+        foreach (Person person in state.People.OrderBy(p => p.id)) //Order people
+        {
+            foreach (KeyValuePair<Project, Dictionary<int, int>> projectEntry in person.projects.OrderBy(kv => kv.Key.id)) //Projects per person
+            {
+                foreach (KeyValuePair<int, int> weekEntry in projectEntry.Value.OrderBy(kv => kv.Key)) //Weeks/hours per project
+                {
+                    parts.Add("ASSIGN:" + person.id + ":" + projectEntry.Key.id + ":" + weekEntry.Key + ":" + weekEntry.Value); //Person/project/weeks/hours assignment
+                }
+            }
+        }
+
+        return string.Join("|", parts); //Returns one string that is unique to this state
     }
-
-
-
 
     private AssignmentSnapshot CaptureSnapshot(ScheduleState state)  //keeps a snapshot of changes for comparison ak grid v grid
     {
