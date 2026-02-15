@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using Google.OrTools.PDLP;
 
 public class ScheduleHandler
 {
@@ -66,7 +67,7 @@ public class ScheduleHandler
    // This is a overload punisher
     public double GetConflictScore(ScheduleState state)
     {
-         if (state.PersonWeekHours.Count == 0) return 1.0;
+        if (state.PersonWeekHours.Count == 0) return 1.0;
 
         double totalOverworkHours = 0;
         double totalAssignedHours = 0;
@@ -130,10 +131,48 @@ public class ScheduleHandler
 
     public double GetFocusScore(ScheduleState state)
     {
+        // add empty state check to match other methods above??
+        if (state.PersonWeekGrid.Count == 0) return 1.0;
+
+        // make new dictionary to count how many projects each person has / per week
+        var projectsPerPersonPerWeek = new Dictionary<ScheduleState.PersonWeekKey, int>();
+
+        // iterate ovver person week grid to populate new dictionary for counting
+        foreach (var weekKey in state.PersonWeekGrid)
+        {
+            // skip any people with 0 weeks
+            if (weekKey.Value <= 0)
+            {
+                continue;
+            }
+            // think we have to make each weekKey into a personWeekKey
+            var keyOfWeekKey = new ScheduleState.PersonWeekKey(weekKey.Key.PersonId, weekKey.Key.Week);
+            // check if new, if new start count at 0
+            if (!projectsPerPersonPerWeek.ContainsKey(keyOfWeekKey))
+            {
+                projectsPerPersonPerWeek[keyOfWeekKey] = 0;
+            }
+            // if not new add 1 to count
+            projectsPerPersonPerWeek[keyOfWeekKey] += 1;
+        }
+
+        // check for invalide dictinary, if no weekeys saved
+        if (projectsPerPersonPerWeek.Count == 0){
+            return 1.0;
+        }
+        // need to do a count to see if there are multiple tasks someone is working on / per week
+        var multiTaskWeeks = projectsPerPersonPerWeek.Values.Count(projectCount => projectCount > 1);
+
+        // return the calc for focus score, or 0 if negative.
+        return Math.Max(0, 1.0 - ((double)multiTaskWeeks / projectsPerPersonPerWeek.Count));
+
+
+        /*
         // sum on average, how much projects each person takes on every week
         var multiTaskWeeks = state.PersonWeekGrid.Values.Count(v => v > 1);
         // normalization
         return Math.Max(0, 1.0 - ((double)multiTaskWeeks / state.PersonWeekGrid.Count));
+        */
     }
 
     public double GetContinuityScore(ScheduleState state)
@@ -187,7 +226,11 @@ public class ScheduleHandler
             int actualEnd = projectCells.Max(c => c.Week);
             int actualSpan = (actualEnd - actualStart) + 1;
             // Determine the original planned duration as the socre for efficiency
-            int plannedSpan = (project.endDate - project.startDate) + 1;
+            int plannedSpan = project.durationProjectFinder();
+            if (plannedSpan <= 0)
+            {
+                plannedSpan = actualSpan;
+            }
             // A score of 1.0 means the project is perfectly compact.
             double score = (double)plannedSpan / actualSpan;
             totalScore += Math.Min(1.0, score);
