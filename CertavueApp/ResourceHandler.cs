@@ -63,29 +63,29 @@ public class ScheduleHandler
                (durationScore * 0.1);
     }
 
-   // This is a overload punisher
+    // This is a overload punisher
     public double GetConflictScore(ScheduleState state)
     {
-         if (state.PersonWeekGrid.Count == 0) return 1.0;
+        if (state.PersonWeekGrid.Count == 0) return 1.0;
 
         double totalOverworkHours = 0;
         double totalAssignedHours = 0;
         const int CAPACITY_LIMIT = 40; // set a maxmium work hours
 
-         foreach (var projectCount in state.PersonWeekGrid.Values)
+        foreach (var projectCount in state.PersonWeekGrid.Values)
         {
-        // translete per week to be 40 hours
-        int hoursInThisCell = projectCount * 40;
-        totalAssignedHours += hoursInThisCell;
+            // translete per week to be 40 hours
+            int hoursInThisCell = projectCount * 40;
+            totalAssignedHours += hoursInThisCell;
 
-        // caculate the overwork hours
-        if (hoursInThisCell > CAPACITY_LIMIT)
-        { // caculate the total overwork hours
-            totalOverworkHours += (hoursInThisCell - CAPACITY_LIMIT);
-        }
-    }  //caculate percentage of overwork
+            // caculate the overwork hours
+            if (hoursInThisCell > CAPACITY_LIMIT)
+            { // caculate the total overwork hours
+                totalOverworkHours += (hoursInThisCell - CAPACITY_LIMIT);
+            }
+        }  //caculate percentage of overwork
         double conflictRatio = totalOverworkHours / totalAssignedHours;
-       //Normalization
+        //Normalization
         return Math.Max(0, 1.0 - conflictRatio);
     }
 
