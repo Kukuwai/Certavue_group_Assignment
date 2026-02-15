@@ -82,9 +82,6 @@ public class RoleOptimizer
             RestoreSnapshot(state, beforeMove);
         }
     }
-
-
-
     private List<MoveCandidate> EnumerateLegalMoves(ScheduleState state) //Every possible move
     {
         var moves = new List<MoveCandidate>(); //All possible moves for state
@@ -92,22 +89,22 @@ public class RoleOptimizer
 
         foreach (OverloadCell overload in overloadCells)
         {
-            Person overloadedPerson = FindPersonById(state, overload.PersonId); 
-            if (overloadedPerson == null) 
+            Person overloadedPerson = FindPersonById(state, overload.PersonId);
+            if (overloadedPerson == null)
             {
-                continue; 
+                continue;
             }
 
             List<SourceAssignment> sources = BuildSourceAssignments(state, overloadedPerson, overload.Week); //finds all projects for person on the over hour week
-            if (sources.Count == 0) 
+            if (sources.Count == 0)
             {
-                continue; 
+                continue;
             }
 
             List<Person> targets = GetReplacementCandidates(state, overloadedPerson, overload.Week); //Finds people with same role
-            if (targets.Count == 0) 
+            if (targets.Count == 0)
             {
-                continue; 
+                continue;
             }
 
             foreach (SourceAssignment source in sources) //Project/week from person
@@ -118,36 +115,36 @@ public class RoleOptimizer
                     int maxHoursToMove = Math.Min(source.SourceHours, RoundDownToNearestFive(targetRemaining)); //Makes sure it goes by 5
                     if (maxHoursToMove < 10) //Cannot be under 10
                     {
-                        continue; 
+                        continue;
                     }
 
                     for (int hoursToMove = 10; hoursToMove <= maxHoursToMove; hoursToMove += 5) //Every move by 5
                     {
-                        moves.Add(new MoveCandidate 
+                        moves.Add(new MoveCandidate
                         {
-                            Project = source.Project, 
-                            OverloadedPerson = overloadedPerson, 
-                            ReplacementPerson = target, 
-                            RawWeek = source.RawWeek, 
-                            ShiftedWeek = overload.Week, 
-                            HoursToMove = hoursToMove 
+                            Project = source.Project,
+                            OverloadedPerson = overloadedPerson,
+                            ReplacementPerson = target,
+                            RawWeek = source.RawWeek,
+                            ShiftedWeek = overload.Week,
+                            HoursToMove = hoursToMove
                         });
                     }
                 }
             }
         }
 
-        return moves; 
+        return moves;
     }
 
     private static int RoundDownToNearestFive(int value) //Normalizes capacity to 5 hour increments. If this is too slow might need to make it 10 to cut moves in half 
     {
         if (value <= 0) //no negatives
         {
-            return 0; 
+            return 0;
         }
 
-        return (value / 5) * 5; 
+        return (value / 5) * 5;
     }
 
 
@@ -252,17 +249,34 @@ public class RoleOptimizer
 
         return candidates;
     }
-
-
     private int GetRemainingCapacity(ScheduleState state, Person person, int week)
     {
-        return 0;
+        int currentHours = 0;
+        state.PersonWeekHours.TryGetValue(new ScheduleState.PersonWeekKey(person.id, week), out currentHours);
+        int capacity;
+        if (person.capacity > 0)
+        {
+            capacity = person.capacity;
+        }
+        else
+        {
+            capacity = 40;
+        }
+        return capacity - currentHours;
     }
 
 
     private Person FindPersonById(ScheduleState state, int personId)
     {
-        return null;
+        foreach (Person person in state.People) 
+        {
+            if (person.id == personId) 
+            {
+                return person; 
+            }
+        }
+
+        return null; 
     }
 
     private string BuildStateHash(ScheduleState state)
