@@ -23,11 +23,20 @@ await TestScenarios.RunScenario("Scenario 5: Multiple Changes", TestScenarios.Mu
 Console.WriteLine("\n All scenarios tested!");
 
 // Test real scenario
-await RealScenarioTest.TestFindPeopleExplanation(ollama);
+// await RealScenarioTest.TestFindPeopleExplanation(ollama);
 
 // CSV tests;
 Console.WriteLine("\n REAL CSV FORMAT TEST:\n");
-await CSVScheduleTest.TestScheduleOptimizationExplanation(ollama);
+// await CSVScheduleTest.TestScheduleOptimizationExplanation(ollama);
+
+// Test Greedy + Ollama Explanation
+await GreedyExplanationTest.TestGreedyWithExplanation(ollama);
+
+// LangChain Test
+// Console.WriteLine("\n" + new string('=', 60));
+// Console.WriteLine("LANGCHAIN INTEGRATION TEST:");
+// Console.WriteLine(new string('=', 60) + "\n");
+// await LangChainTest.RunBasicTest();
 
 
 

@@ -42,7 +42,7 @@ public class RealScenarioTest
         .Where(p => p.AvailableHours < project.RequiredHours)
         .ToList();
 
-    // Build prompt
+    // To Build prompt, we need everything in text (String).
     string selectedNames = string.Join(", ", selectedPeople.Select(p => $"{p.Name} ({p.AvailableHours}h)"));
     string rejectedNames = string.Join(", ", rejectedPeople.Select(p => $"{p.Name} ({p.AvailableHours}h)"));
     Console.WriteLine(selectedNames);
@@ -62,6 +62,8 @@ NOT SELECTED ({rejectedPeople.Count} people):
 
 Explain why these people were selected and others were not.
 ";
+
+    Console.WriteLine(prompt);
 
     // Get explanation from Ollama
     try
