@@ -66,27 +66,53 @@ public class ScheduleHandler
    // This is a overload punisher
     public double GetConflictScore(ScheduleState state)
     {
-         if (state.PersonWeekGrid.Count == 0) return 1.0;
+         if (state.PersonWeekHours.Count == 0) return 1.0;
 
         double totalOverworkHours = 0;
         double totalAssignedHours = 0;
-        const int CAPACITY_LIMIT = 40; // set a maxmium work hours
 
-         foreach (var projectCount in state.PersonWeekGrid.Values)
+        // create new dictionary for people and that personid for easy reference in loop below
+        var peopleById = new Dictionary<int, Person>();
+        foreach (Person p in state.People)
         {
-        // translete per week to be 40 hours
-        int hoursInThisCell = projectCount * 40;
-        totalAssignedHours += hoursInThisCell;
+            peopleById.Add(p.id, p);
+        }
+        
+        // changed to iterate person week totals not person-project weeks assigned
+        foreach (var personWeek in state.PersonWeekHours)
+        {
+            // get person id
+            var personId = personWeek.Key.PersonId;
+            // get assigned hours for that week / per person
+            var assignedHours = personWeek.Value;
 
-        // caculate the overwork hours
+            int capacity = 40;
+            // get person by id using new dictionary created above and check if capacity above 0
+            if (peopleById.TryGetValue(personId, out var person) && person.capacity > 0)
+            {
+                capacity = person.capacity;
+            }
+
+            totalAssignedHours += assignedHours;
+            totalOverworkHours += Math.Max(0, assignedHours - capacity);
+
+        /* caculate the overwork hours
         if (hoursInThisCell > CAPACITY_LIMIT)
         { // caculate the total overwork hours
             totalOverworkHours += (hoursInThisCell - CAPACITY_LIMIT);
+        }*/
+    }  
+    // check if person is even assigned hours on project
+    if (totalAssignedHours <= 0)
+        {
+            // if no return default score
+            return 1.0;
         }
-    }  //caculate percentage of overwork
-        double conflictRatio = totalOverworkHours / totalAssignedHours;
-       //Normalization
-        return Math.Max(0, 1.0 - conflictRatio);
+    
+    //caculate percentage of overwork
+    double conflictRatio = totalOverworkHours / totalAssignedHours;
+    //Normalization
+    return Math.Max(0, 1.0 - conflictRatio);
     }
 
 
