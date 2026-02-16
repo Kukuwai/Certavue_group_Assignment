@@ -435,19 +435,18 @@ public class ScheduleState
         return true;
     }
 
-      // 在 ScheduleState 类内部添加：
 
-// 1. 获取该项目最原始的分配情况（用于 OR-Tools 重新排布）
+// Grab all original task data for a project that can feed it into the OR-Tools solver.
 public List<(int PersonId, int Week, int Hours)> GetOriginalAssignments(Project p)
 {
     var assignments = new List<(int PersonId, int Week, int Hours)>();
-    foreach (var person in p.people) // 遍历项目所属的人员
+    foreach (var person in p.people) // loop all workers
     {
         if (person.projects.TryGetValue(p, out var weeks))
         {
             foreach (var kvp in weeks)
             {
-                // kvp.Key 是原始周，kvp.Value 是小时
+                // kvp.Key is origin week，kvp.Value persent origin hours
                 assignments.Add((person.id, kvp.Key, kvp.Value));
             }
         }
@@ -455,11 +454,11 @@ public List<(int PersonId, int Week, int Hours)> GetOriginalAssignments(Project 
     return assignments;
 }
 
-// 2. 根据 OR-Tools 的精细计算结果更新全局状态
+// a heavy Lifter: Re maping the entire schedule based on the solver's optimized output.
 public void UpdateFromFineGrainedAssignments(Dictionary<(int PersonId, Project Project, int RawWeek), int> newAssignments)
 {
-    // --- 1. 建立原始任务映射 (任务指纹 -> 原始工时) ---
-    // 先把所有受影响项目的工时数据捞出来，存成一个“快照”，避免在循环里反复查询 People 列表
+    // Create a quick snapshot of original hours.
+    // use a Lookup and don't have to keep digging through the People list inside the loop.
     var rawTaskHours = (from p in People
                         from projEntry in p.projects
                         from weekEntry in projEntry.Value
@@ -469,48 +468,46 @@ public void UpdateFromFineGrainedAssignments(Dictionary<(int PersonId, Project P
                         })
                        .ToLookup(x => x.Key, x => x.Hours);
 
-    // --- 2. 局部清理 ---
-    // 只清理那些 OR-Tools 重新排布过的项目，不影响其他无关项目
+    // Clear out the old data for projects the solver touched.
     var affectedProjects = newAssignments.Keys.Select(k => k.Project).Distinct().ToList();
     
     foreach (var prj in affectedProjects)
     {
         foreach (var person in People) 
         {
-            person.projects.Remove(prj); // 仅移除受影响项目
+            person.projects.Remove(prj); // just remove effected project
         }
     }
 
-    // 重置统计网格（因为全量重算比局部加减更不容易出错）
+    // Wipe the grid sums so we can recount everything from scratch 
     PersonWeekGrid.Clear();
     PersonWeekHours.Clear();
 
-    // --- 3. 应用新状态 ---
+    // new "Fine-Grained" assignments
     foreach (var (assign, targetWeek) in newAssignments)
     {
-        // 从 Lookup 中安全提取原始工时
-        // 逻辑：即便换了救兵，项目ID和原始周(RawWeek)是不变的，通过这两个组合找回工时
+        // Even if had swapped resources, the project ID and original RawWeek stay the same.
+        //  use that combo to find how many hours this specific task actually takes.
         int hours = rawTaskHours[(assign.Project.id, assign.RawWeek)].FirstOrDefault();
         
-        if (hours == 0) continue; // 保护：如果没找到原始分配，跳过
+        if (hours == 0) continue; // Safety check
 
-        // 执行写入
+        // wirte to value
         ApplySingleAssignment(assign.PersonId, assign.Project, targetWeek, hours);
     }
 }
 
-/// <summary>
-/// 职责分离：只负责纯粹的数据写入逻辑
-/// </summary>
+
+// Low-level helper to actually write the data into the dictionaries and update the heat-map grid.
 private void ApplySingleAssignment(int personId, Project prj, int week, int hours)
 {
     var person = People.First(p => p.id == personId);
     
-    // 建立任务关联
+    // Link the task to the person.
     if (!person.projects.ContainsKey(prj)) person.projects[prj] = new Dictionary<int, int>();
     person.projects[prj][week] = hours;
 
-    // 更新聚合网格 (用于报告显示)
+   // Update the scoring grid keys.
     var wk = new WeekKey(personId, prj.id, week);
     PersonWeekGrid[wk] = PersonWeekGrid.GetValueOrDefault(wk) + hours;
 

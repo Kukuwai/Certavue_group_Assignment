@@ -86,15 +86,11 @@ public class Program
             var finalHandler = new ScheduleHandler(finalState);
             finalHandler.DebugConflictDetails(finalState);
             
-            Console.WriteLine("--- 策略报告 ---");
-            Console.WriteLine($"冲突消减: {result.Report.ConflictReduced}h");
-            Console.WriteLine($"延期周数: {result.Report.TotalDelayWeeks}");
-            Console.WriteLine($"调动救兵: {result.Report.ResourceSwaps}");
+            Console.WriteLine("--- Optional stratge ---");
+            Console.WriteLine($"Sueccessful Reduction: {result.Report.ConflictReduced}h");
+            Console.WriteLine($"Expension Duration: {result.Report.TotalDelayWeeks}");
+            Console.WriteLine($"Adding more same-role people: {result.Report.ResourceSwaps}");
             
-        }
-       else 
-        {
-            Console.WriteLine("❌ 策略未生效：当前约束下无解。");
         }
 
             // ScheduleCsvExporter.ExportStateToWeeklyTableCsv(scheduleAfterGreedy, outputPath);
@@ -207,9 +203,9 @@ public class Program
     }
 
 
+   //a quick wrapper to push OR-Tools results into the state and refresh everything.
     static void ApplyAssignmentsToState(ScheduleState state, Dictionary<(int PersonId, Project Project, int RawWeek), int> assignments)
     {
-    // 只有这两行是绝对需要的：更新数据，然后刷新网格
     state.UpdateFromFineGrainedAssignments(assignments);
     state.RebuildGrid();
     }
