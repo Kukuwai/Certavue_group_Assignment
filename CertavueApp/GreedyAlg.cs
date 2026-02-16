@@ -427,7 +427,7 @@ public class GreedyAlg
         public Project Project;
         public int SourceRawWeek;
         public int TargetRawWeek;
-        public int SplitPercent;
+        //public int SplitPercent;
         public int CandidateShift;
         public Person FromPerson;
         public Person ToPerson;

@@ -10,6 +10,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using static OpenAI;
+using Google.OrTools.Sat;
 
 
 public class Program
@@ -37,19 +38,19 @@ public class Program
         // loading data in
         foreach (string file in files)
         {
-            if (!file.Contains("schedule_spectacular_fitness_mixedA_varied40s.csv"))
+            if (!file.Contains("schedule_project_contiguous_fitness_high_improvable_varied40s.csv"))
             {
                 continue;
             }
-            var originalState = loadData(file);
+            var originalState = loadData(file);//first time hold state!!!!
             ScheduleHandler originalHandler = new ScheduleHandler(originalState);
             Console.WriteLine("\n>>> [Before Optimization] Orignal conflicts detai:");
             originalHandler.DebugConflictDetails(originalState);
 
             // export original data to html output
-            Output output = new Output();
-            output.ExportToHtml(file, originalState, "Original");
-            printStats("Original Data", originalState, file, false);
+            // Output output = new Output();
+            // output.ExportToHtml(file, originalState, "Original");
+            // printStats("Original Data", originalState, file, false);
 
             // moveByConflict method (manual optimisation)
             // var scheduleAfterConflict = new MoveByConflict().start(originalState, projects);
@@ -64,29 +65,40 @@ public class Program
 
             // greedy algorithm starts, inluding export of output to html
             Console.WriteLine($"Greeding Running File - {System.IO.Path.GetFileName(file)}\n");
-            var scheduleAfterGreedy = new GreedyAlg().StartGreedy(people, projects);
+            var greedyState = new GreedyAlg().StartGreedy(originalState.People, originalState.Projects);//!!!second time hold state!!!
             string baseName = Path.GetFileNameWithoutExtension(file);
             string outputPath = Path.Combine(outputCsvDir, baseName + "_after_greedy.csv");
-            ScheduleHandler afterHandler = new ScheduleHandler(scheduleAfterGreedy);
+            ScheduleHandler afterHandler = new ScheduleHandler(greedyState);
             Console.WriteLine("\n>>> [After Greedy] Conflictes detais:");
-            afterHandler.DebugConflictDetails(scheduleAfterGreedy);
+            afterHandler.DebugConflictDetails(greedyState);
 
-            ScheduleCsvExporter.ExportStateToWeeklyTableCsv(scheduleAfterGreedy, outputPath);
-            string instructionsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents", "Instructions.txt"));
+           // run or tools
+            Console.WriteLine("\n>>> [3. After OR-Tools] Detailed Conflict Report:");
+            var roleOpt = new RoleOptimizer();
+            var roleResult = roleOpt.Optimize(greedyState, maxPasses: 1000);
+            finalState = roleResult.BestState;
+            Program.LatestState = finalState; // !!create last state(read load -greedy -ortools)
+           
+            var finalHandler = new ScheduleHandler(finalState);
+            Console.WriteLine("\n>>> [After Ortools] Conflictes detais:");
+            finalHandler.DebugConflictDetails(finalState);
 
-            string responseText = openAI.CompareTwoCsvWithInstructions(file, outputPath, instructionsPath);
+            // ScheduleCsvExporter.ExportStateToWeeklyTableCsv(scheduleAfterGreedy, outputPath);
+            // string instructionsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents", "Instructions.txt"));
 
-            string documentsDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents"));
-            Directory.CreateDirectory(documentsDir);
+            // string responseText = openAI.CompareTwoCsvWithInstructions(file, outputPath, instructionsPath);
 
-            string responsePath = Path.Combine(documentsDir, baseName + "_OpenAI_Response.txt");
+            // string documentsDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents"));
+            // Directory.CreateDirectory(documentsDir);
 
-            File.WriteAllText(responsePath, responseText);
-            Console.WriteLine("Saved OpenAI response: " + responsePath);
+            // string responsePath = Path.Combine(documentsDir, baseName + "_OpenAI_Response.txt");
 
-            Console.WriteLine("Wrote CSV: " + outputPath);
+            // File.WriteAllText(responsePath, responseText);
+            // Console.WriteLine("Saved OpenAI response: " + responsePath);
 
-            output.ExportToHtml(file, scheduleAfterGreedy, "after_greedy");
+            // Console.WriteLine("Wrote CSV: " + outputPath);
+
+            // output.ExportToHtml(file, scheduleAfterGreedy, "after_greedy");
 
             // string apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
             // OpenAI openAI = new OpenAI(apiKey, "gpt-5-mini");
@@ -98,12 +110,9 @@ public class Program
 
 
 
-            // var roleOpt = new RoleOptimizer();
-            // var roleResult = roleOpt.Optimize(scheduleAfterGreedy, maxPasses: 1000);
-            // Program.LatestState = roleResult.BestState;
-            // output.ExportToHtml(file, roleResult.BestState, "After Role Checks");
-            // printStats("Role optimiser Data", roleResult.BestState, file, true);
-            // finalState = roleResult.BestState;
+            
+
+           
 
 
 
@@ -117,7 +126,7 @@ public class Program
             //     p.printPeopleOnProject();
             // }
         }
-        openAI.Close();
+        //openAI.Close();
 
         
 
@@ -172,6 +181,9 @@ public class Program
 
         Console.WriteLine("[SYSTEM] The final shift schedule has been exported to an HTML file.");
     }
+
+
+    
 
     public List<Project> LoadNewProjectsOnly(string path)
     {

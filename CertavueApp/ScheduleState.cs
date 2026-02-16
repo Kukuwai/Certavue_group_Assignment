@@ -435,7 +435,74 @@ public class ScheduleState
         return true;
     }
 
+      // 在 ScheduleState 类内部添加：
 
+// 1. 获取该项目最原始的分配情况（用于 OR-Tools 重新排布）
+public List<(int PersonId, int Week, int Hours)> GetOriginalAssignments(Project p)
+{
+    var assignments = new List<(int PersonId, int Week, int Hours)>();
+    foreach (var person in p.people) // 遍历项目所属的人员
+    {
+        if (person.projects.TryGetValue(p, out var weeks))
+        {
+            foreach (var kvp in weeks)
+            {
+                // kvp.Key 是原始周，kvp.Value 是小时
+                assignments.Add((person.id, kvp.Key, kvp.Value));
+            }
+        }
+    }
+    return assignments;
+}
+
+// 2. 根据 OR-Tools 的精细计算结果更新全局状态
+public void UpdateFromFineGrainedAssignments(Dictionary<(int PersonId, Project Project, int RawWeek), int> newAssignments)
+{
+    // 1. 原子化：定义一个内部方法来处理单一分配
+    void CommitAssignment(int pId, Project prj, int targetW, int hours)
+{
+    var person = People.First(p => p.id == pId);
+    
+    // 1. 确保该人拥有这个项目的记录容器
+    if (!person.projects.ContainsKey(prj)) 
+    {
+        person.projects[prj] = new Dictionary<int, int>();
+    }
+
+    // 2. 正确的赋值：第一层选项目，第二层选周
+    // 修复：person.projects[prj] 得到的是 Dictionary<int, int>
+    person.projects[prj][targetW] = hours;
+
+    // 3. 更新统计网格（保持不变）
+    var wk = new WeekKey(pId, prj.id, targetW);
+    PersonWeekGrid[wk] = PersonWeekGrid.GetValueOrDefault(wk) + hours;
+
+    var pwk = new PersonWeekKey(pId, targetW);
+    PersonWeekHours[pwk] = PersonWeekHours.GetValueOrDefault(pwk) + hours;
+}
+    // 2. 批量处理：先备份小时数，清空，再重建
+    // 备份：(项目, 原始周) -> 小时
+    var hourBackup = newAssignments.ToDictionary(
+        kv => (kv.Key.Project, kv.Key.RawWeek),
+        kv => kv.Key.Project.people.First(p => p.projects.ContainsKey(kv.Key.Project))
+                                  .projects[kv.Key.Project][kv.Key.RawWeek]
+    );
+
+    // 清理所有相关项目的旧痕迹
+    foreach (var p in newAssignments.Keys.Select(k => k.Project).Distinct())
+    {
+        foreach (var person in People) person.projects.Remove(p);
+    }
+    PersonWeekGrid.Clear();
+    PersonWeekHours.Clear();
+
+    // 3. 应用新状态
+    foreach (var (key, targetWeek) in newAssignments)
+    {
+        int hours = hourBackup[(key.Project, key.RawWeek)];
+        CommitAssignment(key.PersonId, key.Project, targetWeek, hours);
+    }
+}
 
 
 
