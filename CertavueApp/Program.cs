@@ -31,7 +31,7 @@ public class Program
 
         ScheduleState finalState = null;
         string apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
-        OpenAI openAI = new OpenAI(apiKey, "gpt-5-mini");
+        OpenAI openAI = new OpenAI(apiKey, "gpt-5-nano");
 
 
         // loading data in
