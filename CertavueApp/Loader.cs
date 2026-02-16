@@ -19,7 +19,7 @@ public class Loader
         // searches the index for the headers i.e people name and project name (this should always be 0 and 1)
         int personHeader = Array.IndexOf(header, "Person");
         int projectHeader = Array.IndexOf(header, "Project");
-        int roleHeader = Array.IndexOf(header,"Role");
+        int roleHeader = Array.IndexOf(header, "Role");
 
         // skips the headers, so reads in the rows (our actual data i.e capacity)
         foreach (var line in lines.Skip(1))
@@ -35,7 +35,7 @@ public class Loader
             // stores the name of the project in the current row
             string RoleName = cells[roleHeader].Trim();
 
-            var startDate = Array.IndexOf(cells,"s");
+            var startDate = Array.IndexOf(cells, "s");
             var endDate = Array.IndexOf(cells, "e");
 
             if (!peopleByName.ContainsKey(personName))
@@ -47,21 +47,22 @@ public class Loader
             var person = peopleByName[personName];
             var project = projectsByName[projectName];
 
-            List<int> weeksAssigned = new List<int>();
-            for (int i = startDate+1; i < endDate; i++)
+            Dictionary<int, int> weekWorkingHours = new Dictionary<int, int>();
+            for (int i = startDate + 1; i < endDate; i++)
+            {
+                if (int.TryParse(cells[i], out int hours))
                 {
-                    if (cells[i].Contains("40"))
-                    {
-                        weeksAssigned.Add(i-2);
-                    }
+                    weekWorkingHours.Add(i - 2, Convert.ToInt32(cells[i]));
                 }
+            }
 
-            person.projects.Add(project, weeksAssigned);
+            person.projects.Add(project, weekWorkingHours);
             project.people.Add(person);
             project.originalPeopleIds.Add(person.id);
             project.updateCapacity();
-            
+            project.OriginalDurationSpan = project.durationProjectFinder();            
         }
+
         return (peopleByName.Values.ToList(), projectsByName.Values.ToList());
     }
 }

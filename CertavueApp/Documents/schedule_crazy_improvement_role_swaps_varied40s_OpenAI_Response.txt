@@ -1,0 +1,134 @@
+I loaded and compared the two files and produced the requested summary, metrics, person- and project-level change tables, reasoning and assumptions. I saved CSV exports of the detailed change tables for download:
+
+- [Download person_changes.csv](/mnt/data/person_changes.csv)  
+- [Download project_changes.csv](/mnt/data/project_changes.csv)  
+- [Download important_changes.csv](/mnt/data/important_changes.csv)
+
+1) Summary
+- No rows (Person,Project,Role) were added or removed. The updated schedule redistributed hours across weeks but preserved every row key.
+- Total numeric hours are unchanged (3485 before and after) — the algorithm redistributed existing hours.
+- The main visible change is redistribution of hours away from a cluster of weeks (originally around W20–W23) into earlier and later weeks (notably W8–W19 and W24–W31). The update removed non-numeric markers ("s" and "e") and placed numeric hours into week columns.
+- Conflicts (overbooked person-weeks relative to a 40-hour weekly capacity) dropped from 12 to 0. This strongly indicates the optimizer prioritized removing weekly over-allocations (peak smoothing / respect a 40-hr capacity).
+
+2) Metrics
+- Rows before: 35
+- Rows after: 35
+- Rows added: 0
+- Rows removed: 0
+- Rows changed (numeric week differences): 15
+- Total numeric hours before: 3485
+- Total numeric hours after: 3485
+- Conflict count before (person-week totals >40 assumed capacity): 12
+- Conflict count after: 0
+
+3) Important changes table (project-week deltas)
+Below are the most important project-week shifts (project, week, before -> after, delta). These are the rows with non-zero week-level deltas (selected top changes):
+
+- Core_01
+  - W16: 0 -> 120 (+120)
+  - W17: 0 -> 120 (+120)
+  - W18: 0 -> 95 (+95)
+  - W19: 0 -> 110 (+110)
+  - W20: 120 -> 0 (-120)
+  - W21: 120 -> 0 (-120)
+  - W22: 95 -> 0 (-95)
+  - W23: 110 -> 0 (-110)
+
+- Core_03
+  - W8: 0 -> 100 (+100)
+  - W9: 0 -> 100 (+100)
+  - W10: 0 -> 60 (+60)
+  - W11: 0 -> 105 (+105)
+  - W20: 100 -> 0 (-100)
+  - W21: 100 -> 0 (-100)
+  - W22: 60 -> 0 (-60)
+  - W23: 105 -> 0 (-105)
+
+- Core_04
+  - W20: 105 -> 0 (-105)
+  - W21: 115 -> 0 (-115)
+  - W22: 120 -> 0 (-120)
+  - W23: 90 -> 0 (-90)
+  - W24: 0 -> 105 (+105)
+  - W25: 0 -> 115 (+115)
+  - W26: 0 -> 120 (+120)
+  - W27: 0 -> 90 (+90)
+
+- Core_05
+  - W20: 90 -> 0 (-90)
+  - W21: 80 -> 0 (-80)
+  - W22: 80 -> 0 (-80)
+  - W23: 115 -> 0 (-115)
+  - W28: 0 -> 90 (+90)
+  - W29: 0 -> 80 (+80)
+  - W30: 0 -> 80 (+80)
+  - W31: 0 -> 115 (+115)
+
+- Core_06
+  - W12: 0 -> 80 (+80)
+  - W13: 0 -> 115 (+115)
+  - W14: 0 -> 100 (+100)
+  - W15: 0 -> 90 (+90)
+  - W20: 80 -> 0 (-80)
+  - W21: 115 -> 0 (-115)
+  - W22: 100 -> 0 (-100)
+  - W23: 90 -> 0 (-90)
+
+(Full project-week change detail available in the exported important_changes.csv.)
+
+4) Person-level changes
+Below are all rows (Person, Project, Role) that changed (15 rows). For each row I show total hours before/after (all totals preserved per row) and the week-level differences (only weeks with changes are listed):
+
+Person | Project | Role | TotalBefore | TotalAfter | Delta | Week-level diffs
+---|---:|---|---:|---:|---:|---
+Person_01 | Core_01 | Analyst | 160 | 160 | 0 | W16: 0 -> 40; W17: 0 -> 40; W18: 0 -> 40; W19: 0 -> 40; W20: 40 -> 0; W21: 40 -> 0; W22: 40 -> 0; W23: 40 -> 0
+Person_01 | Core_03 | Analyst | 130 | 130 | 0 | W8: 0 -> 40; W9: 0 -> 40; W10: 0 -> 10; W11: 0 -> 40; W20: 40 -> 0; W21: 40 -> 0; W22: 10 -> 0; W23: 40 -> 0
+Person_01 | Core_04 | Analyst | 125 | 125 | 0 | W20: 40 -> 0; W21: 35 -> 0; W22: 40 -> 0; W23: 10 -> 0; W24: 0 -> 40; W25: 0 -> 35; W26: 0 -> 40; W27: 0 -> 10
+Person_01 | Core_05 | Analyst | 100 | 100 | 0 | W20: 40 -> 0; W21: 10 -> 0; W22: 15 -> 0; W23: 35 -> 0; W28: 0 -> 40; W29: 0 -> 10; W30: 0 -> 15; W31: 0 -> 35
+Person_01 | Core_06 | Analyst | 155 | 155 | 0 | W12: 0 -> 35; W13: 0 -> 40; W14: 0 -> 40; W15: 0 -> 40; W20: 35 -> 0; W21: 40 -> 0; W22: 40 -> 0; W23: 40 -> 0
+Person_02 | Core_01 | Developer | 150 | 150 | 0 | W16: 0 -> 40; W17: 0 -> 40; W18: 0 -> 40; W19: 0 -> 30; W20: 40 -> 0; W21: 40 -> 0; W22: 40 -> 0; W23: 30 -> 0
+Person_02 | Core_03 | Developer | 85 | 85 | 0 | W8: 0 -> 20; W9: 0 -> 30; W10: 0 -> 10; W11: 0 -> 25; W20: 20 -> 0; W21: 30 -> 0; W22: 10 -> 0; W23: 25 -> 0
+Person_02 | Core_04 | Developer | 160 | 160 | 0 | W20: 40 -> 0; W21: 40 -> 0; W22: 40 -> 0; W23: 40 -> 0; W24: 0 -> 40; W25: 0 -> 40; W26: 0 -> 40; W27: 0 -> 40
+Person_02 | Core_05 | Developer | 120 | 120 | 0 | W20: 10 -> 0; W21: 30 -> 0; W22: 40 -> 0; W23: 40 -> 0; W28: 0 -> 10; W29: 0 -> 30; W30: 0 -> 40; W31: 0 -> 40
+Person_02 | Core_06 | Developer | 115 | 115 | 0 | W12: 0 -> 30; W13: 0 -> 35; W14: 0 -> 40; W15: 0 -> 10; W20: 30 -> 0; W21: 35 -> 0; W22: 40 -> 0; W23: 10 -> 0
+Person_03 | Core_01 | Manager | 135 | 135 | 0 | W16: 0 -> 40; W17: 0 -> 40; W18: 0 -> 15; W19: 0 -> 40; W20: 40 -> 0; W21: 40 -> 0; W22: 15 -> 0; W23: 40 -> 0
+Person_03 | Core_03 | Manager | 150 | 150 | 0 | W8: 0 -> 40; W9: 0 -> 30; W10: 0 -> 40; W11: 0 -> 40; W20: 40 -> 0; W21: 30 -> 0; W22: 40 -> 0; W23: 40 -> 0
+Person_03 | Core_04 | Manager | 145 | 145 | 0 | W20: 25 -> 0; W21: 40 -> 0; W22: 40 -> 0; W23: 40 -> 0; W24: 0 -> 25; W25: 0 -> 40; W26: 0 -> 40; W27: 0 -> 40
+Person_03 | Core_05 | Manager | 145 | 145 | 0 | W20: 40 -> 0; W21: 40 -> 0; W22: 25 -> 0; W23: 40 -> 0; W28: 0 -> 40; W29: 0 -> 40; W30: 0 -> 25; W31: 0 -> 40
+Person_03 | Core_06 | Manager | 115 | 115 | 0 | W12: 0 -> 15; W13: 0 -> 40; W14: 0 -> 20; W15: 0 -> 40; W20: 15 -> 0; W21: 40 -> 0; W22: 20 -> 0; W23: 40 -> 0
+
+Notes:
+- Every changed row has identical TotalBefore and TotalAfter (per-row totals preserved). The change is redistribution across weeks only.
+- Weeks mostly moved from the block W20–W23 to other weeks (W8–W19 and W24–W31), per-person and per-project.
+
+5) Project-level changes (staffing & week shifts)
+- Projects with week-hour shifts: Core_01, Core_03, Core_04, Core_05, Core_06.
+- For those projects the total project hours are unchanged; hours were shifted week-by-week according to the "Important changes" list above.
+- Staff sets (Person,Role) assigned to each project did not change (no staffAdded or staffRemoved entries). In other words, the optimizer redistributed hours across weeks among the same set of people/roles working on each project.
+
+6) Reasoning notes (why these changes likely happened)
+- Evidence-based inference:
+  - The update removed all person-week conflicts (from 12 to 0). This strongly suggests the objective prioritized eliminating weekly over-allocations (respecting a 40-hr/week capacity).
+  - Total hours unchanged indicates the optimizer redistributed hours rather than trimming or adding work.
+  - Hour blocks that were concentrated in W20–W23 were split and moved earlier and later. This indicates smoothing of peaks (peak shaving) to avoid >40 hr person-weeks.
+  - Markers 's' and 'e' present in original were removed — likely the updated file replaced the markers with numeric allocations in valid weeks.
+  - Staffing (who is on each project and their roles) appears unchanged. So the algorithm prioritized rescheduling hours rather than swapping people between projects. (If role swaps were allowed we do not observe net staff changes in these files.)
+- If uncertain, I mark it explicitly:
+  - Unsure: whether the optimizer intentionally prioritized moving work to specific earlier weeks (W8–W19) vs. making room in later weeks — evidence shows both earlier and later weeks were used. So the exact tie-breaker (earliest-fit vs. balancing across multiple weeks) is *unsure*.
+  - Unsure: whether other constraints (like person-specific unavailable weeks, different capacities, or project start/end markers constraints) exist beyond the evident 40-hr weekly capacity — they are not encoded as numeric constraints in these CSVs, so inference is limited.
+
+7) Assumptions and parsing issues
+- I treated row key as (Person, Project, Role) exactly as requested.
+- Week columns used: W1..W52.
+- Non-numeric markers (e.g., "s", "e") were ignored for numeric calculations (treated as zero). The updated file had no such markers.
+- For conflict detection I assumed per-person weekly capacity = 40 hours (inferred from the file name "varied40s"). Conflicts are counted as person-week totals strictly greater than 40. If the intended capacity is different, the conflict counts will change.
+- Numeric parsing: numeric strings parsed as integers (or floats then cast in outputs). All values in the files were integers in practice.
+- Rounding: all hour values are integers in the source; outputs show integer deltas.
+- No rows were added/removed, so comparisons were straightforward. If any keys had duplicate rows the logic would aggregate by the appearing rows (the provided files had unique keys).
+
+If you want, I can:
+- Produce a visualization of per-person weekly loads before/after (e.g., a heatmap) to show conflict removal.
+- Recompute conflicts with a different weekly capacity value if 40 was incorrect.
+- Provide a compact diff file (CSV) showing only the week-level deltas across all changed rows.
+
+Which of those would you like next?

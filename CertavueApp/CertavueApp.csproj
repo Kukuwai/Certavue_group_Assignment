@@ -8,9 +8,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="CsvHelper" Version="33.1.0" />
     <PackageReference Include="GeneticAlgorithm" Version="1.3.6" />
     <PackageReference Include="GeneticSharp" Version="3.1.4" />
     <PackageReference Include="Google.OrTools" Version="*" />
+    <PackageReference Include="morelinq" Version="4.4.0" />
     
   </ItemGroup>
 
