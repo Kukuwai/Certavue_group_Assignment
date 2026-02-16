@@ -4,103 +4,268 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 
 public class OpenAI
 {
-    private HttpClient client; 
-    private string model;      
+    private HttpClient client;
+    private string model;
 
     public OpenAI(string apiKey, string modelName)
     {
         model = modelName; //Probably 5.1 mini
-        client = new HttpClient(); 
-        client.BaseAddress = new Uri("https://api.openai.com/v1/"); 
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey); 
+        client = new HttpClient();
+        client.BaseAddress = new Uri("https://api.openai.com/v1/");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+        client.Timeout = TimeSpan.FromMinutes(5);
     }
 
     public string GetModel()
     {
-        return model; 
+        return model;
     }
 
     public string CompareTwoCsvWithInstructions(string originalCsvPath, string updatedCsvPath, string instructionsTxtPath)
     {
-        string instructions = File.ReadAllText(instructionsTxtPath); //Instruction text to be read
+        string instructions = File.ReadAllText(instructionsTxtPath);
 
-        string OriginalFileId = UploadCsvAndGetFileId(originalCsvPath); //Original CSV
-        string ChangedFileId = UploadCsvAndGetFileId(updatedCsvPath);  //After changes
+        string originalFileId = UploadCsvAndGetFileId(originalCsvPath);
+        string changedFileId = UploadCsvAndGetFileId(updatedCsvPath);
 
-        return SendPromptWithTwoFiles(instructions, OriginalFileId, ChangedFileId); 
+        return SendPromptWithTwoFiles(
+            instructions,
+            originalFileId,
+            changedFileId,
+            Path.GetFileName(originalCsvPath),
+            Path.GetFileName(updatedCsvPath));
     }
+
 
     private string UploadCsvAndGetFileId(string csvPath)
     {
-        MultipartFormDataContent form = new MultipartFormDataContent(); //Multipart body file upload
-        form.Add(new StringContent("user_data"), "purpose"); //Metadata
+        using MultipartFormDataContent form = new MultipartFormDataContent();
+        form.Add(new StringContent("user_data"), "purpose");
 
-        byte[] bytes = File.ReadAllBytes(csvPath); //Reading the csv bytes 
-        ByteArrayContent fileContent = new ByteArrayContent(bytes); //Wraps bytes
-        fileContent.Headers.ContentType = new MediaTypeHeaderValue("text/csv"); //MIME type set
-        form.Add(fileContent, "file", Path.GetFileName(csvPath)); //Adds the file with name
+        byte[] bytes = File.ReadAllBytes(csvPath);
+        ByteArrayContent fileContent = new ByteArrayContent(bytes);
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("text/csv");
+        form.Add(fileContent, "file", Path.GetFileName(csvPath));
 
-        HttpResponseMessage response = client.PostAsync("files", form).GetAwaiter().GetResult(); //POST /files
-        string body = response.Content.ReadAsStringAsync().GetAwaiter().GetResult(); //Reads JSON
+        HttpResponseMessage response = client.PostAsync("files", form).GetAwaiter().GetResult();
+        string body = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
 
-        JsonDocument doc = JsonDocument.Parse(body); //Parsing JSON
-        JsonElement idElement;
-        bool hasId = doc.RootElement.TryGetProperty("id", out idElement); //Try to read upload
+        if (!response.IsSuccessStatusCode)
+            throw new Exception("File upload failed: " + body);
 
-        string fileId = idElement.GetString(); 
-        doc.Dispose(); //JSON document
+        using JsonDocument doc = JsonDocument.Parse(body);
+        if (!doc.RootElement.TryGetProperty("id", out JsonElement idElement))
+            throw new Exception("Upload response missing file id: " + body);
 
-        return fileId; 
+        return idElement.GetString() ?? throw new Exception("Upload returned null file id.");
     }
 
-    private string SendPromptWithTwoFiles(string instructions, string fileId1, string fileId2)
+
+    private string SendPromptWithTwoFiles(
+    string instructions,
+    string fileId1,
+    string fileId2,
+    string originalFileName,
+    string updatedFileName)
+{
+    string comparePrompt =
+        "Use code interpreter to load and compare the two CSV files.\n" +
+        $"Original file: {originalFileName}\n" +
+        $"Updated file: {updatedFileName}\n" +
+        "Treat the first as original and second as updated.";
+
+    var payload = new
     {
-        string prompt = "\n" + instructions; // Final user prompt text
+        model = model,
+        instructions = instructions,
+        background = true,
+        tool_choice = "required",
+        tools = new object[]
+        {
+            new
+            {
+                type = "code_interpreter",
+                container = new
+                {
+                    type = "auto",
+                    file_ids = new[] { fileId1, fileId2 }
+                }
+            }
+        },
+        input = comparePrompt
+    };
 
-        // Build request payload manually as JSON string
-        string json = "{" +"\"model\":\"" + EscapeJson(model) + "\"," + "\"input\":[" + "{" + "\"role\":\"user\"," + "\"content\":[" + "{" + "\"type\":\"input_text\"," + "\"text\":\"" + EscapeJson(prompt) + "\"" + "}," + "{" + "\"type\":\"input_file\"," + "\"file_id\":\"" + EscapeJson(fileId1) + "\"" + "}," + "{" + "\"type\":\"input_file\"," + "\"file_id\":\"" + EscapeJson(fileId2) + "\"" + "}" + "]" + "}" + "]" + "}";
+    string json = JsonSerializer.Serialize(payload);
+    StringContent content = new StringContent(json, Encoding.UTF8, "application/json");
 
-        StringContent content = new StringContent(json, Encoding.UTF8, "application/json"); //HTTP body 
-        HttpResponseMessage response = client.PostAsync("responses", content).GetAwaiter().GetResult(); //Response
-        string body = response.Content.ReadAsStringAsync().GetAwaiter().GetResult(); //Reads the response
+    HttpResponseMessage response = client.PostAsync("responses", content).GetAwaiter().GetResult();
+    string body = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
 
-        return ExtractOutputText(body); //Returns only the output text
+    if (!response.IsSuccessStatusCode)
+        return body;
+
+    using JsonDocument doc = JsonDocument.Parse(body);
+    string responseId = GetOptionalStringProperty(doc.RootElement, "id");
+    string status = GetOptionalStringProperty(doc.RootElement, "status");
+
+    if (status == "completed")
+    {
+        return ExtractOutputText(body);
     }
+
+    if (string.IsNullOrWhiteSpace(responseId))
+    {
+        return body;
+    }
+
+    return WaitForCompletion(responseId, TimeSpan.FromMinutes(10), 2000);
+}
+
+
+    private string WaitForCompletion(string responseId, TimeSpan maxWait, int pollIntervalMs)
+    {
+        DateTime deadline = DateTime.UtcNow.Add(maxWait);
+
+        while (DateTime.UtcNow < deadline)
+        {
+            HttpResponseMessage pollResponse = client.GetAsync("responses/" + responseId).GetAwaiter().GetResult();
+            string pollBody = pollResponse.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+
+            if (!pollResponse.IsSuccessStatusCode)
+            {
+                return pollBody;
+            }
+
+            using JsonDocument pollDoc = JsonDocument.Parse(pollBody);
+            string status = GetOptionalStringProperty(pollDoc.RootElement, "status");
+
+            if (status == "completed")
+            {
+                return ExtractOutputText(pollBody);
+            }
+
+            if (status == "failed" || status == "cancelled" || status == "incomplete")
+            {
+                return pollBody;
+            }
+
+            Thread.Sleep(pollIntervalMs);
+        }
+
+        return "{ \"error\": { \"message\": \"Timed out waiting for OpenAI response completion.\", \"type\": \"timeout_error\" } }";
+    }
+
+    private static string GetOptionalStringProperty(JsonElement element, string propertyName)
+    {
+        if (element.TryGetProperty(propertyName, out JsonElement propertyElement) &&
+            propertyElement.ValueKind == JsonValueKind.String)
+        {
+            return propertyElement.GetString() ?? string.Empty;
+        }
+
+        return string.Empty;
+    }
+
 
     private string ExtractOutputText(string responseJson)
     {
-        JsonDocument doc = JsonDocument.Parse(responseJson); //Parse response JSON
-        JsonElement outputTextElement;
-        bool hasOutputText = doc.RootElement.TryGetProperty("output_text", out outputTextElement); //Check top output
+        using JsonDocument doc = JsonDocument.Parse(responseJson);
 
-        if (hasOutputText && outputTextElement.ValueKind == JsonValueKind.String)
+        if (doc.RootElement.TryGetProperty("output_text", out JsonElement outputTextElement))
         {
-            string text = outputTextElement.GetString(); //Pulls the text
-            doc.Dispose(); //Releases JSON doc
-
-            if (text != null && text.Length > 0)
+            if (outputTextElement.ValueKind == JsonValueKind.String)
             {
-                return text; //Returns text when it appears
+                string text = outputTextElement.GetString();
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    return text;
+                }
+            }
+
+            if (outputTextElement.ValueKind == JsonValueKind.Array)
+            {
+                StringBuilder topLevelText = new StringBuilder();
+                foreach (JsonElement part in outputTextElement.EnumerateArray())
+                {
+                    if (part.ValueKind == JsonValueKind.String)
+                    {
+                        string segment = part.GetString();
+                        if (!string.IsNullOrWhiteSpace(segment))
+                        {
+                            if (topLevelText.Length > 0) topLevelText.AppendLine().AppendLine();
+                            topLevelText.Append(segment);
+                        }
+                    }
+                }
+
+                if (topLevelText.Length > 0)
+                {
+                    return topLevelText.ToString();
+                }
             }
         }
-        else
+
+        if (doc.RootElement.TryGetProperty("output", out JsonElement outputArray) &&
+            outputArray.ValueKind == JsonValueKind.Array)
         {
-            doc.Dispose(); //JSON doc if no text is in it 
+            StringBuilder combined = new StringBuilder();
+
+            foreach (JsonElement outputItem in outputArray.EnumerateArray())
+            {
+                if (!outputItem.TryGetProperty("type", out JsonElement itemType) ||
+                    itemType.ValueKind != JsonValueKind.String ||
+                    itemType.GetString() != "message")
+                {
+                    continue;
+                }
+
+                if (!outputItem.TryGetProperty("content", out JsonElement contentArray) ||
+                    contentArray.ValueKind != JsonValueKind.Array)
+                {
+                    continue;
+                }
+
+                foreach (JsonElement contentItem in contentArray.EnumerateArray())
+                {
+                    if (!contentItem.TryGetProperty("type", out JsonElement contentType) ||
+                        contentType.ValueKind != JsonValueKind.String ||
+                        contentType.GetString() != "output_text")
+                    {
+                        continue;
+                    }
+
+                    if (!contentItem.TryGetProperty("text", out JsonElement textElement) ||
+                        textElement.ValueKind != JsonValueKind.String)
+                    {
+                        continue;
+                    }
+
+                    string text = textElement.GetString();
+                    if (!string.IsNullOrWhiteSpace(text))
+                    {
+                        if (combined.Length > 0) combined.AppendLine().AppendLine();
+                        combined.Append(text);
+                    }
+                }
+            }
+
+            if (combined.Length > 0)
+            {
+                return combined.ToString();
+            }
         }
 
-        return responseJson; //Full JSON
+        return responseJson;
     }
-
-    private string EscapeJson(string text)
+    public void Close()
     {
-        string result = text; //Work on a copy
-        result = result.Replace("\\", "\\\\"); 
-        result = result.Replace("\"", "\\\""); 
-        result = result.Replace("\r", "\\r"); 
-        result = result.Replace("\n", "\\n"); 
-        return result; //JSON safe text
+        if (client != null)
+        {
+            client.Dispose();
+        }
     }
 }

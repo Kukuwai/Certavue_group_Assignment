@@ -30,10 +30,17 @@ public class Program
 
 
         ScheduleState finalState = null;
+        string apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+        OpenAI openAI = new OpenAI(apiKey, "gpt-5-mini");
+
 
         // loading data in
         foreach (string file in files)
         {
+            if (!file.Contains("schedule_crazy_improvement_role_swaps_varied40s.csv"))
+            {
+                continue;
+            }
             var originalState = loadData(file);
 
             // export original data to html output
@@ -59,6 +66,18 @@ public class Program
             string outputPath = Path.Combine(outputCsvDir, baseName + "_after_greedy.csv");
 
             ScheduleCsvExporter.ExportStateToWeeklyTableCsv(scheduleAfterGreedy, outputPath);
+            string instructionsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents", "Instructions.txt"));
+
+            string responseText = openAI.CompareTwoCsvWithInstructions(file, outputPath, instructionsPath);
+
+            string documentsDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents"));
+            Directory.CreateDirectory(documentsDir);
+
+            string responsePath = Path.Combine(documentsDir, baseName + "_OpenAI_Response.txt");
+
+            File.WriteAllText(responsePath, responseText);
+            Console.WriteLine("Saved OpenAI response: " + responsePath);
+
             Console.WriteLine("Wrote CSV: " + outputPath);
 
             output.ExportToHtml(file, scheduleAfterGreedy, "after_greedy");
@@ -92,6 +111,9 @@ public class Program
             //     p.printPeopleOnProject();
             // }
         }
+        openAI.Close();
+
+        
 
         //  ProcessNewProjectInsertion(finalState);
     }

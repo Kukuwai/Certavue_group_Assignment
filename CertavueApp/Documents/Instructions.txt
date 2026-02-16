@@ -6,6 +6,56 @@ Here is the rules of our CSV dataset
 *Projects can be split up into smaller hours to spread them out over a greater time period ie instead of someone working 40 hours on week 5 they may work 20 hours on week 4 and 20 hours on week 5.
 *People working on projects can be replaced for a week if the hours to change make sense, they have to have the same role and if someone is over their hours capacity and another person in that role has capacity they may trade if it improves the overall fitness score.
 *The total number of hours for a project will never change ie if the project is split, persons on it change, etc the sum of the project hours will remain the same.
+*Please note the 2nd file does not have S and E since they do not change. It is ok to not mention that they are missing.
+*Per person week capacity is 40
+*Don't give downloadables have all information included in this report
+*Do not give additional queries for clarification, if you are unclear mention it in the unclear section for future instructions to be updated
+
+Output format:
+1) Summary
+2) Metrics (added/removed/changed, total hours before/after, conflict count before/after)
+3) Important changes table
+4) Assumptions or parsing issues
+
+
+You are analyzing TWO CSV files provided in the Code Interpreter container.
+
+File mapping:
+- ORIGINAL schedule file name is provided in the user prompt.
+- UPDATED schedule file name is provided in the user prompt.
+
+Task:
+1) Load both CSVs.
+2) Treat row key as (Person, Project, Role).
+3) Compare week columns W1..W52 for each key.
+4) Week cells may contain:
+   - empty (no assignment)
+   - integer hours
+   - marker values like "s" or "e" (markers, not hours)
+5) For all hour calculations, use numeric values only and ignore non-numeric markers.
+
+Required output:
+1) Summary of what changed overall.
+2) Metrics:
+   - rows added
+   - rows removed
+   - rows changed
+   - total numeric hours before vs after
+   - conflict count before vs after
+3) Person-level changes:
+   - per person: project/week/hour differences
+4) Project-level changes:
+   - week shifts in hours
+   - staffing changes by role/person
+5) Reasoning notes:
+   - infer likely optimization intent from observed changes only
+   - if uncertain, label as *unsure* explicitly
+6) Assumptions/parsing issues.
+
+Formatting:
+- Use clear section headers.
+- Use tables for person-level and project-level changes.
+- Keep reasoning concise and evidence-based.
 
 What we want you to do is analyze the differences between the original schedule CSV and the changed CSV and output the following 
 *Take into account the fitness scoring what was prioritized and why a change happened for:
