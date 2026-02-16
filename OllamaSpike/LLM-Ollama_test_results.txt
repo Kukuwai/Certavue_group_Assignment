@@ -1,0 +1,130 @@
+ Testing Schedule Explanations
+
+***************************************************
+
+ Scenario 1: Hours Reduced
+--------------------------------------------------
+Explanation: The project was adjusted from 40 hours to 30 hours for Person: Alice during Week 1 of the Website Redesign due to unforeseen changes in the scope, which required a condensed timeline. This adjustment aims to ensure that Alice can still deliver high-quality work within the revised timeframe.
+Time: 16323ms (16.32s)
+
+ Scenario 2: Hours Increased
+--------------------------------------------------
+Explanation: The change from 20 hours to 35 hours for the mobile app development project was made due to a revised scope and requirements, which necessitated additional time and resources. This adjustment reflects an increase in complexity and/or requirements that require more time to complete successfully.
+Time: 7064ms (7.06s)
+
+ Scenario 3: Person Removed
+--------------------------------------------------
+Explanation: Charlie's hours were reduced to 0, indicating he has been removed from the Project: Database Migration. The reason for his removal is not specified in the provided information, but it may be due to changes in the project requirements, team composition, or other factors that led to a reevaluation of Charlie's role.
+Time: 7945ms (7.95s)
+
+ Scenario 4: Person Added
+--------------------------------------------------
+Explanation: Diana was added to the Project: API Integration team due to an increase in the assigned workload, requiring additional support. The project's original hour count was reduced from 0 hours to 25 hours, indicating that more work needs to be completed within a shorter timeframe.
+Time: 6697ms (6.70s)
+
+ Scenario 5: Multiple Changes
+--------------------------------------------------
+Explanation: This week, the project team made adjustments to their work schedules. Alice's hours were reduced from 40 to 30, while Bob's hours were completely removed from his schedule. In contrast, Charlie's workload was increased from 0 to 40 hours, indicating a significant increase in their responsibilities.
+Time: 8363ms (8.36s)
+
+
+ All simple scenarios tested!
+Real Scenario: Explain FindPeopleForNewProject
+**************************************************
+Alice (40h), Bob (35h), Diana (50h)
+Charlie (15h)
+
+You are a project scheduling assistant. Explain this selection in 2-3 sentences:
+
+Project: Web Redesign
+Required Hours: 30 hours/week
+
+SELECTED (3 people):
+Alice (40h), Bob (35h), Diana (50h)
+
+NOT SELECTED (1 people):
+Charlie (15h)
+
+Explain why these people were selected and others were not.
+
+Explanation:
+Based on the selection, Alice was chosen for 40 hours of work per week due to her high availability and workload capacity. Bob, with 35 hours, was also selected because his commitment is still substantial enough to contribute significantly to the project without overburdening him. Diana, who can handle 50 hours, was prioritized first as she offers the most flexibility and capacity to complete the required work.
+
+On the other hand, Charlie was not selected for 15 hours of work per week likely because his availability and workload were deemed insufficient to meet the project's requirements or sustainably contribute to its completion.
+
+
+ REAL CSV FORMAT TEST:
+
+ CSV Schedule: Explain Optimization Changes
+**********************************************************************
+Asking LLM to explain optimization...
+
+LLM Explanation:
+Here's the analysis of the changes detected:
+
+1. **What changed?**
+The optimized schedule has been updated with three changes: 
+- Person_14's W4 allocation increased from 30h to 40h, 
+- Person_24's W3 and W4 allocations decreased by 5 hours each.
+
+2. **Why did the optimizer make these changes?**
+The optimizer likely made these changes to optimize the fitness scores of the individuals involved.
+The increase in Person_14's allocation is likely driven by a desire to improve their Conflict Score, as they were initially working at capacity (40h/week). 
+Decreasing Person_24's W3 and W4 allocations may be intended to reduce Movement Score and Continuity Score for that individual.
+
+3. **Which fitness rules drove these decisions?**
+The changes are most likely influenced by the following fitness rules:
+- Conflict Score: The increase in Person_14's allocation aims to reduce their potential conflict score.
+- Movement Score: Decreasing Person_24's allocations may be an attempt to minimize frequent project switches, which impacts this score.
+
+======================================================================
+
+======================================================================
+GREEDY ALGORITHM + OLLAMA EXPLANATION TEST
+======================================================================
+
+BEFORE Optimization:
+  Fitness Score: 0.92
+  Conflict Score: 0.92
+
+Running Greedy Algorithm...
+
+Checking for overloads before optimization:
+  Person 1, Week 4: 60 hours (OVERLOADED by 20)
+  Person 1, Week 5: 60 hours (OVERLOADED by 20)
+  Person 1, Week 6: 60 hours (OVERLOADED by 20)
+|----- Greedy Pass 1 -----|
+Finess Score - 0.94
+Breakdown - Conflict Score: 0.94 || Movement Score: 1.00 || Focus Score: 0.81 || Continuity Score: 1.00 || Duration Score: 1.00
+
+|----- Greedy Pass 2 -----|
+Finess Score - 0.96
+Breakdown - Conflict Score: 0.97 || Movement Score: 1.00 || Focus Score: 0.83 || Continuity Score: 1.00 || Duration Score: 1.00
+
+|----- Greedy Pass 3 -----|
+Finess Score - 0.97
+Breakdown - Conflict Score: 1.00 || Movement Score: 1.00 || Focus Score: 0.86 || Continuity Score: 1.00 || Duration Score: 1.00
+
+
+Checking for overloads after optimization:
+
+AFTER Optimization:
+  Fitness Score: 0.97
+  Conflict Score: 1.00
+
+Generating explanation with Ollama...
+
+
+**** Here are the actual changes after Greedy Run ***
+Reduced overloaded person-weeks from 3 to 0
+=== OLLAMA EXPLANATION ===
+Here's a breakdown of the changes:
+
+Before optimization, the main problems were apparent in the high scores across several components. The Conflict Score was at 0.92, indicating that there were issues with people working over 40 hours/week. This was also reflected in the Movement Score being at 1.00, suggesting that project timelines were shifting far from their original schedule. Additionally, the Focus Score of 0.78 and Continuity Score of 1.00 indicated problems with people juggling many projects and team members changing, respectively.
+
+The changes made included reducing overloaded person-weeks from 3 to 0. This implies that some individuals were taking on too much work and were reassigned or their workload was redistributed.
+
+These changes improved the score by addressing two main components: Conflict Score and Focus Score. The Conflict Score dropped from 0.92 to 1.00, indicating that the issues with people working over 40 hours/week were resolved. The Focus Score decreased from 0.78 to 0.86, suggesting that the number of projects people were juggling was reduced or better managed.
+
+Test completed successfully!
+

@@ -13,7 +13,7 @@ namespace OllamaSpike
       Console.WriteLine("\n" + new string('=', 70));
       Console.WriteLine("GREEDY ALGORITHM + OLLAMA EXPLANATION TEST");
       Console.WriteLine(new string('=', 70) + "\n");
-      
+
 
       try
       {
@@ -52,7 +52,7 @@ namespace OllamaSpike
         }
 
         var greedy = new GreedyAlg();
-        var afterState = greedy.StartGreedy(people, projects); // It seems Greedy is not working as of now.
+        var afterState = greedy.StartGreedy(people, projects);
 
         // Check for overloads after
         Console.WriteLine("\nChecking for overloads after optimization:");
@@ -75,6 +75,9 @@ namespace OllamaSpike
 
         // Generate actual changes list by comparing before/after
         List<string> actualChanges = GenerateChangesList(beforeState, afterState);
+
+        Console.WriteLine("\n**** Here are the actual changes after Greedy Run ***");
+        Console.WriteLine(string.Join("\n  - ", actualChanges));
 
         var explainer = new ScheduleExplainerOllama(ollama);
 

@@ -3,6 +3,12 @@ using OllamaSharp.Models.Chat;
 using OllamaSpike;
 using System.Diagnostics;
 
+// CREATE LOG FILE for saving the testing results. 
+string logFileName = $"LLM-Ollama_test_results.txt";
+var fileWriter = new StreamWriter(logFileName);
+var multiWriter = new MultiTextWriter(Console.Out, fileWriter);
+Console.SetOut(multiWriter);
+
 Console.WriteLine(" Testing Schedule Explanations\n");
 Console.WriteLine("*" + new string('*', 50) + "\n");
 
@@ -20,17 +26,23 @@ await TestScenarios.RunScenario("Scenario 3: Person Removed", TestScenarios.Pers
 await TestScenarios.RunScenario("Scenario 4: Person Added", TestScenarios.PersonAdded(), ollama);
 await TestScenarios.RunScenario("Scenario 5: Multiple Changes", TestScenarios.MultipleChanges(), ollama);
 
-Console.WriteLine("\n All scenarios tested!");
+Console.WriteLine("\n All simple scenarios tested!");
 
 // Test real scenario
-// await RealScenarioTest.TestFindPeopleExplanation(ollama);
+await RealScenarioTest.TestFindPeopleExplanation(ollama);
 
 // CSV tests;
 Console.WriteLine("\n REAL CSV FORMAT TEST:\n");
-// await CSVScheduleTest.TestScheduleOptimizationExplanation(ollama);
+
+await CSVScheduleTest.TestScheduleOptimizationExplanation(ollama);
 
 // Test Greedy + Ollama Explanation
 await GreedyExplanationTest.TestGreedyWithExplanation(ollama);
+
+// CLOSE LOG FILE
+fileWriter.Flush();
+fileWriter.Close();
+Console.WriteLine($"\nResults saved to: {logFileName}");
 
 // LangChain Test
 // Console.WriteLine("\n" + new string('=', 60));
@@ -38,18 +50,6 @@ await GreedyExplanationTest.TestGreedyWithExplanation(ollama);
 // Console.WriteLine(new string('=', 60) + "\n");
 // await LangChainTest.RunBasicTest();
 
-// OpenAI Test (OPTIONAL - costs money!)
-string openAIKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY") ?? string.Empty;
-if (!string.IsNullOrEmpty(openAIKey))
-{
-  Console.WriteLine("\n OpenAI API key detected - running comparison test...");
-  await OpenAITest.TestOpenAIExplanation(openAIKey);
-}
-else
-{
-  Console.WriteLine("\n  No OpenAI API key found. Set OPENAI_API_KEY to test OpenAI.");
-  Console.WriteLine("   Example: export OPENAI_API_KEY='sk-...'");
-}
 
 
 
