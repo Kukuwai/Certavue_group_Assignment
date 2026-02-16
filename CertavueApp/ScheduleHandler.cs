@@ -78,7 +78,7 @@ public class ScheduleHandler
         {
             peopleById.Add(p.id, p);
         }
-        
+
         // changed to iterate person week totals not person-project weeks assigned
         foreach (var personWeek in state.PersonWeekHours)
         {
@@ -97,83 +97,160 @@ public class ScheduleHandler
             totalAssignedHours += assignedHours;
             totalOverworkHours += Math.Max(0, assignedHours - capacity);
 
-        /* caculate the overwork hours
-        if (hoursInThisCell > CAPACITY_LIMIT)
-        { // caculate the total overwork hours
-            totalOverworkHours += (hoursInThisCell - CAPACITY_LIMIT);
-        }*/
-    }  
-    // check if person is even assigned hours on project
-    if (totalAssignedHours <= 0)
+            /* caculate the overwork hours
+            if (hoursInThisCell > CAPACITY_LIMIT)
+            { // caculate the total overwork hours
+                totalOverworkHours += (hoursInThisCell - CAPACITY_LIMIT);
+            }*/
+        }
+        // check if person is even assigned hours on project
+        if (totalAssignedHours <= 0)
         {
             // if no return default score
             return 1.0;
         }
-    
-    //caculate percentage of overwork
-    double conflictRatio = totalOverworkHours / totalAssignedHours;
-    //Normalization
-    return Math.Max(0, 1.0 - conflictRatio);
+
+        //caculate percentage of overwork
+        double conflictRatio = totalOverworkHours / totalAssignedHours;
+        //Normalization
+        return Math.Max(0, 1.0 - conflictRatio);
     }
 
 
 
 
 
+    // public double GetMovementScore(ScheduleState state)
+    // {
+    //     // sum shift
+    //     double totalShift = state.Projects.Sum(p => Math.Abs(state.GetShift(p)));
+    //     // normalization socre
+    //     double avgShift = totalShift / state.Projects.Count;
+    //     return Math.Max(0, 1.0 - (avgShift / 4.0)); // if it near with 4 it will be 0
+    // }
+
     public double GetMovementScore(ScheduleState state)
     {
-        // sum shift
-        double totalShift = state.Projects.Sum(p => Math.Abs(state.GetShift(p)));
-        // normalization socre
-        double avgShift = totalShift / state.Projects.Count;
-        return Math.Max(0, 1.0 - (avgShift / 4.0)); // if it near with 4 it will be 0
+        if (state.Projects.Count == 0) return 1.0;
+
+        double weightedPenaltySum = 0.0;
+        double weightSum = 0.0;
+
+        foreach (Project project in state.Projects)
+        {
+            List<int> validShifts = state.GetValidShifts(project);
+            int maxAllowedShift = validShifts.Count == 0 ? 0 : validShifts.Max(s => Math.Abs(s));
+            int currentShift = Math.Abs(state.GetShift(project));
+
+            double normalizedShift = maxAllowedShift == 0
+                ? 0.0
+                : Math.Min(1.0, (double)currentShift / maxAllowedShift);
+
+            double weight = GetProjectEffortHours(project);
+            weightedPenaltySum += normalizedShift * weight;
+            weightSum += weight;
+        }
+
+        if (weightSum <= 0) return 1.0;
+
+        double averagePenalty = weightedPenaltySum / weightSum;
+        return Math.Max(0.0, 1.0 - averagePenalty);
+    }
+
+    private static double GetProjectEffortHours(Project project)
+    {
+        double total = 0.0;
+
+        foreach (Person person in project.people)
+        {
+            if (!person.projects.TryGetValue(project, out Dictionary<int, int> weekHours))
+                continue;
+
+            total += weekHours.Values.Where(h => h > 0).Sum();
+        }
+
+        return total > 0 ? total : 1.0;
+    }
+
+    // public double GetFocusScore(ScheduleState state)
+    // {
+    //     // add empty state check to match other methods above??
+    //     if (state.PersonWeekGrid.Count == 0) return 1.0;
+
+    //     // make new dictionary to count how many projects each person has / per week
+    //     var projectsPerPersonPerWeek = new Dictionary<ScheduleState.PersonWeekKey, int>();
+
+    //     // iterate ovver person week grid to populate new dictionary for counting
+    //     foreach (var weekKey in state.PersonWeekGrid)
+    //     {
+    //         // skip any people with 0 weeks
+    //         if (weekKey.Value <= 0)
+    //         {
+    //             continue;
+    //         }
+    //         // think we have to make each weekKey into a personWeekKey
+    //         var keyOfWeekKey = new ScheduleState.PersonWeekKey(weekKey.Key.PersonId, weekKey.Key.Week);
+    //         // check if new, if new start count at 0
+    //         if (!projectsPerPersonPerWeek.ContainsKey(keyOfWeekKey))
+    //         {
+    //             projectsPerPersonPerWeek[keyOfWeekKey] = 0;
+    //         }
+    //         // if not new add 1 to count
+    //         projectsPerPersonPerWeek[keyOfWeekKey] += 1;
+    //     }
+
+    //     // check for invalide dictinary, if no weekeys saved
+    //     if (projectsPerPersonPerWeek.Count == 0)
+    //     {
+    //         return 1.0;
+    //     }
+    //     // need to do a count to see if there are multiple tasks someone is working on / per week
+    //     var multiTaskWeeks = projectsPerPersonPerWeek.Values.Count(projectCount => projectCount > 1);
+
+    //     // return the calc for focus score, or 0 if negative.
+    //     return Math.Max(0, 1.0 - ((double)multiTaskWeeks / projectsPerPersonPerWeek.Count));
+
+
+    //     /*
+    //     // sum on average, how much projects each person takes on every week
+    //     var multiTaskWeeks = state.PersonWeekGrid.Values.Count(v => v > 1);
+    //     // normalization
+    //     return Math.Max(0, 1.0 - ((double)multiTaskWeeks / state.PersonWeekGrid.Count));
+    //     */
+    // }
+    public double GetAverageProjectsPerActivePersonWeek(ScheduleState state)
+    {
+        if (state.PersonWeekGrid.Count == 0) return 1.0;
+
+        var projectsPerPersonWeek = new Dictionary<ScheduleState.PersonWeekKey, int>();
+
+        foreach (var cell in state.PersonWeekGrid)
+        {
+            if (cell.Value <= 0) continue;
+
+            var key = new ScheduleState.PersonWeekKey(cell.Key.PersonId, cell.Key.Week);
+
+            if (!projectsPerPersonWeek.ContainsKey(key))
+                projectsPerPersonWeek[key] = 0;
+
+            projectsPerPersonWeek[key] += 1;
+        }
+
+        if (projectsPerPersonWeek.Count == 0) return 1.0;
+
+        return projectsPerPersonWeek.Values.Average();
     }
 
     public double GetFocusScore(ScheduleState state)
     {
-        // add empty state check to match other methods above??
-        if (state.PersonWeekGrid.Count == 0) return 1.0;
+        // Raw metric user asked for:
+        // avg projects per active person-week
+        double avgProjects = GetAverageProjectsPerActivePersonWeek(state);
 
-        // make new dictionary to count how many projects each person has / per week
-        var projectsPerPersonPerWeek = new Dictionary<ScheduleState.PersonWeekKey, int>();
-
-        // iterate ovver person week grid to populate new dictionary for counting
-        foreach (var weekKey in state.PersonWeekGrid)
-        {
-            // skip any people with 0 weeks
-            if (weekKey.Value <= 0)
-            {
-                continue;
-            }
-            // think we have to make each weekKey into a personWeekKey
-            var keyOfWeekKey = new ScheduleState.PersonWeekKey(weekKey.Key.PersonId, weekKey.Key.Week);
-            // check if new, if new start count at 0
-            if (!projectsPerPersonPerWeek.ContainsKey(keyOfWeekKey))
-            {
-                projectsPerPersonPerWeek[keyOfWeekKey] = 0;
-            }
-            // if not new add 1 to count
-            projectsPerPersonPerWeek[keyOfWeekKey] += 1;
-        }
-
-        // check for invalide dictinary, if no weekeys saved
-        if (projectsPerPersonPerWeek.Count == 0){
-            return 1.0;
-        }
-        // need to do a count to see if there are multiple tasks someone is working on / per week
-        var multiTaskWeeks = projectsPerPersonPerWeek.Values.Count(projectCount => projectCount > 1);
-
-        // return the calc for focus score, or 0 if negative.
-        return Math.Max(0, 1.0 - ((double)multiTaskWeeks / projectsPerPersonPerWeek.Count));
-
-
-        /*
-        // sum on average, how much projects each person takes on every week
-        var multiTaskWeeks = state.PersonWeekGrid.Values.Count(v => v > 1);
-        // normalization
-        return Math.Max(0, 1.0 - ((double)multiTaskWeeks / state.PersonWeekGrid.Count));
-        */
+        // Convert to score in [0,1], where 1.0 is best
+        return 1.0 / Math.Max(1.0, avgProjects);
     }
+
 
     public double GetContinuityScore(ScheduleState state)
     {

@@ -19,6 +19,7 @@ public class Project
     public int capacityEndWeek {get; set;}
     public int capacity {get; set;}
     public int OriginalDurationSpan {get; set;}
+    
 
     public Project(string name, int startDate, int endDate, int hoursNeeded)
     {
