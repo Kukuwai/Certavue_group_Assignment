@@ -86,7 +86,59 @@ public class RoleGapReport
 
 
     // This is a overload punisher
-    public double GetConflictScore(ScheduleState state)
+    // public double GetConflictScore(ScheduleState state)
+    // {
+    //     if (state.PersonWeekHours.Count == 0) return 1.0;
+
+    //     double totalOverworkHours = 0;
+    //     double totalAssignedHours = 0;
+
+    //     // create new dictionary for people and that personid for easy reference in loop below
+    //     var peopleById = new Dictionary<int, Person>();
+    //     foreach (Person p in state.People)
+    //     {
+    //         peopleById.Add(p.id, p);
+    //     }
+
+    //     // changed to iterate person week totals not person-project weeks assigned
+    //     foreach (var personWeek in state.PersonWeekHours)
+    //     {
+    //         // get person id
+    //         var personId = personWeek.Key.PersonId;
+    //         // get assigned hours for that week / per person
+    //         var assignedHours = personWeek.Value;
+
+    //         int capacity = 40;
+    //         // get person by id using new dictionary created above and check if capacity above 0
+    //         if (peopleById.TryGetValue(personId, out var person) && person.capacity > 0)
+    //         {
+    //             capacity = person.capacity;
+    //         }
+
+    //         totalAssignedHours += assignedHours;
+    //         totalOverworkHours += Math.Max(0, assignedHours - capacity);
+
+    //         /* caculate the overwork hours
+    //         if (hoursInThisCell > CAPACITY_LIMIT)
+    //         { // caculate the total overwork hours
+    //             totalOverworkHours += (hoursInThisCell - CAPACITY_LIMIT);
+    //         }*/
+    //     }
+    //     // check if person is even assigned hours on project
+    //     if (totalAssignedHours <= 0)
+    //     {
+    //         // if no return default score
+    //         return 1.0;
+    //     }
+
+    //     //caculate percentage of overwork
+    //     double conflictRatio = totalOverworkHours / totalAssignedHours;
+    //     //Normalization
+    //     return Math.Max(0, 1.0 - conflictRatio);
+    // }
+
+
+        public double GetConflictScore(ScheduleState state)
     {
         if (state.PersonWeekHours.Count == 0) return 1.0;
 
@@ -500,32 +552,32 @@ public Person DetermineBestReplacement(Project project, Person currentPerson)
 
 
 //--------------evaluate if add a new project what is the ideal time and optimal resource------
-public double EvaluateNewProjectInsertion(Project newProject)
-{
-    // record the socre when if without new project 
-    double originalScore = CalculateFitnessScore(_state);
+// public double EvaluateNewProjectInsertion(Project newProject)
+// {
+//     // record the socre when if without new project 
+//     double originalScore = CalculateFitnessScore(_state);
 
-    // find the ideal time windo
-    int bestShift = GetBestMoveForProject(newProject);
-    _state.ApplyShift(newProject, bestShift);
+//     // find the ideal time windo
+//     int bestShift = GetBestMoveForProject(newProject);
+//     _state.ApplyShift(newProject, bestShift);
 
-    // find the ideal huamn resouce
-    foreach (var person in newProject.people.ToList())
-    {
-        Person betterStaff = DetermineBestReplacement(newProject, person); //The DetermineBestReplacement method automatically filters candidates 
-     // based on role and selects the one with the highest Fitness Score.
-        if (betterStaff.id != person.id)
-        {
-            _state.SwapPersonInProject(newProject, person, betterStaff);
-        }
-    }
+//     // find the ideal huamn resouce
+//     foreach (var person in newProject.people.ToList())
+//     {
+//         Person betterStaff = DetermineBestReplacement(newProject, person); //The DetermineBestReplacement method automatically filters candidates 
+//      // based on role and selects the one with the highest Fitness Score.
+//         if (betterStaff.id != person.id)
+//         {
+//             _state.SwapPersonInProject(newProject, person, betterStaff);
+//         }
+//     }
 
-    // evaluate if insert new project , what socre of it
-    double newScore = CalculateFitnessScore(_state);
+//     // evaluate if insert new project , what socre of it
+//     double newScore = CalculateFitnessScore(_state);
 
-    // returen delta socre to evaluate does insert successs, if score is positive it present success
-    return newScore - originalScore; 
-}
+//     // returen delta socre to evaluate does insert successs, if score is positive it present success
+//     return newScore - originalScore; 
+// }
 
 
 
@@ -577,6 +629,9 @@ public class ShiftScore
     public double Fitness { get; set; }
 
 }
+
+
+
 
 
 

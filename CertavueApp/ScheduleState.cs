@@ -143,6 +143,24 @@ public class ScheduleState
         return Enumerable.Range(minShift, maxShift - minShift + 1).ToList();
     }
 
+
+    public int GetCurrentSpan(Project p)
+{
+    // 获取该项目当前在状态中的偏移量
+    int currentShift = GetShift(p);
+    
+    // 获取带小时数的格子（确保只统计有实际工时的周）
+    var cells = GetGridWithHours(p, currentShift);
+    
+    if (cells.Count == 0) return 0;
+
+    // 找到所有分配周中的最小值和最大值
+    int minWeek = cells.Min(c => c.Key.Week);
+    int maxWeek = cells.Max(c => c.Key.Week);
+
+    return (maxWeek - minWeek) + 1;
+}
+
     //This is what actually moves the weeks. It takes a project and shift and moves ever person's weeks by the shift #
     public List<WeekKey> GetGrid(Project p, int shift)  //basically the view for the project and weeks like our excel sheets
     {

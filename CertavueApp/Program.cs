@@ -23,7 +23,7 @@ public class Program
     public Program()
     {
         var dataDirectory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Data"));
-        string[] files = Directory.GetFiles(dataDirectory, "*.csv");
+        //string[] files = Directory.GetFiles(dataDirectory, "*.csv");
        //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_spectacular_fitness_mixedD_varied40s.csv") };
        //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_spectacular_fitness_mixedC_varied40s.csv") };
        //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_spectacular_fitness_mixedB_varied40s.csv") };
@@ -34,7 +34,7 @@ public class Program
        //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_project_contiguous_fitness_medium_improvable_varied40s.csv") };
        //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_project_contiguous_fitness_low_improvable_varied40s.csv") };
        //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_project_contiguous_fitness_high_improvable_varied40s.csv") };
-       //string[] files = new string[] { Path.Combine(dataDirectory, "schedule_project_contiguous_fitness_extreme_improvable_varied40s.csv") };
+       string[] files = new string[] { Path.Combine(dataDirectory, "schedule_project_contiguous_fitness_extreme_improvable_varied40s.csv") };
       
         ScheduleState finalState = null;
         
@@ -109,12 +109,12 @@ public class Program
             }
 
             finalState = roleResult.BestState;
-            //output.ExportToHtml(file, finalState, "Final_CPSAT_Result");
-            printStats("CP-SAT Optimized", finalState, file, true);
+            // //output.ExportToHtml(file, finalState, "Final_CPSAT_Result");
+            // printStats("CP-SAT Optimized", finalState, file, true);
 
-            // projects[0].printPeopleOnProject();
-            Console.WriteLine("-------");
-            people[0].printProjectsForPerson();
+            // // projects[0].printPeopleOnProject();
+            // Console.WriteLine("-------");
+            // people[0].printProjectsForPerson();
 
 
 
@@ -130,46 +130,46 @@ public class Program
     }
     
 
-private void ProcessNewProjectInsertion(ScheduleState currentState)
-{
+// private void ProcessNewProjectInsertion(ScheduleState currentState)
+// {
 
-    var newProjectDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "AddNewProject"));
-    if (!Directory.Exists(newProjectDir))
-    {
-        Console.WriteLine("[Error] can not find AddNewProject folder.");
-        return;
-    }
+//     var newProjectDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "AddNewProject"));
+//     if (!Directory.Exists(newProjectDir))
+//     {
+//         Console.WriteLine("[Error] can not find AddNewProject folder.");
+//         return;
+//     }
 
-    ScheduleHandler handler = new ScheduleHandler(currentState);
-    string[] newFiles = Directory.GetFiles(newProjectDir, "*.csv");
+//     ScheduleHandler handler = new ScheduleHandler(currentState);
+//     string[] newFiles = Directory.GetFiles(newProjectDir, "*.csv");
 
-    foreach (var file in newFiles)
-    {
-        Console.WriteLine($"\n[File] is processing: {Path.GetFileName(file)}");
-        List<Project> newProjects = LoadNewProjectsOnly(file);
+//     foreach (var file in newFiles)
+//     {
+//         Console.WriteLine($"\n[File] is processing: {Path.GetFileName(file)}");
+//         List<Project> newProjects = LoadNewProjectsOnly(file);
 
-        foreach (var project in newProjects)
-        {
-            double insertionResult = handler.EvaluateNewProjectInsertion(project);
+//         foreach (var project in newProjects)
+//         {
+//             double insertionResult = handler.EvaluateNewProjectInsertion(project);
 
-            if (insertionResult >= 1.0)
-            {
+//             if (insertionResult >= 1.0)
+//             {
 
-                Console.WriteLine($"   ✅ [INSERT SUCCESSFUL] Project '{project.name}' find avalible time，no extrac conflicts。");
-            }
-            else
-            {
-                int conflictCount = (int)Math.Abs(insertionResult);
-                Console.WriteLine($"   ⚠️ [FORCE INSERT] Project '{project.name}' can not avoid conflicts，lead to add new {conflictCount} conflicts。");
-            }
-        }
+//                 Console.WriteLine($"   ✅ [INSERT SUCCESSFUL] Project '{project.name}' find avalible time，no extrac conflicts。");
+//             }
+//             else
+//             {
+//                 int conflictCount = (int)Math.Abs(insertionResult);
+//                 Console.WriteLine($"   ⚠️ [FORCE INSERT] Project '{project.name}' can not avoid conflicts，lead to add new {conflictCount} conflicts。");
+//             }
+//         }
         
-        Output finalOutput = new Output();
-        finalOutput.ExportToHtml("Global_Final_Schedule", currentState, "With_New_Projects.html");
-    }
+//         Output finalOutput = new Output();
+//         finalOutput.ExportToHtml("Global_Final_Schedule", currentState, "With_New_Projects.html");
+//     }
 
-    Console.WriteLine("\n[SYSTEM] finish insert，final output alreay generate。");
-}
+//     Console.WriteLine("\n[SYSTEM] finish insert，final output alreay generate。");
+// }
 
     public List<Project> LoadNewProjectsOnly(string path)
     {
