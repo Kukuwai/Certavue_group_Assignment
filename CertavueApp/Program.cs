@@ -208,12 +208,11 @@ public class Program
 
 
     static void ApplyAssignmentsToState(ScheduleState state, Dictionary<(int PersonId, Project Project, int RawWeek), int> assignments)
-   {
+    {
+    // 只有这两行是绝对需要的：更新数据，然后刷新网格
     state.UpdateFromFineGrainedAssignments(assignments);
-
-    // 强制刷新内部网格
     state.RebuildGrid();
-   }
+    }
 
     public ScheduleState loadData(string path)
     {

@@ -458,53 +458,65 @@ public List<(int PersonId, int Week, int Hours)> GetOriginalAssignments(Project 
 // 2. 根据 OR-Tools 的精细计算结果更新全局状态
 public void UpdateFromFineGrainedAssignments(Dictionary<(int PersonId, Project Project, int RawWeek), int> newAssignments)
 {
-    // 1. 原子化：定义一个内部方法来处理单一分配
-    void CommitAssignment(int pId, Project prj, int targetW, int hours)
-{
-    var person = People.First(p => p.id == pId);
+    // --- 1. 建立原始任务映射 (任务指纹 -> 原始工时) ---
+    // 先把所有受影响项目的工时数据捞出来，存成一个“快照”，避免在循环里反复查询 People 列表
+    var rawTaskHours = (from p in People
+                        from projEntry in p.projects
+                        from weekEntry in projEntry.Value
+                        select new { 
+                            Key = (projEntry.Key.id, weekEntry.Key), 
+                            Hours = weekEntry.Value 
+                        })
+                       .ToLookup(x => x.Key, x => x.Hours);
+
+    // --- 2. 局部清理 ---
+    // 只清理那些 OR-Tools 重新排布过的项目，不影响其他无关项目
+    var affectedProjects = newAssignments.Keys.Select(k => k.Project).Distinct().ToList();
     
-    // 1. 确保该人拥有这个项目的记录容器
-    if (!person.projects.ContainsKey(prj)) 
+    foreach (var prj in affectedProjects)
     {
-        person.projects[prj] = new Dictionary<int, int>();
+        foreach (var person in People) 
+        {
+            person.projects.Remove(prj); // 仅移除受影响项目
+        }
     }
 
-    // 2. 正确的赋值：第一层选项目，第二层选周
-    // 修复：person.projects[prj] 得到的是 Dictionary<int, int>
-    person.projects[prj][targetW] = hours;
-
-    // 3. 更新统计网格（保持不变）
-    var wk = new WeekKey(pId, prj.id, targetW);
-    PersonWeekGrid[wk] = PersonWeekGrid.GetValueOrDefault(wk) + hours;
-
-    var pwk = new PersonWeekKey(pId, targetW);
-    PersonWeekHours[pwk] = PersonWeekHours.GetValueOrDefault(pwk) + hours;
-}
-    // 2. 批量处理：先备份小时数，清空，再重建
-    // 备份：(项目, 原始周) -> 小时
-    var hourBackup = newAssignments.ToDictionary(
-        kv => (kv.Key.Project, kv.Key.RawWeek),
-        kv => kv.Key.Project.people.First(p => p.projects.ContainsKey(kv.Key.Project))
-                                  .projects[kv.Key.Project][kv.Key.RawWeek]
-    );
-
-    // 清理所有相关项目的旧痕迹
-    foreach (var p in newAssignments.Keys.Select(k => k.Project).Distinct())
-    {
-        foreach (var person in People) person.projects.Remove(p);
-    }
+    // 重置统计网格（因为全量重算比局部加减更不容易出错）
     PersonWeekGrid.Clear();
     PersonWeekHours.Clear();
 
-    // 3. 应用新状态
-    foreach (var (key, targetWeek) in newAssignments)
+    // --- 3. 应用新状态 ---
+    foreach (var (assign, targetWeek) in newAssignments)
     {
-        int hours = hourBackup[(key.Project, key.RawWeek)];
-        CommitAssignment(key.PersonId, key.Project, targetWeek, hours);
+        // 从 Lookup 中安全提取原始工时
+        // 逻辑：即便换了救兵，项目ID和原始周(RawWeek)是不变的，通过这两个组合找回工时
+        int hours = rawTaskHours[(assign.Project.id, assign.RawWeek)].FirstOrDefault();
+        
+        if (hours == 0) continue; // 保护：如果没找到原始分配，跳过
+
+        // 执行写入
+        ApplySingleAssignment(assign.PersonId, assign.Project, targetWeek, hours);
     }
 }
 
+/// <summary>
+/// 职责分离：只负责纯粹的数据写入逻辑
+/// </summary>
+private void ApplySingleAssignment(int personId, Project prj, int week, int hours)
+{
+    var person = People.First(p => p.id == personId);
+    
+    // 建立任务关联
+    if (!person.projects.ContainsKey(prj)) person.projects[prj] = new Dictionary<int, int>();
+    person.projects[prj][week] = hours;
 
+    // 更新聚合网格 (用于报告显示)
+    var wk = new WeekKey(personId, prj.id, week);
+    PersonWeekGrid[wk] = PersonWeekGrid.GetValueOrDefault(wk) + hours;
+
+    var pwk = new PersonWeekKey(personId, week);
+    PersonWeekHours[pwk] = PersonWeekHours.GetValueOrDefault(pwk) + hours;
+}
 
     public void SwapPersonInProject(Project p, Person oldPerson, Person newPerson)
     {
