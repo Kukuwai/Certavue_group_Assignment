@@ -13,6 +13,7 @@ namespace OllamaSpike
       Console.WriteLine("\n" + new string('=', 70));
       Console.WriteLine("GREEDY ALGORITHM + OLLAMA EXPLANATION TEST");
       Console.WriteLine(new string('=', 70) + "\n");
+      
 
       try
       {

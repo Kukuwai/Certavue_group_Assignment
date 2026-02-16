@@ -38,5 +38,18 @@ await GreedyExplanationTest.TestGreedyWithExplanation(ollama);
 // Console.WriteLine(new string('=', 60) + "\n");
 // await LangChainTest.RunBasicTest();
 
+// OpenAI Test (OPTIONAL - costs money!)
+string openAIKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY") ?? string.Empty;
+if (!string.IsNullOrEmpty(openAIKey))
+{
+  Console.WriteLine("\n OpenAI API key detected - running comparison test...");
+  await OpenAITest.TestOpenAIExplanation(openAIKey);
+}
+else
+{
+  Console.WriteLine("\n  No OpenAI API key found. Set OPENAI_API_KEY to test OpenAI.");
+  Console.WriteLine("   Example: export OPENAI_API_KEY='sk-...'");
+}
+
 
 
