@@ -63,13 +63,13 @@ public class Program
 
             output.ExportToHtml(file, scheduleAfterGreedy, "after_greedy");
 
-            string apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
-            OpenAI openAI = new OpenAI(apiKey, "gpt-5-mini");
+            // string apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+            // OpenAI openAI = new OpenAI(apiKey, "gpt-5-mini");
 
-            Console.WriteLine("Model: " + openAI.GetModel());
-            Console.WriteLine("Connected: " + openAI.IsConnected());
+            // Console.WriteLine("Model: " + openAI.GetModel());
+            // Console.WriteLine("Connected: " + openAI.IsConnected());
 
-            openAI.Close();
+            // openAI.Close();
 
 
 

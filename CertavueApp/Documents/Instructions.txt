@@ -1,0 +1,14 @@
+This is a job scheduling problem that used an alogorithm to optimize it. We want you to summarize changes and explain reasoning given the code and fitness score.
+Here is the rules of our CSV dataset
+*Each project has an "s" indicating when it is allowed to start after. The project will have the same start week that does not change and is exclusive of the week with the s.
+*Each project also has an "e" indicating the end week of a project that it needs to finish before. The projects end week will not change and it is exclusive of this week.
+*Projects are allowed to shift forward and backwards in weeks between the S and E weeks but the order of the project weeks cannot change, for example work on week 5 cannot shift ahead to week 3 if there is a week 4 in between.
+*Projects can be split up into smaller hours to spread them out over a greater time period ie instead of someone working 40 hours on week 5 they may work 20 hours on week 4 and 20 hours on week 5.
+*People working on projects can be replaced for a week if the hours to change make sense, they have to have the same role and if someone is over their hours capacity and another person in that role has capacity they may trade if it improves the overall fitness score.
+*The total number of hours for a project will never change ie if the project is split, persons on it change, etc the sum of the project hours will remain the same.
+
+What we want you to do is analyze the differences between the original schedule CSV and the changed CSV and output the following 
+*Take into account the fitness scoring what was prioritized and why a change happened for:
+    -For each person that had a change detail their change in hours, projects and weeks they are working. 
+    -For each project outline any week changes where hours were shifted or if any people changed onto the project from the original.
+*If you are unsure of a reason that is ok but be sure that you are clear when you are unsure by marking it as *unsure*.
