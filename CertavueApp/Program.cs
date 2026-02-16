@@ -37,11 +37,14 @@ public class Program
         // loading data in
         foreach (string file in files)
         {
-            if (!file.Contains("schedule_crazy_improvement_role_swaps_varied40s.csv"))
+            if (!file.Contains("schedule_spectacular_fitness_mixedA_varied40s.csv"))
             {
                 continue;
             }
             var originalState = loadData(file);
+            ScheduleHandler originalHandler = new ScheduleHandler(originalState);
+            Console.WriteLine("\n>>> [Before Optimization] Orignal conflicts detai:");
+            originalHandler.DebugConflictDetails(originalState);
 
             // export original data to html output
             Output output = new Output();
@@ -64,6 +67,9 @@ public class Program
             var scheduleAfterGreedy = new GreedyAlg().StartGreedy(people, projects);
             string baseName = Path.GetFileNameWithoutExtension(file);
             string outputPath = Path.Combine(outputCsvDir, baseName + "_after_greedy.csv");
+            ScheduleHandler afterHandler = new ScheduleHandler(scheduleAfterGreedy);
+            Console.WriteLine("\n>>> [After Greedy] Conflictes detais:");
+            afterHandler.DebugConflictDetails(scheduleAfterGreedy);
 
             ScheduleCsvExporter.ExportStateToWeeklyTableCsv(scheduleAfterGreedy, outputPath);
             string instructionsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents", "Instructions.txt"));
