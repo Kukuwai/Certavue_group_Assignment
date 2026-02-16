@@ -5,176 +5,176 @@ using Google.OrTools.Sat;
 
 public class CpSatOptimizer
 {
-    // 数字化镜像权重：基于 ScheduleHandler 的 FitnessScore 比例 (0.4, 0.2, 0.2, 0.1, 0.1)
-    private const int W_CONFLICT = 400;   
-    private const int W_MOVEMENT = 200;   
-    private const int W_FOCUS = 200;      
-    private const int W_CONTINUITY = 100; 
-    private const int W_DURATION = 100;   
+    // 核心权重：确保 Conflict 是绝对优先级
+    private const int W_CONFLICT = 1000000; 
+    private const int W_LATENESS = 1000;    
+    private const int W_MOVEMENT = 1;       
+
+    public class StrategyReport
+    {
+        public double ConflictReduced { get; set; }
+        public int TotalDelayWeeks { get; set; }
+        public int ResourceSwaps { get; set; }
+        public string Summary { get; set; }
+    }
 
     public class SolveResult
     {
         public CpSolverStatus Status { get; set; }
-        public double TotalOverloadHours { get; set; }
-        public Dictionary<(int PersonId, Project Project, int RawWeek), int> FinalAssignments { get; set; } = new();
+        public double FinalOverload { get; set; }
+        public StrategyReport Report { get; set; } = new StrategyReport();
+        public Dictionary<(int PersonId, Project Project, int RawWeek), int> Assignments { get; set; } = new();
     }
 
-    public SolveResult Optimize(ScheduleState state, double maxTimeInSeconds = 30)
+    public SolveResult Optimize(ScheduleState state, double maxSeconds = 30)
     {
-        var model = new CpModel();
-        var objective = new LinearExprBuilder();
+        double initialOverload = state.PersonWeekHours.Values.Sum(v => Math.Max(0, v - 40));
+        int maxWeek = state.Projects.Max(p => p.endDate > 0 ? p.endDate : 52);
 
-        // 1. 变量定义池
+        var model = new CpModel();
+        var objective = LinearExpr.NewBuilder();
+        
+        // 1. 准备全局资源池（用于人力策略）
+        var personLoadMap = state.People.ToDictionary(
+        p => p.id, 
+        p => (double)state.PersonWeekHours
+        .Where(kv => kv.Key.PersonId == p.id)
+        .Sum(kv => kv.Value)
+        );
+        var rolePool = state.People.GroupBy(p => p.role ?? "").ToDictionary(g => g.Key, g => g.ToList());
+
         var x = new Dictionary<(int pId, Project prj, int rW, int tW), BoolVar>();
         var personWeekLoad = new Dictionary<(int pId, int tW), LinearExprBuilder>();
-        var personWeekProjects = new Dictionary<(int pId, int tW), List<BoolVar>>();
-        var projectBoundaries = new Dictionary<Project, (IntVar Start, IntVar End)>();
 
-        // 预分析：找出有冲突的人选
-        var conflictedPersonIds = GetConflictedPersonIds(state);
-
-        // --- 第一步：地基构建 (变量、换人逻辑、Deadline) ---
+        // 2. 遍历并注入策略
         foreach (var p in state.Projects)
         {
-            var rawAssignments = state.GetOriginalAssignments(p);
-            int currentShift = state.GetShift(p);
-            int pDeadline = p.endDate > 0 ? p.endDate : 52; 
+            var rawAssigns = state.GetOriginalAssignments(p);
+            int pDeadline = p.endDate > 0 ? p.endDate : 52;
 
-            var pStart = model.NewIntVar(1, 52, $"start_{p.id}");
-            var pEnd = model.NewIntVar(1, 52, $"end_{p.id}");
-            projectBoundaries[p] = (pStart, pEnd);
-
-            foreach (var assign in rawAssignments)
+            foreach (var assign in rawAssigns)
             {
                 var choices = new List<BoolVar>();
-                foreach (var cand in p.people)
+                
+                // --- 策略 A: 人力增援策略 ---
+                var candidates = GetResourceExpansionCandidates(assign, state, rolePool, personLoadMap);
+
+                foreach (var cand in candidates)
                 {
-                    int window = conflictedPersonIds.Contains(cand.id) ? 2 : 0;
-                    int center = assign.Week + currentShift;
+                    // --- 策略 B: 延期缓解策略 (获取可选周) ---
+                    var windows = GetSoftenedTimeWindows(assign, state, p, pDeadline, maxWeek);
 
-                    for (int tW = Math.Max(1, center - window); tW <= Math.Min(52, center + window); tW++)
+                    foreach (var tW in windows)
                     {
-                        if (tW > pDeadline) continue; // 硬约束：截止日期
-
                         var bv = model.NewBoolVar($"p{cand.id}_prj{p.id}_r{assign.Week}_t{tW}");
                         x[(cand.id, p, assign.Week, tW)] = bv;
                         choices.Add(bv);
 
-                        // 1.1 累加负载 (Conflict Score 基石)
-                        var loadKey = (cand.id, tW);
-                        if (!personWeekLoad.ContainsKey(loadKey)) personWeekLoad[loadKey] = new LinearExprBuilder();
-                        personWeekLoad[loadKey].AddTerm(bv, assign.Hours);
+                        // 注入延期代价
+                        if (tW > pDeadline)
+                            objective.AddTerm(bv, (tW - pDeadline) * W_LATENESS);
 
-                        // 1.2 记录该周参与的项目 (Focus Score 基石)
-                        if (!personWeekProjects.ContainsKey(loadKey)) personWeekProjects[loadKey] = new List<BoolVar>();
-                        personWeekProjects[loadKey].Add(bv);
-
-                        // 1.3 约束项目边界 (Duration Score 基石)
-                        model.Add(pStart <= tW).OnlyEnforceIf(bv);
-                        model.Add(pEnd >= tW).OnlyEnforceIf(bv);
-
-                        // 1.4 Movement Score 惩罚项 (趋向保持原位)
-                        int dist = Math.Abs(tW - center);
-                        if (dist > 0) objective.AddTerm(bv, dist * W_MOVEMENT);
+                        // 记录负载
+                        var key = (cand.id, tW);
+                        if (!personWeekLoad.ContainsKey(key)) personWeekLoad[key] = LinearExpr.NewBuilder();
+                        personWeekLoad[key].AddTerm(bv, assign.Hours);
+                        
+                        // 移动代价
+                        objective.AddTerm(bv, Math.Abs(tW - (assign.Week + state.GetShift(p))) * W_MOVEMENT);
                     }
                 }
-                model.AddExactlyOne(choices);
+                if (choices.Count > 0) model.AddExactlyOne(choices);
             }
-
-            // 2. Duration Score 镜像 (权重 10%)
-            var span = model.NewIntVar(0, 52, $"span_{p.id}");
-            model.Add(span == pEnd - pStart);
-            objective.AddTerm(span, W_DURATION);
         }
 
-        // --- 第二步：Conflict Score 镜像 (权重 40%) ---
-        var overloadVars = new List<IntVar>();
-        foreach (var kv in personWeekLoad)
-        {
-            var person = state.People.First(pe => pe.id == kv.Key.pId);
-            int cap = person.capacity > 0 ? person.capacity : 40;
-            var overload = model.NewIntVar(0, 200, $"ov_p{kv.Key.pId}_w{kv.Key.tW}");
-            model.Add(overload >= kv.Value - cap);
-            overloadVars.Add(overload);
-            objective.AddTerm(overload, W_CONFLICT);
-        }
+        // 3. 冲突惩罚逻辑
+        ApplyConflictConstraints(model, objective, personWeekLoad, state);
 
-        // --- 第三步：Focus Score 镜像 (权重 20%) ---
-        foreach (var kv in personWeekProjects)
-        {
-            var isMulti = model.NewBoolVar($"multi_p{kv.Key.pId}_w{kv.Key.tW}");
-            var sumProjects = LinearExpr.Sum(kv.Value);
-            model.Add(sumProjects > 1).OnlyEnforceIf(isMulti);
-            objective.AddTerm(isMulti, W_FOCUS);
-        }
-
-        // --- 第四步：Continuity Score 镜像 (权重 10%) ---
-        ApplyContinuityScoring(model, objective, x, state.Projects);
-
-        // --- 第五步：求解器配置 (LNS 策略) ---
+        // 4. 求解
         model.Minimize(objective);
         var solver = new CpSolver();
-        solver.StringParameters = $"max_time_in_seconds:{maxTimeInSeconds}, num_search_workers:8, cp_model_presolve:true, relative_mip_gap:0.05, lns_focus_on_trained_model:true";
-
-        // 注入 Hint (Greedy 2.0 成果)
-        foreach (var entry in x)
-            if (entry.Key.tW == entry.Key.rW + state.GetShift(entry.Key.prj))
-                model.AddHint(entry.Value, 1);
-
+        solver.StringParameters = $"max_time_in_seconds:{maxSeconds}, num_search_workers:8";
         var status = solver.Solve(model);
-        return DecodeResult(status, solver, x, overloadVars);
+
+        // 5. 解码并生成策略报告
+        return ProcessResult(status, solver, x, personWeekLoad, initialOverload, state);
     }
 
-    private void ApplyContinuityScoring(CpModel model, LinearExprBuilder objective, Dictionary<(int pId, Project prj, int rW, int tW), BoolVar> x, List<Project> projects)
+// --- [独立方法] 延期缓解策略 ---
+    private List<Person> GetResourceExpansionCandidates((int PersonId, int Week, int Hours) assign, ScheduleState state, Dictionary<string, List<Person>> rolePool, Dictionary<int, double> loadMap)
+{
+    int originalId = assign.PersonId;
+    var original = state.People.FirstOrDefault(pe => pe.id == originalId);
+    
+    if (original == null || !rolePool.TryGetValue(original.role ?? "", out var allCandidates)) 
+        return state.People.Where(pe => pe.id == originalId).ToList();
+
+    return allCandidates
+        .OrderBy(c => c.id == originalId ? 0 : 1) 
+        .ThenBy(c => loadMap.GetValueOrDefault(c.id, 0.0))
+        .Take(4) 
+        .ToList();
+}
+
+// --- [策略方法 B：延期缓解] ---
+private List<int> GetSoftenedTimeWindows((int PersonId, int Week, int Hours) assign, ScheduleState state, Project p, int deadline, int maxWeek)
+{
+    // 获取当前的偏移量
+    int currentShift = state.GetShift(p);
+    int center = assign.Week + currentShift;
+    
+    var weeks = new List<int>();
+    // 搜索窗口：前后15周，最大延期8周
+    for (int i = center - 15; i <= center + 15; i++)
     {
-        foreach (var p in projects)
+        if (i >= 1 && i <= deadline + 8 && i <= maxWeek) 
+            weeks.Add(i);
+    }
+    return weeks;
+}
+
+    private void ApplyConflictConstraints(CpModel model, LinearExprBuilder objective, Dictionary<(int pId, int tW), LinearExprBuilder> loadMap, ScheduleState state)
+    {
+        foreach (var kv in loadMap)
         {
-            foreach (var person in p.people)
+            var overload = model.NewIntVar(0, 2000, "");
+            model.Add(overload >= kv.Value - 40);
+            objective.AddTerm(overload, W_CONFLICT);
+        }
+    }
+
+    private SolveResult ProcessResult(CpSolverStatus status, CpSolver solver, Dictionary<(int pId, Project prj, int rW, int tW), BoolVar> x, Dictionary<(int pId, int tW), LinearExprBuilder> loadMap, double initial, ScheduleState state)
+    {
+        var res = new SolveResult { Status = status };
+
+        if (status != CpSolverStatus.Feasible && status != CpSolverStatus.Optimal) return res;
+
+        int delays = 0;
+        int totalDelayWeeks = 0;
+        int resourceSwaps = 0;
+
+        foreach (var entry in x)
+        {
+            if (solver.Value(entry.Value) == 1)
             {
-                var myTasks = x.Keys.Where(k => k.pId == person.id && k.prj == p).Select(k => k.rW).Distinct().OrderBy(w => w).ToList();
-                if (myTasks.Count < 2) continue;
-                for (int i = 0; i < myTasks.Count - 1; i++)
-                {
-                    var tW1 = GetTargetWeekExpr(person.id, p, myTasks[i], x);
-                    var tW2 = GetTargetWeekExpr(person.id, p, myTasks[i+1], x);
-                    var gap = model.NewIntVar(0, 52, "");
-                    model.Add(gap >= tW2 - tW1 - 1);
-                    objective.AddTerm(gap, W_CONTINUITY);
-                }
+                var k = entry.Key;
+                res.Assignments[(k.pId, k.prj, k.rW)] = k.tW;
+
+                int deadline = k.prj.endDate > 0 ? k.prj.endDate : 52;
+                if (k.tW > deadline) { delays++; totalDelayWeeks += (k.tW - deadline); }
+                
+                int defaultId = k.prj.people.FirstOrDefault()?.id ?? -1;
+                if (k.pId != defaultId) resourceSwaps++;
             }
         }
+
+        res.Report = new StrategyReport {
+            ConflictReduced = initial - res.FinalOverload,
+            TotalDelayWeeks = totalDelayWeeks,
+            ResourceSwaps = resourceSwaps // 对齐名称
+        };
+        return res;
     }
 
-    private LinearExpr GetTargetWeekExpr(int pId, Project prj, int rW, Dictionary<(int pId, Project prj, int rW, int tW), BoolVar> x)
-    {
-        var expr = new LinearExprBuilder();
-        var options = x.Where(kv => kv.Key.pId == pId && kv.Key.prj == prj && kv.Key.rW == rW);
-        foreach (var opt in options) expr.AddTerm(opt.Value, opt.Key.tW);
-        return expr ;
-    }
 
-    private HashSet<int> GetConflictedPersonIds(ScheduleState state)
-    {
-        return state.PersonWeekHours
-            .Where(kv => kv.Value > (state.People.FirstOrDefault(p => p.id == kv.Key.PersonId)?.capacity ?? 40))
-            .Select(kv => kv.Key.PersonId).ToHashSet();
-    }
-
-    private SolveResult DecodeResult(CpSolverStatus status, CpSolver solver, Dictionary<(int pId, Project prj, int rW, int tW), BoolVar> x, List<IntVar> overloadVars)
-    {
-        var result = new SolveResult { Status = status };
-        if (status == CpSolverStatus.Optimal || status == CpSolverStatus.Feasible)
-        {
-            foreach (var entry in x)
-                if (solver.Value(entry.Value) == 1)
-                    result.FinalAssignments[(entry.Key.pId, entry.Key.prj, entry.Key.rW)] = entry.Key.tW;
-            result.TotalOverloadHours = overloadVars.Sum(v => (double)solver.Value(v));
-        }
-        return result;
-    }
-
-    public void ApplySolution(ScheduleState state, SolveResult result)
-    {
-        state.UpdateFromFineGrainedAssignments(result.FinalAssignments);
-    }
 }

@@ -74,14 +74,28 @@ public class Program
 
            // run or tools
             Console.WriteLine("\n>>> [3. After OR-Tools] Detailed Conflict Report:");
-            var roleOpt = new RoleOptimizer();
-            var roleResult = roleOpt.Optimize(greedyState, maxPasses: 1000);
-            finalState = roleResult.BestState;
-            Program.LatestState = finalState; // !!create last state(read load -greedy -ortools)
-           
-            var finalHandler = new ScheduleHandler(finalState);
+            var optimizer = new CpSatOptimizer();
+            var result = optimizer.Optimize(greedyState, maxSeconds: 60);
+
             Console.WriteLine("\n>>> [After Ortools] Conflictes detais:");
+
+            if (result.Status == Google.OrTools.Sat.CpSolverStatus.Feasible || result.Status == Google.OrTools.Sat.CpSolverStatus.Optimal)
+        {
+            ApplyAssignmentsToState(greedyState, result.Assignments);
+            finalState = greedyState;
+            var finalHandler = new ScheduleHandler(finalState);
             finalHandler.DebugConflictDetails(finalState);
+            
+            Console.WriteLine("--- 策略报告 ---");
+            Console.WriteLine($"冲突消减: {result.Report.ConflictReduced}h");
+            Console.WriteLine($"延期周数: {result.Report.TotalDelayWeeks}");
+            Console.WriteLine($"调动救兵: {result.Report.ResourceSwaps}");
+            
+        }
+       else 
+        {
+            Console.WriteLine("❌ 策略未生效：当前约束下无解。");
+        }
 
             // ScheduleCsvExporter.ExportStateToWeeklyTableCsv(scheduleAfterGreedy, outputPath);
             // string instructionsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents", "Instructions.txt"));
@@ -191,6 +205,15 @@ public class Program
         (_, var newProjects) = load.LoadData(path);
         return newProjects;
     }
+
+
+    static void ApplyAssignmentsToState(ScheduleState state, Dictionary<(int PersonId, Project Project, int RawWeek), int> assignments)
+   {
+    state.UpdateFromFineGrainedAssignments(assignments);
+
+    // 强制刷新内部网格
+    state.RebuildGrid();
+   }
 
     public ScheduleState loadData(string path)
     {
