@@ -9,6 +9,7 @@ using static ScheduleState;
 using System.IO;
 using System.Linq;
 using System.Text;
+using static OpenAI;
 
 
 public class Program
@@ -24,13 +25,26 @@ public class Program
     {
         var dataDirectory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Data"));
         string[] files = Directory.GetFiles(dataDirectory, "*.csv");
+        var outputCsvDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Data", "Outputcsv"));
+        Directory.CreateDirectory(outputCsvDir);
+
 
         ScheduleState finalState = null;
+        string apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+        OpenAI openAI = new OpenAI(apiKey, "gpt-5-mini");
+
 
         // loading data in
         foreach (string file in files)
         {
+            if (!file.Contains("schedule_spectacular_fitness_mixedA_varied40s.csv"))
+            {
+                continue;
+            }
             var originalState = loadData(file);
+            ScheduleHandler originalHandler = new ScheduleHandler(originalState);
+            Console.WriteLine("\n>>> [Before Optimization] Orignal conflicts detai:");
+            originalHandler.DebugConflictDetails(originalState);
 
             // export original data to html output
             Output output = new Output();
@@ -51,36 +65,68 @@ public class Program
             // greedy algorithm starts, inluding export of output to html
             Console.WriteLine($"Greeding Running File - {System.IO.Path.GetFileName(file)}\n");
             var scheduleAfterGreedy = new GreedyAlg().StartGreedy(people, projects);
+            string baseName = Path.GetFileNameWithoutExtension(file);
+            string outputPath = Path.Combine(outputCsvDir, baseName + "_after_greedy.csv");
+            ScheduleHandler afterHandler = new ScheduleHandler(scheduleAfterGreedy);
+            Console.WriteLine("\n>>> [After Greedy] Conflictes detais:");
+            afterHandler.DebugConflictDetails(scheduleAfterGreedy);
+
+            ScheduleCsvExporter.ExportStateToWeeklyTableCsv(scheduleAfterGreedy, outputPath);
+            string instructionsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents", "Instructions.txt"));
+
+            string responseText = openAI.CompareTwoCsvWithInstructions(file, outputPath, instructionsPath);
+
+            string documentsDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents"));
+            Directory.CreateDirectory(documentsDir);
+
+            string responsePath = Path.Combine(documentsDir, baseName + "_OpenAI_Response.txt");
+
+            File.WriteAllText(responsePath, responseText);
+            Console.WriteLine("Saved OpenAI response: " + responsePath);
+
+            Console.WriteLine("Wrote CSV: " + outputPath);
+
             output.ExportToHtml(file, scheduleAfterGreedy, "after_greedy");
 
+            // string apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+            // OpenAI openAI = new OpenAI(apiKey, "gpt-5-mini");
 
-            var roleOpt = new RoleOptimizer();
-            var roleResult = roleOpt.Optimize(scheduleAfterGreedy, maxPasses: 999999999);
-            Program.LatestState = roleResult.BestState;// * add newest state
-            output.ExportToHtml(file, scheduleAfterGreedy, "After Role Checks");
-            printStats("Role optimiser Data", roleResult.BestState, file, true);
+            // Console.WriteLine("Model: " + openAI.GetModel());
+            // Console.WriteLine("Connected: " + openAI.IsConnected());
 
-
-            projects[0].printPeopleOnProject();
-            Console.WriteLine("-------");
-            people[0].printProjectsForPerson();
-
-            finalState = roleResult.BestState;
+            // openAI.Close();
 
 
-            Console.WriteLine("Find project by person test");
-            foreach (Project p in projects)
-            {
-                p.printPeopleOnProject();
-            }
-            }
 
-        ProcessNewProjectInsertion(finalState);
+            // var roleOpt = new RoleOptimizer();
+            // var roleResult = roleOpt.Optimize(scheduleAfterGreedy, maxPasses: 1000);
+            // Program.LatestState = roleResult.BestState;
+            // output.ExportToHtml(file, roleResult.BestState, "After Role Checks");
+            // printStats("Role optimiser Data", roleResult.BestState, file, true);
+            // finalState = roleResult.BestState;
+
+
+
+            // projects[0].printPeopleOnProject();
+            // Console.WriteLine("-------");
+            // people[0].printProjectsForPerson();
+
+            // Console.WriteLine("Find project by person test");
+            // foreach (Project p in projects)
+            // {
+            //     p.printPeopleOnProject();
+            // }
+        }
+        openAI.Close();
+
+        
+
+        //  ProcessNewProjectInsertion(finalState);
     }
-    
 
-        private void ProcessNewProjectInsertion(ScheduleState currentState)
-        {
+
+    private void ProcessNewProjectInsertion(ScheduleState currentState)
+    {
         if (currentState == null)
         {
             Console.WriteLine("[Error] No available global optimization state was found, and a new project could not be inserted.");
@@ -121,7 +167,7 @@ public class Program
                 }
             }
             Output finalOutput = new Output();
-            finalOutput.ExportToHtml("Global_Final_Schedule",currentState, "With_New_Projects.html");
+            finalOutput.ExportToHtml("Global_Final_Schedule", currentState, "With_New_Projects.html");
         }
 
         Console.WriteLine("[SYSTEM] The final shift schedule has been exported to an HTML file.");
@@ -148,6 +194,14 @@ public class Program
     static void Main(string[] args)
     {
         new Program();
+        // string apiKey = Environment.GetEnvironmentVariable("");
+        // OpenAI openAI = new OpenAI("", "gpt-5-mini");
+
+        // string reply = openAI.SendPrompt("What is the capital of france?");
+        // Console.WriteLine(reply);
+
+        // openAI.Close();
+
     }
 
     public void printStats(string dataName, ScheduleState state, string path, bool end)

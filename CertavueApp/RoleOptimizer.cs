@@ -4,194 +4,311 @@ using System.Linq;
 
 public class RoleOptimizer
 {
-    public OptimizationResult Optimize(ScheduleState state, int maxPasses = 99999999) //I set this ridicuously high to test speed first. I think this shouldn't have speed concerns but good to be safe?0
+    public OptimizationResult Optimize(ScheduleState state, int maxPasses = int.MaxValue) //If speed is a concern we can hard code it again
     {
-        var handler = new ScheduleHandler(state); //will be used to measure fitness of schedules
-        double currentFitness = handler.CalculateFitnessScore(state); //initial score and then best as of now score
+        var handler = new ScheduleHandler(state); //Scoring check
+        double initialFitness = handler.CalculateFitnessScore(state); //Baseline fitness
+        double bestFitness = initialFitness; //Tracks highest
+        int bestPathLength = 0; //Counts moves
+        int combinationsChecked = 0;
+        int statesExplored = 1;
+        AssignmentSnapshot bestSnapshot = CaptureSnapshot(state); //First schedule is the initial best
+        var exploredStates = new HashSet<string>(); //Every visited state
+        string startHash = BuildStateHash(state);
+        exploredStates.Add(startHash); //Marks state as visited
+        var currentPath = new List<MoveCandidate>();
 
-        bool improvedAny = false;
-        int weeksImproved = 0;
-        int combinationsChecked = 0; //counter for speed checking
+        ExploreAllSequences(state, handler, exploredStates, currentPath, ref bestFitness, ref bestSnapshot, ref bestPathLength, ref combinationsChecked, ref statesExplored, maxPasses); //Exhaustive search moving overloaded to underloaded
 
-        for (int pass = 0; pass < maxPasses; pass++)
-        {
-            bool improvedThisPass = false; //resets each time to recheck
-            List<int> conflictWeeks = state.PersonWeekGrid.Where(kv => kv.Value > 1).Select(kv => kv.Key.Week).Distinct().OrderBy(w => w).ToList(); //builds list of overbooked weeks
-            foreach (int week in conflictWeeks) //goes through each week individually
-            {
-                WeekOptimizationResult weekResult = OptimizeWeek(state, week, currentFitness, handler); //optimizes week and returns stas
-                combinationsChecked += weekResult.CombinationsChecked; //counts combos checked
+        RestoreSnapshot(state, bestSnapshot); //Best found state
 
-                if (weekResult.Improved) //updates global best if it improved 
-                {
-                    improvedAny = true;
-                    improvedThisPass = true;
-                    weeksImproved++;
-                    currentFitness = weekResult.BestFitness;
-                }
-            }
-
-            if (!improvedThisPass) //performance piece to stop loop if no improvement found 
-            {
-                break;
-            }
-        }
-        return new OptimizationResult   //can be used to print on output @Millar
+        return new OptimizationResult //Summary of "best"
         {
             BestState = state,
-            Improved = improvedAny,
-            FinalFitness = currentFitness,
-            WeeksImproved = weeksImproved,
-            CombinationsChecked = combinationsChecked
-        };
-
-    }
-    private WeekOptimizationResult OptimizeWeek(ScheduleState state, int week, double baselineFitness, ScheduleHandler handler) //method checks one week at a time and optimizes it
-    {
-        List<ConflictTask> tasks = BuildConflictTasks(state, week); //each task is one overloaded person on one project in that week
-        if (tasks.Count == 0)
-        {
-            return new WeekOptimizationResult
-            {
-                Improved = false,
-                BestFitness = baselineFitness,
-                CombinationsChecked = 0
-            };
-        }
-        AssignmentSnapshot baseline = CaptureSnapshot(state);  //saves state before changes are made
-        AssignmentSnapshot bestSnapshot = null; //will be stored with best state as changes happen
-        double bestFitness = baselineFitness; //best fitness score
-        int combinationsChecked = 0; //counter for how many checks have been done
-        void Search(int taskIndex) //recursive search for each tasks and checks to keep current assignment or replace staff
-        {
-            if (taskIndex == tasks.Count)
-            {
-                combinationsChecked++;
-                double score = handler.CalculateFitnessScore(state); //score this new state
-
-                if (score > bestFitness)
-                {
-                    bestFitness = score;
-                    bestSnapshot = CaptureSnapshot(state); //better and now "best" state
-                }
-
-                return;
-            }
-            Search(taskIndex + 1); //does not change task
-            ConflictTask task = tasks[taskIndex]; //attempts to replace task
-            List<Person> candidates = GetReplacementCandidates(state, task); //filters canidates by same role and availabiliy
-            foreach (Person replacement in candidates) //tries each available dcanidate one by one
-            {
-                AssignmentSnapshot beforeMove = CaptureSnapshot(state); //saves state before a change is made
-                if (TryMove(state, task, replacement)) //attempts to make the move
-                {
-                    Search(taskIndex + 1);
-                }
-                RestoreSnapshot(state, beforeMove); //restores so canidate is back at same point
-            }
-        }
-        Search(0); //starts recursion from first task
-        RestoreSnapshot(state, baseline); //restores original
-        if (bestSnapshot != null) //better schedule is found so apply it
-        {
-            RestoreSnapshot(state, bestSnapshot);
-            return new WeekOptimizationResult
-            {
-                Improved = true,
-                BestFitness = bestFitness,
-                CombinationsChecked = combinationsChecked
-            };
-        }
-        return new WeekOptimizationResult //if not found then return what we had before
-        {
-            Improved = false,
-            BestFitness = baselineFitness,
+            Improved = bestFitness > initialFitness,
+            FinalFitness = bestFitness,
+            WeeksImproved = bestPathLength,
             CombinationsChecked = combinationsChecked
         };
     }
-    private List<ConflictTask> BuildConflictTasks(ScheduleState state, int week)
+
+    private void ExploreAllSequences(ScheduleState state, ScheduleHandler handler, HashSet<string> exploredStates, List<MoveCandidate> currentPath, ref double bestFitness, ref AssignmentSnapshot bestSnapshot, ref int bestPathLength, ref int combinationsChecked, ref int statesExplored, int maxStatesToExplore) //Exhasutive search method
     {
-        List<int> overloadedIds = state.PersonWeekGrid.Where(kv => kv.Key.Week == week && kv.Value > 1).Select(kv => kv.Key.PersonId).Distinct().ToList(); //list of person IDs that are over 40 hours for the week
-        var tasks = new List<ConflictTask>(); //will be the output (maybe)
-        foreach (int personId in overloadedIds) //finds which projects the overloaded persons are on 
+        if (statesExplored >= maxStatesToExplore) //Limiter
         {
-            Person overloaded = null;
-            foreach (var p in state.People)
+            return;
+        }
+
+        List<MoveCandidate> legalMoves = EnumerateLegalMoves(state); //Generates every legal single move from the current state
+
+        foreach (MoveCandidate move in legalMoves) //Tries every legal next move to build full sequence combinations
+        {
+            combinationsChecked++; //Counts this attempted move branch as one evaluated combination
+            AssignmentSnapshot beforeMove = CaptureSnapshot(state); //Saves current state so can be reset
+
+            bool applied = GreedyAlg.MoveHoursToReplacement(state, move.Project, move.OverloadedPerson, move.ReplacementPerson, move.RawWeek, move.ShiftedWeek, move.HoursToMove);
+
+            if (!applied)
             {
-                if (p.id == personId)
-                {
-                    overloaded = p;
-                    break;
-                }
+                RestoreSnapshot(state, beforeMove);
+                continue;
             }
-            if (overloaded == null)
+
+            string nextHash = BuildStateHash(state); //newly reached state after applying this move
+            if (exploredStates.Contains(nextHash)) //See if this state has been reviewed before
+            {
+                RestoreSnapshot(state, beforeMove); //Dup state
+                continue;
+            }
+
+            exploredStates.Add(nextHash); //State is visited
+            statesExplored++;
+            currentPath.Add(move);
+
+            double currentFitness = handler.CalculateFitnessScore(state); //Fitness score
+            if (currentFitness > bestFitness) //Updates when fitness improves
+            {
+                bestFitness = currentFitness;
+                bestSnapshot = CaptureSnapshot(state);
+                bestPathLength = currentPath.Count;
+            }
+
+            if (statesExplored < maxStatesToExplore)
+            {
+                ExploreAllSequences(state, handler, exploredStates, currentPath, ref bestFitness, ref bestSnapshot, ref bestPathLength, ref combinationsChecked, ref statesExplored, maxStatesToExplore);
+            }
+
+            currentPath.RemoveAt(currentPath.Count - 1);
+            RestoreSnapshot(state, beforeMove);
+        }
+    }
+    private List<MoveCandidate> EnumerateLegalMoves(ScheduleState state) //Every possible move
+    {
+        var moves = new List<MoveCandidate>(); //All possible moves for state
+        List<OverloadCell> overloadCells = BuildOverloadCells(state); //Over 40 person/weeks
+
+        foreach (OverloadCell overload in overloadCells)
+        {
+            Person overloadedPerson = FindPersonById(state, overload.PersonId);
+            if (overloadedPerson == null)
             {
                 continue;
             }
-            foreach (Project project in state.Projects)
+
+            List<SourceAssignment> sources = BuildSourceAssignments(state, overloadedPerson, overload.Week); //finds all projects for person on the over hour week
+            if (sources.Count == 0)
             {
-                int rawWeek = week - state.GetShift(project); //converts because the displayed week is not the actual week 
-                if (overloaded.projects.TryGetValue(project, out Dictionary<int, int> weeks) && weeks.Keys.Contains(rawWeek)) //checks if project is being worked on that week
+                continue;
+            }
+
+            List<Person> targets = GetReplacementCandidates(state, overloadedPerson, overload.Week); //Finds people with same role
+            if (targets.Count == 0)
+            {
+                continue;
+            }
+
+            foreach (SourceAssignment source in sources) //Project/week from person
+            {
+                foreach (Person target in targets) //To person
                 {
-                    tasks.Add(new ConflictTask //if it is then adding it to the conflict tasks list
+                    int targetRemaining = GetRemainingCapacity(state, target, overload.Week); //To persons available hours
+                    int maxHoursToMove = Math.Min(source.SourceHours, RoundDownToNearestFive(targetRemaining)); //Makes sure it goes by 5
+                    if (maxHoursToMove < 20) //Cannot be under 10
                     {
-                        Week = week,
-                        OverloadedPerson = overloaded,
-                        Project = project
-                    });
+                        continue;
+                    }
+
+                    for (int hoursToMove = 20; hoursToMove <= maxHoursToMove; hoursToMove += 10) //Every move by 5
+                    {
+                        moves.Add(new MoveCandidate
+                        {
+                            Project = source.Project,
+                            OverloadedPerson = overloadedPerson,
+                            ReplacementPerson = target,
+                            RawWeek = source.RawWeek,
+                            ShiftedWeek = overload.Week,
+                            HoursToMove = hoursToMove
+                        });
+                    }
                 }
             }
         }
-        return tasks; //returns all tasks aka week/person that are overloaded
+
+        return moves;
     }
-    private List<Person> GetReplacementCandidates(ScheduleState state, ConflictTask task)
+
+    private static int RoundDownToNearestFive(int value) //Normalizes capacity to 5 hour increments. If this is too slow might need to make it 10 to cut moves in half 
+    {
+        if (value <= 0) //no negatives
+        {
+            return 0;
+        }
+
+        return (value / 10) * 10;
+    }
+
+
+
+    private List<OverloadCell> BuildOverloadCells(ScheduleState state)
+    {
+        var cells = new List<OverloadCell>(); //Over capacity person/weeks list
+
+        foreach (KeyValuePair<ScheduleState.PersonWeekKey, int> kv in state.PersonWeekHours)
+        {
+            Person person = FindPersonById(state, kv.Key.PersonId);
+            if (person == null)
+            {
+                continue;
+            }
+
+            int capacity;
+            if (person.capacity > 0)
+            {
+                capacity = person.capacity;
+            }
+            else
+            {
+                capacity = 40;
+            }
+
+            int overloadAmount = kv.Value - capacity; //How over?
+
+            if (overloadAmount <= 0)
+            {
+                continue;
+            }
+
+            cells.Add(new OverloadCell //Save details for overloaded info
+            {
+                PersonId = kv.Key.PersonId,
+                Week = kv.Key.Week,
+                AssignedHours = kv.Value,
+                Capacity = capacity,
+                OverloadAmount = overloadAmount
+            });
+        }
+
+        cells.Sort((a, b) => b.OverloadAmount.CompareTo(a.OverloadAmount)); //Larger overloads first
+        return cells;
+    }
+
+    private List<SourceAssignment> BuildSourceAssignments(ScheduleState state, Person overloadedPerson, int shiftedWeek) //Projects that overloaded person is on that week
+    {
+        var sources = new List<SourceAssignment>();
+
+        foreach (KeyValuePair<Project, Dictionary<int, int>> assignment in overloadedPerson.projects)
+        {
+            Project project = assignment.Key;
+            int rawWeek = shiftedWeek - state.GetShift(project);
+
+            if (!assignment.Value.TryGetValue(rawWeek, out int sourceHours)) //Checks whether overloaded person has hours for this project/rawWeek
+            {
+                continue;
+            }
+
+            if (sourceHours < 20) //Cannot have 1-9 houirs
+            {
+                continue;
+            }
+
+            sources.Add(new SourceAssignment
+            {
+                Project = project,
+                RawWeek = rawWeek,
+                SourceHours = sourceHours
+            });
+        }
+
+        return sources;
+    }
+
+    private List<Person> GetReplacementCandidates(ScheduleState state, Person overloadedPerson, int shiftedWeek) //People with capacity
     {
         var candidates = new List<Person>();
+
         foreach (Person person in state.People)
         {
-            if (person.id == task.OverloadedPerson.id) //avoids replacing self
+            if (person.id == overloadedPerson.id) //No self transfer
             {
                 continue;
             }
 
-            if (!string.Equals(person.role, task.OverloadedPerson.role, StringComparison.OrdinalIgnoreCase)) //verifies same role
+            if (!string.Equals(person.role, overloadedPerson.role, StringComparison.OrdinalIgnoreCase)) //Same role required
             {
                 continue;
             }
 
-            if (!GreedyAlg.IsPersonFree(state, person, task.Project, task.Week)) //makes sure they are free this week
+            int availableCapacity = GetRemainingCapacity(state, person, shiftedWeek); //Updated capacity
+            if (availableCapacity < 20)
             {
                 continue;
             }
-            candidates.Add(person);  //passes all 3 then added to the canidates to replace list
+
+            candidates.Add(person);
         }
+
         return candidates;
     }
-    private bool TryMove(ScheduleState state, ConflictTask task, Person replacement)
+    private int GetRemainingCapacity(ScheduleState state, Person person, int week)
     {
-        int rawWeek = task.Week - state.GetShift(task.Project); //apparently the displayed week after the move isn't the same as what is truly stored which was interesting
-        if (!task.OverloadedPerson.projects.TryGetValue(task.Project, out Dictionary<int, int> weeks)) //Makes sure the original person owns the project still, ie was moved away prior
+        int currentHours = 0;
+        state.PersonWeekHours.TryGetValue(new ScheduleState.PersonWeekKey(person.id, week), out currentHours);
+        int capacity;
+        if (person.capacity > 0)
         {
-            return false;
+            capacity = person.capacity;
         }
-        if (!weeks.Keys.Contains(rawWeek)) //has to be the exact same week working
+        else
         {
-            return false;
+            capacity = 40;
         }
-        if (!GreedyAlg.IsPersonFree(state, replacement, task.Project, task.Week)) //replacement must still be free, ie not added another project
-        {
-            return false;
-        }
-        GreedyAlg.MoveWeekToReplacement(state, task.Project, task.OverloadedPerson, replacement, rawWeek); //does the actual moving
-        return replacement.projects.TryGetValue(task.Project, out Dictionary<int, int> replacementWeeks) && replacementWeeks.Keys.Contains(rawWeek);
+        return capacity - currentHours;
     }
+
+
+    private Person FindPersonById(ScheduleState state, int personId)
+    {
+        foreach (Person person in state.People)
+        {
+            if (person.id == personId)
+            {
+                return person;
+            }
+        }
+
+        return null;
+    }
+
+    private string BuildStateHash(ScheduleState state) //builds logic so the same state is only explored once
+    {
+        var parts = new List<string>(); //Normalized state 
+
+        foreach (Project project in state.Projects.OrderBy(p => p.id)) //Orders projects
+        {
+            parts.Add("SHIFT:" + project.id + ":" + state.GetShift(project)); 
+        }
+
+        foreach (Person person in state.People.OrderBy(p => p.id)) //Order people
+        {
+            foreach (KeyValuePair<Project, Dictionary<int, int>> projectEntry in person.projects.OrderBy(kv => kv.Key.id)) //Projects per person
+            {
+                foreach (KeyValuePair<int, int> weekEntry in projectEntry.Value.OrderBy(kv => kv.Key)) //Weeks/hours per project
+                {
+                    parts.Add("ASSIGN:" + person.id + ":" + projectEntry.Key.id + ":" + weekEntry.Key + ":" + weekEntry.Value); //Person/project/weeks/hours assignment
+                }
+            }
+        }
+
+        return string.Join("|", parts); //Returns one string that is unique to this state
+    }
+
     private AssignmentSnapshot CaptureSnapshot(ScheduleState state)  //keeps a snapshot of changes for comparison ak grid v grid
     {
         var personAssignments = new Dictionary<Person, Dictionary<Project, Dictionary<int, int>>>(); //Copy person/project/weeks map
         foreach (Person person in state.People)
         {
             var byProject = new Dictionary<Project, Dictionary<int, int>>(person.projects);
-            foreach (KeyValuePair<Project, Dictionary<int,int>> kv in person.projects) //takes list of people on project
+            foreach (KeyValuePair<Project, Dictionary<int, int>> kv in person.projects) //takes list of people on project
             {
                 byProject[kv.Key] = new Dictionary<int, int>(kv.Value); //copies s future changes don't impact it
             }
@@ -202,9 +319,9 @@ public class RoleOptimizer
         {
             projectPeople[project] = new HashSet<Person>(project.people); //avoids future changes
         }
-        return new AssignmentSnapshot  // Return one snapshot object containing both views of the same schedule, person/project/weeks and project/people so we can build a full state
+        return new AssignmentSnapshot  //Return one snapshot object containing both views of the same schedule, person/project/weeks and project/people so we can build a full state
         {
-            PersonAssignments = personAssignments, 
+            PersonAssignments = personAssignments,
             ProjectPeople = projectPeople
         };
     }
@@ -237,19 +354,6 @@ public class RoleOptimizer
 
         state.RebuildGrid(); //rebuilds schedule state
     }
-    private class ConflictTask //the cell in a grid/table that can be moved because conflicted
-    {
-        public int Week { get; set; }
-        public Person OverloadedPerson { get; set; }
-        public Project Project { get; set; }
-    }
-
-    private class WeekOptimizationResult //checks if it improved the fitness score or not
-    {
-        public bool Improved { get; set; }
-        public double BestFitness { get; set; }
-        public int CombinationsChecked { get; set; }
-    }
 
     private class AssignmentSnapshot //copies of states to compare
     {
@@ -265,4 +369,32 @@ public class RoleOptimizer
         public int WeeksImproved { get; set; }
         public int CombinationsChecked { get; set; }
     }
+
+    private class OverloadCell
+    {
+        public int PersonId { get; set; }
+        public int Week { get; set; }
+        public int AssignedHours { get; set; }
+        public int Capacity { get; set; }
+        public int OverloadAmount { get; set; }
+    }
+
+    private class SourceAssignment
+    {
+        public Project Project { get; set; }
+        public int RawWeek { get; set; }
+        public int SourceHours { get; set; }
+    }
+
+    private class MoveCandidate
+    {
+        public Project Project { get; set; }
+        public Person OverloadedPerson { get; set; }
+        public Person ReplacementPerson { get; set; }
+        public int RawWeek { get; set; }
+        public int ShiftedWeek { get; set; }
+        public int HoursToMove { get; set; }
+    }
+
+
 }
