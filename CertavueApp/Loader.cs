@@ -48,29 +48,21 @@ public class Loader
             var project = projectsByName[projectName];
 
             Dictionary<int, int> weekWorkingHours = new Dictionary<int, int>();
-
             for (int i = startDate + 1; i < endDate; i++)
             {
-                if (int.TryParse(cells[i].Trim(), out int hours) && hours > 0)
+                if (int.TryParse(cells[i], out int hours))
                 {
-                    weekWorkingHours.Add(i - 2, hours);
+                    weekWorkingHours.Add(i - 2, Convert.ToInt32(cells[i]));
                 }
             }
 
-            // Dictionary<int, int> weekWorkingHours = new Dictionary<int, int>();
-            // for (int i = startDate + 1; i < endDate; i++)
-            // {
-            //     if (int.TryParse(cells[i], out int hours))
-            //     {
-            //         weekWorkingHours.Add(i - 2, Convert.ToInt32(cells[i]));
-            //     }
-            // }
             person.projects.Add(project, weekWorkingHours);
             project.people.Add(person);
             project.originalPeopleIds.Add(person.id);
             project.updateCapacity();
-
+            project.OriginalDurationSpan = project.durationProjectFinder();            
         }
+
         return (peopleByName.Values.ToList(), projectsByName.Values.ToList());
     }
 }
