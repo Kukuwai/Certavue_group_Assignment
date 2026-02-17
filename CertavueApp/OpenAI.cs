@@ -17,7 +17,7 @@ public class OpenAI
         client = new HttpClient();
         client.BaseAddress = new Uri("https://api.openai.com/v1/");
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-        client.Timeout = TimeSpan.FromMinutes(5); //request timeout time
+        client.Timeout = TimeSpan.FromMinutes(30); //request timeout time
     }
 
     public string GetModel()
@@ -112,7 +112,7 @@ public class OpenAI
         return body;
     }
 
-    return WaitForCompletion(responseId, TimeSpan.FromMinutes(10), 2000); //timeout for each task 
+    return WaitForCompletion(responseId, TimeSpan.FromMinutes(30), 2000); //timeout for each task 
 }
 
 

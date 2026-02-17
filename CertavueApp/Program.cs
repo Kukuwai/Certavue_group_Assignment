@@ -37,14 +37,14 @@ public class Program
         // loading data in
         foreach (string file in files)
         {
-            if (!file.Contains("schedule_spectacular_fitness_mixedA_varied40s.csv"))
+            if (!file.Contains("realistic_min10_small_12projects_9people_sorted.csv"))
             {
                 continue;
             }
             var originalState = loadData(file);
             ScheduleHandler originalHandler = new ScheduleHandler(originalState);
-            Console.WriteLine("\n>>> [Before Optimization] Orignal conflicts detai:");
-            originalHandler.DebugConflictDetails(originalState);
+            // Console.WriteLine("\n>>> [Before Optimization] Orignal conflicts detai:");
+            // originalHandler.DebugConflictDetails(originalState);
 
             // export original data to html output
             Output output = new Output();
@@ -68,8 +68,8 @@ public class Program
             string baseName = Path.GetFileNameWithoutExtension(file);
             string outputPath = Path.Combine(outputCsvDir, baseName + "_after_greedy.csv");
             ScheduleHandler afterHandler = new ScheduleHandler(scheduleAfterGreedy);
-            Console.WriteLine("\n>>> [After Greedy] Conflictes detais:");
-            afterHandler.DebugConflictDetails(scheduleAfterGreedy);
+            // Console.WriteLine("\n>>> [After Greedy] Conflictes detais:");
+            // afterHandler.DebugConflictDetails(scheduleAfterGreedy);
 
             ScheduleCsvExporter.ExportStateToWeeklyTableCsv(scheduleAfterGreedy, outputPath);
             string instructionsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents", "Instructions.txt"));
@@ -80,11 +80,11 @@ public class Program
             Directory.CreateDirectory(documentsDir);
 
             string responsePath = Path.Combine(documentsDir, baseName + "_OpenAI_Response.txt");
-
+            Console.WriteLine("Wrote CSV: " + outputPath);
             File.WriteAllText(responsePath, responseText);
             Console.WriteLine("Saved OpenAI response: " + responsePath);
 
-            Console.WriteLine("Wrote CSV: " + outputPath);
+            
 
             output.ExportToHtml(file, scheduleAfterGreedy, "after_greedy");
 
