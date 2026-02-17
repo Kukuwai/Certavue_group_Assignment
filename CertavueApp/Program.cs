@@ -30,8 +30,8 @@ public class Program
 
 
         ScheduleState finalState = null;
-        string apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
-        OpenAI openAI = new OpenAI(apiKey, "gpt-5-nano");
+        // string apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+        // OpenAI openAI = new OpenAI(apiKey, "gpt-5-nano");
 
 
         // loading data in
@@ -72,21 +72,27 @@ public class Program
             // afterHandler.DebugConflictDetails(scheduleAfterGreedy);
 
             ScheduleCsvExporter.ExportStateToWeeklyTableCsv(scheduleAfterGreedy, outputPath);
-            string instructionsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents", "Instructions.txt"));
+            // string instructionsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents", "Instructions.txt"));
 
-            string responseText = openAI.CompareTwoCsvWithInstructions(file, outputPath, instructionsPath);
+            // string responseText = openAI.CompareTwoCsvWithInstructions(file, outputPath, instructionsPath);
 
-            string documentsDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents"));
-            Directory.CreateDirectory(documentsDir);
+            // string documentsDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents"));
+            // Directory.CreateDirectory(documentsDir);
 
-            string responsePath = Path.Combine(documentsDir, baseName + "_OpenAI_Response.txt");
-            Console.WriteLine("Wrote CSV: " + outputPath);
-            File.WriteAllText(responsePath, responseText);
-            Console.WriteLine("Saved OpenAI response: " + responsePath);
+            // string responsePath = Path.Combine(documentsDir, baseName + "_OpenAI_Response.txt");
+            // Console.WriteLine("Wrote CSV: " + outputPath);
+            // File.WriteAllText(responsePath, responseText);
+            // Console.WriteLine("Saved OpenAI response: " + responsePath);
 
-            
+
 
             output.ExportToHtml(file, scheduleAfterGreedy, "after_greedy");
+            // Here the method FindPeopleForNewProject method is tested with both original Schedule and the Greedy Optimized Schedule.
+            TestFindPeopleForNewProject(originalState, "Original Schedule");
+            TestFindPeopleForNewProject(scheduleAfterGreedy, "After Greedy Schedule");
+
+            TestFindWorkForNewPerson(originalState, "Original Schedule");
+            TestFindWorkForNewPerson(scheduleAfterGreedy, "After Greedy Schedule");
 
             // string apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
             // OpenAI openAI = new OpenAI(apiKey, "gpt-5-mini");
@@ -117,11 +123,41 @@ public class Program
             //     p.printPeopleOnProject();
             // }
         }
-        openAI.Close();
+        // openAI.Close();
 
-        
+
 
         //  ProcessNewProjectInsertion(finalState);
+    }
+
+    // This test method takes state as the argument and then it passes it to the constructor of AvailabiltyFinder. 
+    // Here I use label to know the state whether it is before Greedy or After Greedy. 
+    public void TestFindPeopleForNewProject(ScheduleState state, string label)
+    {
+        Console.WriteLine($"\n*** Availability Finder - {label} ***\n");
+        var finder = new AvailabilityFinder(state);
+
+        var result = finder.FindPeopleForNewProject(
+            startWeek: 25,
+            duration: 5,
+            peopleNeeded: 4,
+            requiredRole: "developer"
+        );
+
+        result.PrintSummary();
+    }
+    // This Test method runs FindWorkForNewPerson method and takes state and corresponding label as arguments. 
+    public void TestFindWorkForNewPerson(ScheduleState state, string label)
+    {
+        Console.WriteLine($"\n*** Availability Finder - {label} ***");
+        var finder = new AvailabilityFinder(state);
+
+        var result = finder.FindWorkForNewPerson(
+            personName: "NewPerson",
+            availableWeeks: 52
+        );
+
+        result.PrintSummary();
     }
 
 
