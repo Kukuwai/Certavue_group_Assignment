@@ -57,11 +57,11 @@ public class ScheduleHandler
         double durationScore = GetDurationScore(state);
 
         // Final weighted sum
-        return (conflictScore * 0.4) +
+        return (conflictScore * 0.5) +
                (movementScore * 0.2) +
                (focusScore * 0.2) +
-               (continuityScore * 0.1) +
-               (durationScore * 0.1);
+               (continuityScore * 0.05) +
+               (durationScore * 0.05);
     }
 
     // This is a overload punisher
@@ -171,6 +171,54 @@ public class ScheduleHandler
 
         return total > 0 ? total : 1.0;
     }
+
+    public void DebugConflictDetails(ScheduleState state)
+{
+    int totalConflictWeeks = 0;   // 有冲突的周数
+    double totalOvertimeHours = 0;
+    var conflictingPeople = new HashSet<int>();
+
+    Console.WriteLine("\n========== [DEBUG Analyze (Based on Hours)] ==========");
+
+    // 统一使用 PersonWeekHours，这才是你的算法真正优化的维度
+    foreach (var entry in state.PersonWeekHours)
+    {
+        var personId = entry.Key.PersonId;
+        var week = entry.Key.Week;
+        var assignedHours = entry.Value;
+
+        // 获取该人的实际容量
+        int capacity = 40;
+        var person = state.People.FirstOrDefault(p => p.id == personId);
+        if (person != null && person.capacity > 0) capacity = person.capacity;
+
+        if (assignedHours > capacity) 
+        {
+            totalConflictWeeks++;
+            double overtime = assignedHours - capacity;
+            totalOvertimeHours += overtime;
+            conflictingPeople.Add(personId);
+
+            // 获取该周有多少个项目（可选，用于辅助诊断）
+            state.PersonWeekGrid.TryGetValue(new ScheduleState.WeekKey(personId, 0, week), out int projCount);
+
+            Console.WriteLine($"[CONFLICTS🚨] Person ID: {personId.ToString().PadRight(4)} | Week: {week.ToString().PadRight(2)} | Hours: {assignedHours}h (Cap: {capacity}h) | Overtime: {overtime}h");
+        }
+    }
+
+    if (totalConflictWeeks == 0)
+    {
+        Console.WriteLine(">>> Success！👍 No hour-based conflicts.");
+    }
+    else
+    {
+        Console.WriteLine("------------------------------------------");
+        Console.WriteLine($"Affected Person-Weeks: {totalConflictWeeks}");
+        Console.WriteLine($"Related Persons: {conflictingPeople.Count}");
+        Console.WriteLine($"Total Overload Time: {totalOvertimeHours} hours.");
+    }
+    Console.WriteLine("==========================================\n");
+}
 
     // public double GetFocusScore(ScheduleState state)
     // {

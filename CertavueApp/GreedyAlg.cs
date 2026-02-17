@@ -24,7 +24,7 @@ public class GreedyAlg
     }
     public void BuildGreedySchedule(ScheduleState state)
     {
-        const int maxPasses = 10; //Can be whatever we want
+        const int maxPasses = 100; //Can be whatever we want
         ScheduleHandler scheduleHandler = new ScheduleHandler(state);
 
         for (int pass = 1; pass <= maxPasses; pass++)
