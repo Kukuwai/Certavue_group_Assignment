@@ -31,7 +31,7 @@ public class Program
 
 
         ScheduleState finalState = null;
-        string apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+        string apiKey = Environment.GetEnvironmentVariable("ApiKey");
         OpenAI openAI = new OpenAI(apiKey, "gpt-5-mini");
 
 
@@ -80,6 +80,11 @@ public class Program
             afterHandler.DebugConflictDetails(greedyState);
             printStats(file, greedyState, "Greedy", false);
             ScheduleCsvExporter.ExportStateToWeeklyTableCsv(greedyState, outputCsvDir + "/outputGreedy.csv");
+            foreach (Project p in greedyState.Projects)
+            {
+                int h = p.getTotalHours();
+                Console.WriteLine($"Project: {p.id} | Hours: {h}");
+            }
 
            // run or tools
             Console.WriteLine("\n>>> [3. After OR-Tools] Detailed Conflict Report:");
