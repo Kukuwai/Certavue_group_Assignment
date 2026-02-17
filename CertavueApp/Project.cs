@@ -5,26 +5,29 @@ using static Person;
 
 public class Project
 {
-    private static int idCounter = 0; 
-    public int id {get;}
-    public string name {get; set;}
+    private static int idCounter = 0;
+    public int id { get; }
+    public string name { get; set; }
     public HashSet<Person> people { get; } = new();
     public HashSet<int> originalPeopleIds { get; } = new();
-    public int startDate {get; set;}
-    public int endDate {get; set;} 
-    public int duration {get; set;}
-    public int hoursNeeded {get; set;}
+    public Dictionary<Person, int> totalHoursOnProject {get; set;} = new();
+    public int startDate { get; set; }
+    public int endDate { get; set; }
+    public int duration { get; set; }
+    public int hoursNeeded { get; set; }
 
     public int capacityStartWeek {get; set;}
     public int capacityEndWeek {get; set;}
     public int capacity {get; set;}
+    public int OriginalDurationSpan {get; set;}
+    
 
     public Project(string name, int startDate, int endDate, int hoursNeeded)
     {
         id = ++idCounter;
         this.name = name;
         this.hoursNeeded = hoursNeeded;
-        this.endDate = endDate;     
+        this.endDate = endDate;
         this.startDate = startDate;
     }
 
@@ -32,24 +35,24 @@ public class Project
     {
         id = ++idCounter;
         this.name = name;
-        this.endDate = endDate;     
+        this.endDate = endDate;
         this.startDate = startDate;
     }
 
     public void updateCapacity()
     {
 
-        int ? earliest = null;
-        int ? latest = null;
+        int? earliest = null;
+        int? latest = null;
         // find the weeks where people are assigned to project.
         Dictionary<int, int> weeks = new Dictionary<int, int>();
         foreach (Person p in this.people)
         {
             // check if project is contained within dictiornary and that it onl has one person
-            if (!p.projects.TryGetValue(this, out Dictionary<int,int> weeksForProject))
+            if (!p.projects.TryGetValue(this, out Dictionary<int, int> weeksForProject))
             {
                 // skip if not
-                continue;   
+                continue;
             }
             // go through each week project is in
             foreach (int week in weeksForProject.Keys)
@@ -84,17 +87,17 @@ public class Project
     public int durationProjectFinder()
     {
 
-        int ? earliest = null;
-        int ? latest = null;
+        int? earliest = null;
+        int? latest = null;
         // find the weeks where people are assigned to project.
         Dictionary<int, int> weeks = new Dictionary<int, int>();
         foreach (Person p in this.people)
         {
             // check if project is contained within dictiornary and that it onl has one person
-            if (!p.projects.TryGetValue(this, out Dictionary<int,int> weeksForProject))
+            if (!p.projects.TryGetValue(this, out Dictionary<int, int> weeksForProject))
             {
                 // skip if not
-                continue;   
+                continue;
             }
             // go through each week project is in
             foreach (int week in weeksForProject.Keys)
@@ -127,20 +130,21 @@ public class Project
         return capacity;
     }
 
-   public void ReplaceStaff(Person person, Person oldperson){
-
-    foreach(Person p in people)
+    public void ReplaceStaff(Person person, Person oldperson)
     {
-        if (p.Equals(person))
+
+        foreach (Person p in people)
         {
-            this.people.Remove(oldperson);
-            this.people.Add(person);
+            if (p.Equals(person))
+            {
+                this.people.Remove(oldperson);
+                this.people.Add(person);
+            }
         }
+
     }
 
-   }
-
-   public List<Person> getPeopleOnProject()
+    public List<Person> getPeopleOnProject()
     {
         List<Person> peopleOnProject = new List<Person>();
         foreach (Person p in this.people)
@@ -154,12 +158,44 @@ public class Project
     {
         foreach (Person p in people)
         {
-            Dictionary<int,int> projectWeekHours = p.projects.GetValueOrDefault(this);
+            Dictionary<int, int> projectWeekHours = p.projects.GetValueOrDefault(this);
             foreach (KeyValuePair<int, int> entry in projectWeekHours)
             {
                 Console.WriteLine($"{p.name} | {p.role} | {this.name} | Week {entry.Key}: | {entry.Value}");
             }
         }
     }
-    
+
+    public int getTotalHours()
+    {
+        int totalHours = 0;
+        foreach (Person p in people)
+        {
+            Dictionary<int, int> weekKey;
+            bool isOnProject = p.projects.TryGetValue(this, out weekKey);
+            if (isOnProject)
+            {
+                foreach (var week in weekKey)
+                {
+                    totalHours += week.Value;
+                }
+            }
+        }
+        return totalHours;
+    }
+
+    public Dictionary<Person, int> setTotalHoursOnProject()
+    {
+        Dictionary<Person, int> totalHoursOnProject = new();
+        foreach (Person p in people)
+        {
+            var personTotalHours = 0;
+            for (int i = 0; i <52; i++)
+            {
+                personTotalHours += p.getHoursForProjecForWeek(this,i);
+            }
+            totalHoursOnProject.Add(p,personTotalHours);
+        }
+        return totalHoursOnProject;
+    }
 }
