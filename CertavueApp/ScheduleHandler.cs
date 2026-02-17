@@ -57,11 +57,11 @@ public class ScheduleHandler
         double durationScore = GetDurationScore(state);
 
         // Final weighted sum
-        return (conflictScore * 0.4) +
+        return (conflictScore * 0.5) +
                (movementScore * 0.2) +
                (focusScore * 0.2) +
-               (continuityScore * 0.1) +
-               (durationScore * 0.1);
+               (continuityScore * 0.05) +
+               (durationScore * 0.05);
     }
 
     // This is a overload punisher
