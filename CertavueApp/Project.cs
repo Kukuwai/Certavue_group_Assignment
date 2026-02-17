@@ -10,6 +10,7 @@ public class Project
     public string name { get; set; }
     public HashSet<Person> people { get; } = new();
     public HashSet<int> originalPeopleIds { get; } = new();
+    public Dictionary<Person, int> totalHoursOnProject {get; set;} = new();
     public int startDate { get; set; }
     public int endDate { get; set; }
     public int duration { get; set; }
@@ -183,5 +184,18 @@ public class Project
         return totalHours;
     }
 
-
+    public Dictionary<Person, int> setTotalHoursOnProject()
+    {
+        Dictionary<Person, int> totalHoursOnProject = new();
+        foreach (Person p in people)
+        {
+            var personTotalHours = 0;
+            for (int i = 0; i <52; i++)
+            {
+                personTotalHours += p.getHoursForProjecForWeek(this,i);
+            }
+            totalHoursOnProject.Add(p,personTotalHours);
+        }
+        return totalHoursOnProject;
+    }
 }

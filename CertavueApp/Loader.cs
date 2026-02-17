@@ -60,7 +60,8 @@ public class Loader
             project.people.Add(person);
             project.originalPeopleIds.Add(person.id);
             project.updateCapacity();
-            project.OriginalDurationSpan = project.durationProjectFinder();            
+            project.OriginalDurationSpan = project.durationProjectFinder();
+            project.totalHoursOnProject = project.setTotalHoursOnProject();          
         }
 
         return (peopleByName.Values.ToList(), projectsByName.Values.ToList());

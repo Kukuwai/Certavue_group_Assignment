@@ -50,8 +50,10 @@ public class Program
             ScheduleCsvExporter.ExportStateToWeeklyTableCsv(originalState, outputCsvDir + "/outputOriginal.csv");
             foreach (Project p in projects)
             {
-                int h = p.getTotalHours();
-                Console.WriteLine($"Project: {p.id} | Hours: {h}");
+                foreach (var kp in p.totalHoursOnProject)
+                {
+                    Console.WriteLine($"Person:{kp.Key.name} | TotalHours: {kp.Value}");
+                }
             }
 
             // export original data to html output
@@ -80,10 +82,12 @@ public class Program
             afterHandler.DebugConflictDetails(greedyState);
             printStats(file, greedyState, "Greedy", false);
             ScheduleCsvExporter.ExportStateToWeeklyTableCsv(greedyState, outputCsvDir + "/outputGreedy.csv");
-            foreach (Project p in greedyState.Projects)
+            foreach (Project p in projects)
             {
-                int h = p.getTotalHours();
-                Console.WriteLine($"Project: {p.id} | Hours: {h}");
+                foreach (var kp in p.totalHoursOnProject)
+                {
+                    Console.WriteLine($"Person:{kp.Key.name} | TotalHours: {kp.Value}");
+                }
             }
 
            // run or tools
@@ -106,10 +110,12 @@ public class Program
                 Console.WriteLine($"Adding more same-role people: {result.Report.ResourceSwaps}");
                 printStats(file, finalState, "CPSAT", true);
                 ScheduleCsvExporter.ExportStateToWeeklyTableCsv(finalState, outputCsvDir + "/outputSolver.csv");
-                foreach (Project p in finalState.Projects)
+                foreach (Project p in projects)
                 {
-                    int h = p.getTotalHours();
-                    Console.WriteLine($"Project: {p.id} | Hours: {h}");
+                foreach (var kp in p.totalHoursOnProject)
+                    {
+                        Console.WriteLine($"Person:{kp.Key.name} | TotalHours: {kp.Value}");
+                    }
                 }
                  
             }
