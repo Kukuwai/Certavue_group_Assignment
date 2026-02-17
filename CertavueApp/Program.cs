@@ -11,6 +11,7 @@ using System.Linq;
 using System.Text;
 using static OpenAI;
 using Google.OrTools.Sat;
+using System.Numerics;
 
 
 public class Program
@@ -48,13 +49,16 @@ public class Program
             originalHandler.DebugConflictDetails(originalState);
             printStats(file, originalState, "Original", false);
             ScheduleCsvExporter.ExportStateToWeeklyTableCsv(originalState, outputCsvDir + "/outputOriginal.csv");
+            var hourCount = 0;
             foreach (Project p in projects)
             {
                 foreach (var kp in p.totalHoursOnProject)
                 {
+                    hourCount += kp.Value;
                     Console.WriteLine($"Person:{kp.Key.name} | TotalHours: {kp.Value}");
                 }
             }
+            Console.WriteLine($"Total hours: {hourCount}");
 
             // export original data to html output
             // Output output = new Output();
@@ -82,13 +86,16 @@ public class Program
             afterHandler.DebugConflictDetails(greedyState);
             printStats(file, greedyState, "Greedy", false);
             ScheduleCsvExporter.ExportStateToWeeklyTableCsv(greedyState, outputCsvDir + "/outputGreedy.csv");
-            foreach (Project p in projects)
+            hourCount = 0;
+            foreach (Project p in greedyState.Projects)
             {
                 foreach (var kp in p.totalHoursOnProject)
                 {
+                    hourCount += kp.Value;
                     Console.WriteLine($"Person:{kp.Key.name} | TotalHours: {kp.Value}");
                 }
             }
+            Console.WriteLine($"Total hours: {hourCount}");
 
            // run or tools
             Console.WriteLine("\n>>> [3. After OR-Tools] Detailed Conflict Report:");
@@ -110,13 +117,16 @@ public class Program
                 Console.WriteLine($"Adding more same-role people: {result.Report.ResourceSwaps}");
                 printStats(file, finalState, "CPSAT", true);
                 ScheduleCsvExporter.ExportStateToWeeklyTableCsv(finalState, outputCsvDir + "/outputSolver.csv");
-                foreach (Project p in projects)
+                hourCount = 0;
+                foreach (Project p in finalState.Projects)
                 {
-                foreach (var kp in p.totalHoursOnProject)
-                    {
-                        Console.WriteLine($"Person:{kp.Key.name} | TotalHours: {kp.Value}");
-                    }
+                    foreach (var kp in p.totalHoursOnProject)
+                        {
+                            hourCount += kp.Value;
+                            Console.WriteLine($"Person:{kp.Key.name} | TotalHours: {kp.Value}");
+                        }
                 }
+                Console.WriteLine($"Total hours: {hourCount}");
                  
             }
 
