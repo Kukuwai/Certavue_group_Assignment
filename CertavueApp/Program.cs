@@ -31,7 +31,7 @@ public class Program
 
 
         ScheduleState finalState = null;
-        string apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+        string apiKey = Environment.GetEnvironmentVariable("ApiKey");
         OpenAI openAI = new OpenAI(apiKey, "gpt-5-mini");
 
 
@@ -46,6 +46,13 @@ public class Program
             ScheduleHandler originalHandler = new ScheduleHandler(originalState);
             Console.WriteLine("\n>>> [Before Optimization] Orignal conflicts detai:");
             originalHandler.DebugConflictDetails(originalState);
+            printStats(file, originalState, "Original", false);
+            ScheduleCsvExporter.ExportStateToWeeklyTableCsv(originalState, outputCsvDir + "/outputOriginal.csv");
+            foreach (Project p in projects)
+            {
+                int h = p.getTotalHours();
+                Console.WriteLine($"Project: {p.id} | Hours: {h}");
+            }
 
             // export original data to html output
             // Output output = new Output();
@@ -71,6 +78,13 @@ public class Program
             ScheduleHandler afterHandler = new ScheduleHandler(greedyState);
             Console.WriteLine("\n>>> [After Greedy] Conflictes detais:");
             afterHandler.DebugConflictDetails(greedyState);
+            printStats(file, greedyState, "Greedy", false);
+            ScheduleCsvExporter.ExportStateToWeeklyTableCsv(greedyState, outputCsvDir + "/outputGreedy.csv");
+            foreach (Project p in greedyState.Projects)
+            {
+                int h = p.getTotalHours();
+                Console.WriteLine($"Project: {p.id} | Hours: {h}");
+            }
 
            // run or tools
             Console.WriteLine("\n>>> [3. After OR-Tools] Detailed Conflict Report:");
@@ -80,18 +94,25 @@ public class Program
             Console.WriteLine("\n>>> [After Ortools] Conflictes detais:");
 
             if (result.Status == Google.OrTools.Sat.CpSolverStatus.Feasible || result.Status == Google.OrTools.Sat.CpSolverStatus.Optimal)
-        {
-            ApplyAssignmentsToState(greedyState, result.Assignments);
-            finalState = greedyState;
-            var finalHandler = new ScheduleHandler(finalState);
-            finalHandler.DebugConflictDetails(finalState);
-            
-            Console.WriteLine("--- Optional stratge ---");
-            Console.WriteLine($"Sueccessful Reduction: {result.Report.ConflictReduced}h");
-            Console.WriteLine($"Expension Duration: {result.Report.TotalDelayWeeks}");
-            Console.WriteLine($"Adding more same-role people: {result.Report.ResourceSwaps}");
-            
-        }
+            {
+                ApplyAssignmentsToState(greedyState, result.Assignments);
+                finalState = greedyState;
+                var finalHandler = new ScheduleHandler(finalState);
+                finalHandler.DebugConflictDetails(finalState);
+                
+                Console.WriteLine("--- Optional stratge ---");
+                Console.WriteLine($"Sueccessful Reduction: {result.Report.ConflictReduced}h");
+                Console.WriteLine($"Expension Duration: {result.Report.TotalDelayWeeks}");
+                Console.WriteLine($"Adding more same-role people: {result.Report.ResourceSwaps}");
+                printStats(file, finalState, "CPSAT", true);
+                ScheduleCsvExporter.ExportStateToWeeklyTableCsv(finalState, outputCsvDir + "/outputSolver.csv");
+                foreach (Project p in finalState.Projects)
+                {
+                    int h = p.getTotalHours();
+                    Console.WriteLine($"Project: {p.id} | Hours: {h}");
+                }
+                 
+            }
 
             // ScheduleCsvExporter.ExportStateToWeeklyTableCsv(scheduleAfterGreedy, outputPath);
             // string instructionsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents", "Instructions.txt"));
