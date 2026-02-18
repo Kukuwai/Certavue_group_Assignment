@@ -24,85 +24,96 @@ public class CpSatOptimizer
         public CpSolverStatus Status { get; set; }
         public double FinalOverload { get; set; }
         public StrategyReport Report { get; set; } = new StrategyReport();
-        public Dictionary<(int PersonId, Project Project, int RawWeek), int> Assignments { get; set; } = new();
+        
+        public Dictionary<(int PersonId, Project Project, int RawWeek, int TaskIdx), int> Assignments { get; set; } = new();
     }
 
-    public SolveResult Optimize(ScheduleState state, double maxSeconds = 30)
-    {
-        // Calculate where we are starting from so we can measure improvement later.
-        double initialOverload = state.PersonWeekHours.Values.Sum(v => Math.Max(0, v - 40));
-        int maxWeek = state.Projects.Max(p => p.endDate > 0 ? p.endDate : 52);
+public SolveResult Optimize(ScheduleState state, Dictionary<int, List<(int PersonId, int Week, int Hours)>> originalTaskMap,double maxSeconds = 30) // 🚨 修改这里double maxSeconds = 30)
+{
+    // 1. 初始化
+    double initialOverload = state.PersonWeekHours.Values.Sum(v => Math.Max(0, v - 40));
+    int maxWeek = state.Projects.Max(p => p.endDate > 0 ? p.endDate : 52);
 
-        var model = new CpModel();
-        var objective = LinearExpr.NewBuilder();
-        
-       // Setup a global resource pool that helps the solver find "backups" for overloaded people.
-        var personLoadMap = state.People.ToDictionary(
+    var model = new CpModel();
+    var objective = LinearExpr.NewBuilder();
+    
+    var personLoadMap = state.People.ToDictionary(
         p => p.id, 
-        p => (double)state.PersonWeekHours
-        .Where(kv => kv.Key.PersonId == p.id)
-        .Sum(kv => kv.Value)
-        );
-        var rolePool = state.People.GroupBy(p => p.role ?? "").ToDictionary(g => g.Key, g => g.ToList());
-        
-        // x stores our decision variables: [Who, Which Project, Original Week, New Target Week]
-        var x = new Dictionary<(int pId, Project prj, int rW, int tW), BoolVar>();
-        var personWeekLoad = new Dictionary<(int pId, int tW), LinearExprBuilder>();
+        p => (double)state.PersonWeekHours.Where(kv => kv.Key.PersonId == p.id).Sum(kv => kv.Value)
+    );
+    var rolePool = state.People.GroupBy(p => p.role ?? "").ToDictionary(g => g.Key, g => g.ToList());
+    
+    // 🚨 修复 A: 字典 Key 增加 tIdx 字段，确保同一周多笔任务不被覆盖
+    var x = new Dictionary<(int pId, Project prj, int tW, int tIdx), BoolVar>();
+    var personWeekLoad = new Dictionary<(int pId, int tW), LinearExprBuilder>();
 
-        // iterate through every project and task to inject our strategies.
-        foreach (var p in state.Projects)
+    // 2. 核心循环：构建模型
+    foreach (var p in state.Projects)
+    {
+        if (!originalTaskMap.TryGetValue(p.id, out var rawAssigns)) 
         {
-            var rawAssigns = state.GetOriginalAssignments(p);
-            int pDeadline = p.endDate > 0 ? p.endDate : 52;
-
-            foreach (var assign in rawAssigns)
-            {
-                var choices = new List<BoolVar>();
-                
-               // Strategy A: Resource Expansion. Find people with the same role who might be free.
-                var candidates = GetResourceExpansionCandidates(assign, state, rolePool, personLoadMap);
-
-                foreach (var cand in candidates)
-                {
-                    // Strategy B: Delay Softening. Look for better time slots around the current schedule.
-                    var windows = GetSoftenedTimeWindows(assign, state, p, pDeadline, maxWeek);
-
-                    foreach (var tW in windows)
-                    {
-                        var bv = model.NewBoolVar($"p{cand.id}_prj{p.id}_r{assign.Week}_t{tW}");
-                        x[(cand.id, p, assign.Week, tW)] = bv;
-                        choices.Add(bv);
-
-                       // If the solver picks a week past the deadline, will hit it with a lateness penalty.
-                        if (tW > pDeadline)
-                            objective.AddTerm(bv, (tW - pDeadline) * W_LATENESS);
-
-                        // Track the total hours per person per week so we can identify conflicts.
-                        var key = (cand.id, tW);
-                        if (!personWeekLoad.ContainsKey(key)) personWeekLoad[key] = LinearExpr.NewBuilder();
-                        personWeekLoad[key].AddTerm(bv, assign.Hours);
-                        
-                       // Small penalty for moving tasks too far from their original slot (keeps the schedule stable).
-                        objective.AddTerm(bv, Math.Abs(tW - (assign.Week + state.GetShift(p))) * W_MOVEMENT);
-                    }
-                }
-                // Each original task must be assigned to exactly one person at one specific time.
-                if (choices.Count > 0) model.AddExactlyOne(choices);
-            }
+            Console.WriteLine($"[WARNING] Project {p.id} not found in backup map.");
+            continue;
         }
+        int pDeadline = p.endDate > 0 ? p.endDate : 52;
 
-       // Apply penalties for any hours exceeding the 40h/week capacity.
-        ApplyConflictConstraints(model, objective, personWeekLoad, state);
+        // 🚨 修复 B: 改为 for 循环以获取索引 i
+        for (int i = 0; i < rawAssigns.Count; i++)
+        {
+            var assign = rawAssigns[i];
+            var choices = new List<BoolVar>();
+            var candidates = GetResourceExpansionCandidates(assign, state, rolePool, personLoadMap);
 
-        // Solve the model. I've set it to parallelize across 6 workers to speed things up.
-        model.Minimize(objective);
-        var solver = new CpSolver();
-        solver.StringParameters = $"max_time_in_seconds:{maxSeconds}, num_search_workers:6";
-        var status = solver.Solve(model);
+            foreach (var cand in candidates)
+            {
+                var windows = GetSoftenedTimeWindows(assign, state, p, pDeadline, maxWeek);
 
-        // Decode the results and generate the final report for llm understanding
-        return ProcessResult(status, solver, x, personWeekLoad, initialOverload, state);
-    }
+                foreach (var tW in windows)
+                {
+                    // 🚨 修复 C: 变量名加入索引 i，字典 Key 包含 i
+                    var bv = model.NewBoolVar($"p{cand.id}_prj{p.id}_idx{i}_tw{tW}");
+                    x[(cand.id, p, tW, i)] = bv; // 使用 i 保证唯一性
+                    choices.Add(bv);
+
+                    if (tW > pDeadline)
+                        objective.AddTerm(bv, (tW - pDeadline) * W_LATENESS);
+
+                    var key = (cand.id, tW);
+                    if (!personWeekLoad.ContainsKey(key)) personWeekLoad[key] = LinearExpr.NewBuilder();
+                    personWeekLoad[key].AddTerm(bv, assign.Hours);
+                    
+                    objective.AddTerm(bv, Math.Abs(tW - assign.Week) * W_MOVEMENT);
+                }
+            }
+
+            if (choices.Count > 0) 
+            {
+                model.AddExactlyOne(choices);
+            }
+            else 
+            {
+                // 此时你可以根据 Role 打印出更详细的 Debug 信息
+                var roleName = state.People.FirstOrDefault(per => per.id == assign.PersonId)?.role ?? "Unknown";
+                Console.WriteLine($"[CRITICAL] Missing: Prj {p.id}, Week {assign.Week}, Hours {assign.Hours}, Role: {roleName}");
+            }
+        } 
+    } 
+
+    // 3. 应用约束与求解
+    ApplyConflictConstraints(model, objective, personWeekLoad, state);
+
+    model.Minimize(objective);
+    var solver = new CpSolver();
+    solver.StringParameters = $"max_time_in_seconds:{maxSeconds}, num_search_workers:6";
+    var status = solver.Solve(model);
+
+    // 4. 返回结果
+    return ProcessResult(status, solver, x, personWeekLoad, initialOverload, state, originalTaskMap);
+}
+
+
+
+
 
 // Helper: Find qualified backups. Prioritize the original owner, then look for the least-loaded peers.
     private List<Person> GetResourceExpansionCandidates((int PersonId, int Week, int Hours) assign, ScheduleState state, Dictionary<string, List<Person>> rolePool, Dictionary<int, double> loadMap)
@@ -120,7 +131,7 @@ public class CpSatOptimizer
         .ToList();
 }
 
-// Helper: Create a +/- 15 week window for each task. Max delay allowed is 8 weeks past deadline.
+//Helper: Create a +/- 15 week window for each task. Max delay allowed is 8 weeks past deadline.
 private List<int> GetSoftenedTimeWindows((int PersonId, int Week, int Hours) assign, ScheduleState state, Project p, int deadline, int maxWeek)
 {
 
@@ -137,6 +148,8 @@ private List<int> GetSoftenedTimeWindows((int PersonId, int Week, int Hours) ass
     return weeks;
 }
 
+
+
     // calculate "Overload = TotalHours - 40" and apply the massive conflict penalty.
     private void ApplyConflictConstraints(CpModel model, LinearExprBuilder objective, Dictionary<(int pId, int tW), LinearExprBuilder> loadMap, ScheduleState state)
     {
@@ -149,7 +162,15 @@ private List<int> GetSoftenedTimeWindows((int PersonId, int Week, int Hours) ass
     }
 
     // Translate the solver's binary output back into our project assignments and stats.
-    private SolveResult ProcessResult(CpSolverStatus status, CpSolver solver, Dictionary<(int pId, Project prj, int rW, int tW), BoolVar> x, Dictionary<(int pId, int tW), LinearExprBuilder> loadMap, double initial, ScheduleState state)
+    private SolveResult ProcessResult(
+        CpSolverStatus status, 
+        CpSolver solver, 
+        Dictionary<(int pId, Project prj, int tW, int tIdx), BoolVar> x, 
+        Dictionary<(int pId, int tW), LinearExprBuilder> loadMap, 
+        double initial, 
+        ScheduleState state,
+        Dictionary<int, List<(int PersonId, int Week, int Hours)>> originalTaskMap)
+
     {
         var res = new SolveResult { Status = status };
 
@@ -158,29 +179,46 @@ private List<int> GetSoftenedTimeWindows((int PersonId, int Week, int Hours) ass
         int delays = 0;
         int totalDelayWeeks = 0;
         int resourceSwaps = 0;
+        double totalRecoveredHours = 0;
 
         foreach (var entry in x)
         {
             if (solver.Value(entry.Value) == 1)
             {
-                var k = entry.Key;
-                res.Assignments[(k.pId, k.prj, k.rW)] = k.tW;
+                var k = entry.Key; 
+                var projectTasks = state.GetOriginalAssignments(k.prj);
+                var task = originalTaskMap[k.prj.id][k.tIdx];
+                
+                totalRecoveredHours += task.Hours;
+
+                // 🚨 现在这里的 4 参数 Key 能与 SolveResult 定义匹配了
+                res.Assignments[(k.pId, k.prj, task.Week, k.tIdx)] = k.tW;
 
                 int deadline = k.prj.endDate > 0 ? k.prj.endDate : 52;
-                if (k.tW > deadline) { delays++; totalDelayWeeks += (k.tW - deadline); }
+                if (k.tW > deadline) 
+                { 
+                    delays++; 
+                    totalDelayWeeks += (k.tW - deadline); 
+                }
                 
                 int defaultId = k.prj.people.FirstOrDefault()?.id ?? -1;
                 if (k.pId != defaultId) resourceSwaps++;
             }
         }
 
+        Console.WriteLine($"\n========== [RECONCILIATION REPORT] ==========");
+        Console.WriteLine($"Expected Total Hours: {initial}");
+        Console.WriteLine($"Actual Recovered Hours: {totalRecoveredHours}");
+        Console.WriteLine($"Difference: {Math.Round(initial - totalRecoveredHours, 2)}");
+        Console.WriteLine($"==============================================\n");
+
         res.Report = new StrategyReport {
             ConflictReduced = initial - res.FinalOverload,
             TotalDelayWeeks = totalDelayWeeks,
             ResourceSwaps = resourceSwaps 
         };
+
         return res;
     }
-
 
 }

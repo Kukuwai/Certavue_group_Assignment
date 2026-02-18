@@ -14,7 +14,6 @@ public class Project
     public int endDate { get; set; }
     public int duration { get; set; }
     public int hoursNeeded { get; set; }
-
     public int capacityStartWeek {get; set;}
     public int capacityEndWeek {get; set;}
     public int capacity {get; set;}
@@ -182,6 +181,8 @@ public class Project
         }
         return totalHours;
     }
+
+    
 
 
 }

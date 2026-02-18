@@ -30,7 +30,7 @@ public class Program
         Directory.CreateDirectory(outputCsvDir);
 
 
-        ScheduleState finalState = null;
+        //ScheduleState finalState = null;
         string apiKey = Environment.GetEnvironmentVariable("ApiKey");
         OpenAI openAI = new OpenAI(apiKey, "gpt-5-mini");
 
@@ -43,9 +43,14 @@ public class Program
                 continue;
             }
             var originalState = loadData(file);//first time hold state!!!!
-            ScheduleHandler originalHandler = new ScheduleHandler(originalState);
+            var backup = originalState.Projects.ToDictionary(
+            p => p.id, 
+            p => originalState.GetOriginalAssignments(p)
+            );
+
+            //ScheduleHandler originalHandler = new ScheduleHandler(originalState);
             Console.WriteLine("\n>>> [Before Optimization] Orignal conflicts detai:");
-            originalHandler.DebugConflictDetails(originalState);
+            //originalHandler.DebugConflictDetails(originalState);
             printStats(file, originalState, "Original", false);
             ScheduleCsvExporter.ExportStateToWeeklyTableCsv(originalState, outputCsvDir + "/outputOriginal.csv");
             foreach (Project p in projects)
@@ -87,32 +92,38 @@ public class Program
             }
 
            // run or tools
-            Console.WriteLine("\n>>> [3. After OR-Tools] Detailed Conflict Report:");
+            Console.WriteLine("\n>>> [3. After OR-Tools] Optimization Starting...");
             var optimizer = new CpSatOptimizer();
-            var result = optimizer.Optimize(greedyState, maxSeconds: 60);
 
-            Console.WriteLine("\n>>> [After Ortools] Conflictes detais:");
+
+            var result = optimizer.Optimize(originalState, backup, 60); 
+            Console.WriteLine($"\n>>> [After Ortools] Solver Status: {result.Status}");
+
 
             if (result.Status == Google.OrTools.Sat.CpSolverStatus.Feasible || result.Status == Google.OrTools.Sat.CpSolverStatus.Optimal)
-            {
-                ApplyAssignmentsToState(greedyState, result.Assignments);
-                finalState = greedyState;
-                var finalHandler = new ScheduleHandler(finalState);
-                finalHandler.DebugConflictDetails(finalState);
-                
-                Console.WriteLine("--- Optional stratge ---");
-                Console.WriteLine($"Sueccessful Reduction: {result.Report.ConflictReduced}h");
-                Console.WriteLine($"Expension Duration: {result.Report.TotalDelayWeeks}");
-                Console.WriteLine($"Adding more same-role people: {result.Report.ResourceSwaps}");
-                printStats(file, finalState, "CPSAT", true);
-                ScheduleCsvExporter.ExportStateToWeeklyTableCsv(finalState, outputCsvDir + "/outputSolver.csv");
-                foreach (Project p in finalState.Projects)
-                {
-                    int h = p.getTotalHours();
-                    Console.WriteLine($"Project: {p.id} | Hours: {h}");
-                }
-                 
-            }
+        {
+
+            originalState.UpdateFromFineGrainedAssignments(result.Assignments, backup);
+    
+            var finalHandler = new ScheduleHandler(originalState);
+            finalHandler.DebugConflictDetails(originalState);
+    
+             printStats(file, originalState, "CPSAT_Only", true);
+    
+            Console.WriteLine("--- Optional strategy ---");
+            Console.WriteLine($"Successful Reduction: {result.Report.ConflictReduced}h");
+            Console.WriteLine($"Extension Duration: {result.Report.TotalDelayWeeks}");
+            Console.WriteLine($"Adding more same-role people: {result.Report.ResourceSwaps}");
+
+    // 4. 🚨 修正变量名：将 finalState 改为 originalState
+            ScheduleCsvExporter.ExportStateToWeeklyTableCsv(originalState, outputCsvDir + "/outputSolver.csv");
+
+            foreach (Project p in originalState.Projects)
+           {
+            int h = p.getTotalHours();
+            Console.WriteLine($"Project: {p.id} | Hours: {h}");
+           }
+        }
 
             // ScheduleCsvExporter.ExportStateToWeeklyTableCsv(scheduleAfterGreedy, outputPath);
             // string instructionsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents", "Instructions.txt"));
@@ -158,8 +169,6 @@ public class Program
             // }
         }
         //openAI.Close();
-
-        
 
         //  ProcessNewProjectInsertion(finalState);
     }
@@ -225,11 +234,11 @@ public class Program
 
 
    //a quick wrapper to push OR-Tools results into the state and refresh everything.
-    static void ApplyAssignmentsToState(ScheduleState state, Dictionary<(int PersonId, Project Project, int RawWeek), int> assignments)
-    {
-    state.UpdateFromFineGrainedAssignments(assignments);
-    state.RebuildGrid();
-    }
+    // static void ApplyAssignmentsToState(ScheduleState state, Dictionary<(int PersonId, Project Project, int RawWeek), int> assignments)
+    // {
+    // state.UpdateFromFineGrainedAssignments(result.Assignments, backup);
+    // state.RebuildGrid();
+    // }
 
     public ScheduleState loadData(string path)
     {
