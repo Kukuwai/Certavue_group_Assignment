@@ -95,14 +95,16 @@ public class Program
             Console.WriteLine("\n>>> [3. After OR-Tools] Optimization Starting...");
             var optimizer = new CpSatOptimizer();
 
-
+           // We pass 'originalState' for constraints and 'backup' (the raw data) to ensure 
+           // the solver accounts for every single hour, avoiding data loss from previous steps.
             var result = optimizer.Optimize(originalState, backup, 60); 
             Console.WriteLine($"\n>>> [After Ortools] Solver Status: {result.Status}");
 
-
+           // Proceed only if the solver found a valid (Feasible) or the best (Optimal) solution.
             if (result.Status == Google.OrTools.Sat.CpSolverStatus.Feasible || result.Status == Google.OrTools.Sat.CpSolverStatus.Optimal)
         {
-
+             // UPDATE LOGIC: Map the solver's mathematical results back to our domain objects.
+             // This method reassigns hours and calls RebuildGrid() to refresh the global load map.
             originalState.UpdateFromFineGrainedAssignments(result.Assignments, backup);
     
             var finalHandler = new ScheduleHandler(originalState);
@@ -115,8 +117,8 @@ public class Program
             Console.WriteLine($"Extension Duration: {result.Report.TotalDelayWeeks}");
             Console.WriteLine($"Adding more same-role people: {result.Report.ResourceSwaps}");
 
-    // 4. 🚨 修正变量名：将 finalState 改为 originalState
-            ScheduleCsvExporter.ExportStateToWeeklyTableCsv(originalState, outputCsvDir + "/outputSolver.csv");
+           // Using 'originalState' ensures we are exporting the fully reconciled data.
+           // ScheduleCsvExporter.ExportStateToWeeklyTableCsv(originalState, outputCsvDir + "/outputSolver.csv");
 
             foreach (Project p in originalState.Projects)
            {
