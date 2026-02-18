@@ -94,6 +94,21 @@ public class Program
             TestFindWorkForNewPerson(originalState, "Original Schedule");
             TestFindWorkForNewPerson(scheduleAfterGreedy, "After Greedy Schedule");
 
+            TestCountOverloadedWeeks(originalState, "Original Schedule");
+            TestCountOverloadedWeeks(scheduleAfterGreedy, "After Greedy Schedule");
+
+            TestFindLeastBusyWeeks(originalState, "Original Schedule");
+            TestFindLeastBusyWeeks(scheduleAfterGreedy, "After Greedy Schedule");
+
+            TestGetAvailableWeeksForPerson(originalState, "Original Schedule");
+            TestGetAvailableWeeksForPerson(scheduleAfterGreedy, "After Greedy Schedule");
+
+            TestGetAvailablePeopleInWeek(originalState, "Original Schedule");
+            TestGetAvailablePeopleInWeek(scheduleAfterGreedy, "After Greedy Schedule");
+
+            TestGetPersonWorkload(originalState, "Original Schedule");
+            TestGetPersonWorkload(scheduleAfterGreedy, "After Greedy Schedule");
+
             // string apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
             // OpenAI openAI = new OpenAI(apiKey, "gpt-5-mini");
 
@@ -155,9 +170,116 @@ public class Program
         var result = finder.FindWorkForNewPerson(
             personName: "NewPerson",
             availableWeeks: 52
+
         );
 
         result.PrintSummary();
+    }
+
+    public void TestCountOverloadedWeeks(ScheduleState state, string label)
+    {
+        Console.WriteLine($"\n*** Count Overloaded Weeks - {label} ***");
+        var finder = new AvailabilityFinder(state);
+
+        // Test for first few people in the dataset
+        foreach (var person in state.People.Take(5))
+        {
+            int overloadedWeeks = finder.CountOverloadedWeeks(person.name);
+            Console.WriteLine($"{person.name} ({person.role}): {overloadedWeeks} overloaded weeks (capacity: {person.capacity}h/week)");
+        }
+        Console.WriteLine("***************************\n");
+    }
+
+    public void TestFindLeastBusyWeeks(ScheduleState state, string label)
+    {
+        Console.WriteLine($"\n*** Find Least Busy Weeks - {label} ***");
+        var finder = new AvailabilityFinder(state);
+
+        var leastBusyWeeks = finder.FindLeastBusyWeeks(numberOfWeeks: 5);
+
+        Console.WriteLine("Top 5 least busy weeks:");
+        foreach (var week in leastBusyWeeks)
+        {
+            int totalHours = state.PersonWeekGrid
+                .Where(kvp => kvp.Key.Week == week)
+                .Sum(kvp => kvp.Value);
+
+            Console.WriteLine($"  Week {week}: {totalHours} total hours allocated");
+        }
+        Console.WriteLine("***************************\n");
+    }
+
+    public void TestGetAvailableWeeksForPerson(ScheduleState state, string label)
+    {
+        Console.WriteLine($"\n*** Get Available Weeks - {label} ***");
+        var finder = new AvailabilityFinder(state);
+
+        // Test for first few people in the dataset
+        foreach (var person in state.People.Take(5))
+        {
+            var availableWeeks = finder.GetAvailableWeeksForPerson(person.name);
+
+            if (availableWeeks.Count > 0)
+            {
+                Console.WriteLine($"{person.name} ({person.role}): {availableWeeks.Count} free weeks");
+                Console.WriteLine($"  Weeks: {string.Join(", ", availableWeeks.Take(10))}{(availableWeeks.Count > 10 ? "..." : "")}");
+            }
+            else
+            {
+                Console.WriteLine($"{person.name} ({person.role}): No free weeks (fully booked)");
+            }
+        }
+        Console.WriteLine("***************************\n");
+    }
+
+    public void TestGetAvailablePeopleInWeek(ScheduleState state, string label)
+    {
+        Console.WriteLine($"\n*** Get Available People In Week - {label} ***");
+        var finder = new AvailabilityFinder(state);
+
+        // Test a few different weeks
+        int[] weeksToCheck = { 1, 10, 20, 25, 30 };
+
+        foreach (var week in weeksToCheck)
+        {
+            var availablePeople = finder.GetAvailablePeopleInWeek(week);
+
+            Console.WriteLine($"Week {week}: {availablePeople.Count} people available");
+            if (availablePeople.Count > 0)
+            {
+                Console.WriteLine($"  Available: {string.Join(", ", availablePeople.Select(p => $"{p.name} ({p.role})"))}");
+
+            }
+            else
+            {
+                Console.WriteLine($"  All people are busy this week");
+            }
+        }
+        Console.WriteLine("***************************\n");
+    }
+
+    public void TestGetPersonWorkload(ScheduleState state, string label)
+    {
+        Console.WriteLine($"\n*** Get Person Workload - {label} ***");
+        var finder = new AvailabilityFinder(state);
+
+        // Test first few people across several weeks
+        foreach (var person in state.People.Take(3))
+        {
+            Console.WriteLine($"\n{person.name} ({person.role}) - Capacity: {person.capacity}h/week:");
+
+            int[] weeksToCheck = { 10, 15, 20, 25, 30 };
+            foreach (var week in weeksToCheck)
+            {
+                int workload = finder.GetPersonWorkload(person.name, week);
+                string status = workload == 0 ? "Free" :
+                               workload >= person.capacity ? "OVERLOADED" :
+                               "Available";
+
+                Console.WriteLine($"  Week {week}: {workload}h allocated - {status}");
+            }
+        }
+        Console.WriteLine("***************************\n");
     }
 
 
