@@ -505,27 +505,29 @@ public void UpdateFromFineGrainedAssignments(
 // Essential for ensuring that calls like project.getTotalHours() function correctly.
 private void ApplySingleAssignmentInternal(int personId, Project prj, int week, int hours)
 {
-   
     var person = People.First(p => p.id == personId);
     
-   // Link Person -> Project
+    // 1. Person -> Project 
     if (!person.projects.ContainsKey(prj)) 
         person.projects[prj] = new Dictionary<int, int>();
     
-    person.projects[prj][week] = hours;
+    // Use accumulation to prevent overwriting of old working hours
+    int existingHours = person.projects[prj].GetValueOrDefault(week, 0);
+    person.projects[prj][week] = existingHours + hours;
 
-    // Link Project -> Person
-    if (!prj.people.Contains(person)) //!!!change
+    // 2. Project -> Person 
+    if (!prj.people.Contains(person))
     {
         prj.people.Add(person);
     }
 
-   // Incremental Grid Update (Update counters/hours for conflict detection)
+    // 3. renew grid
     var wk = new WeekKey(personId, prj.id, week);
-    PersonWeekGrid[wk] = PersonWeekGrid.GetValueOrDefault(wk) + 1;
+    PersonWeekGrid[wk] = PersonWeekGrid.GetValueOrDefault(wk, 0) + 1;
 
     var pwk = new PersonWeekKey(personId, week);
-    PersonWeekHours[pwk] = PersonWeekHours.GetValueOrDefault(pwk) + hours;
+    // Here you are already using the accumulation (+ hours), so this line is correct
+    PersonWeekHours[pwk] = PersonWeekHours.GetValueOrDefault(pwk, 0) + hours;
 }
 
 

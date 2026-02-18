@@ -30,7 +30,7 @@ public class CpSatOptimizer
 
 public SolveResult Optimize(ScheduleState state, Dictionary<int, List<(int PersonId, int Week, int Hours)>> originalTaskMap,double maxSeconds = 30) // 🚨 修改这里double maxSeconds = 30)
 {
-    // 1. 初始化
+    // 1. intialization
     double initialOverload = state.PersonWeekHours.Values.Sum(v => Math.Max(0, v - 40));
     int maxWeek = state.Projects.Max(p => p.endDate > 0 ? p.endDate : 52);
 
@@ -43,7 +43,7 @@ public SolveResult Optimize(ScheduleState state, Dictionary<int, List<(int Perso
     );
     var rolePool = state.People.GroupBy(p => p.role ?? "").ToDictionary(g => g.Key, g => g.ToList());
     
-    // 🚨 修复 A: 字典 Key 增加 tIdx 字段，确保同一周多笔任务不被覆盖
+    // 🚨 Add a tIdx field to the dictionary Key to ensure that multiple tasks in the same week are not overwritten
     var x = new Dictionary<(int pId, Project prj, int tW, int tIdx), BoolVar>();
     var personWeekLoad = new Dictionary<(int pId, int tW), LinearExprBuilder>();
 
