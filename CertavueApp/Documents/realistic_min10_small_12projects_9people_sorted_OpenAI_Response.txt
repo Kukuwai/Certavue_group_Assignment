@@ -1,173 +1,58 @@
-Below is a structured analysis of the two CSV schedules using the code-interpreter results. I treat the first file as the original schedule and the second file as the updated (greedy) schedule.
+Summary
 
-1) Summary
+1.1 What was happening in the original schedule (issues that forced change)
+The original schedule had multiple weeks where key people were booked well beyond the 40-hour weekly capacity. This directly hurts the Fitness Score because Conflict is the biggest driver (50% of the score). In plain terms: too much work was stacked onto the same individuals in the same weeks, creating overtime risk and a high chance of missed deadlines or burnout.
 
-- 1.1 What was in the original schedule and issues found (fitness score context)
-  - Original schedule had 24 rows (keys: Person, Project, Role) and a total of 2610 hours across W1–W52.
-  - Conflict context: 12 person-week conflicts (weeks where a person’s total hours across all projects exceeded 40 hours).
-  - Observed pattern: hours were distributed such that several individuals were over 40 hours in various weeks, indicating capacity constraints were being stressed.
-  - Fitness-oriented issue: hours were not optimally balanced across people and weeks; some weeks likely caused overtime (capacity violation) while total hours were still constrained overall.
-  
-- 1.2 What is happening now (observations from the updated schedule)
-  - The updated schedule has 43 rows (more (Person, Project, Role) keys) but still the same total hours (2610). This indicates redistribution and/or new staffing rather than changing total workload.
-  - Conflicts improved slightly: 11 person-week conflicts in the updated schedule (vs 12 originally).
-  - The hours are redistributed across projects and weeks:
-    - Large shifts in a few weeks for a handful of projects (e.g., W19–W20 for Project_001; W23–W24 for Project_002; W23–W24 for Project_006).
-    - A number of new staffing entries were added (staffing in several projects increased or diversified).
-  - Net effect: same total workload, but more balanced distribution across people and weeks, with a slight improvement in capacity conflicts.
+At a portfolio level, work was also more “peaky” (big spikes in certain weeks), which typically creates fire-drills and last-minute reshuffling. That pattern also tends to worsen multitasking and overload.
 
-- 1.3 Infer optimization intent (based on observed changes)
-  - Intent appears to be rebalancing workload to reduce overloads per person-week (improve fitness score by lowering conflicts).
-  - The greedy adjustments introduce additional staffing in several projects, likely to spread load and maintain capacity constraints.
-  The result: maintain overall hours while reducing peak loads and improving feasibility within S/E constraints.
+1.2 What is happening now (updated schedule, high-level)
+The updated schedule keeps the total project workload the same, but redistributes it by:
+Adding more person-project-role assignments (more rows), meaning work is spread across more people while staying within role constraints.
+Rebalancing the weekly distribution of hours across the calendar so workload is slightly less spiky overall.
+Keeping projects largely in their original timing bands (start/end windows are respected; changes are mainly reallocations and spreading hours rather than wholesale project moves).
 
-2) Metrics
+Net effect: the plan is more resilient and slightly less overloaded, but there are still several serious over-capacity weeks that remain unresolved.
 
-- Rows changed (summary of schedule changes)
-  - Total nonzero deltas across all keys (i.e., keys with any net hour change or newly added keys): 32 keys show nonzero delta when comparing original to updated.
-  - Added keys: 19 new keys in the updated file (no corresponding original key).
-  - Removed keys: 0 (no keys removed; all original keys are still present in updated, some with changed hours or roles).
-  - Common keys changed (i.e., keys present in both files with a net hour delta): 13 of those common keys show a change in total hours.
+1.3 Likely optimization intent (inferred from observed changes)
+Based on the differences, the “greedy” optimizer appears to have prioritized:
+Reducing overload first (Conflict Score): it made changes that slightly reduced the number of over-capacity person-weeks.
+Spreading work across more qualified people (Focus vs. Continuity tradeoff): it introduced additional staffing lines on several projects, which usually indicates it tried to offload work from overloaded individuals to others with available capacity in the same role.
+Smoothing workload across weeks: overall weekly total-hours volatility decreased, which generally helps reduce staffing crunches even if it doesn’t fully eliminate individual overloads.
 
-- Conflict count before/after
-  - Conflicts before: 12 person-week conflicts.
-  - Conflicts after: 11 person-week conflicts.
-  - Change: slight improvement in capacity feasibility.
+It looks like the optimizer accepted some additional team mixing (potentially lowering Continuity a bit) in exchange for lowering the risk of over-capacity weeks (which matters more due to Conflict’s 50% weight).
 
-- Total hours (before/after)
-  - Total hours before: 2610
-  - Total hours after: 2610
-  - Change: no net change in total workload.
+1.4 Recommendations (where >40 hour weeks cannot be resolved)
+Even after optimization, there are still 11 person-week conflicts (weeks where someone exceeds 40 hours). Some of these are extremely high, indicating the schedule is not realistically executable without one or more of the following business actions:
 
-3) Important changes
+Add short-term capacity in the affected weeks (contractors/temp staff) for the overloaded roles.
+Re-negotiate deadlines or re-phase scope for the projects driving the spikes around weeks W20–W23.
+Increase role-based cross-coverage (if allowed in your business) by enabling more people to perform that role, since the biggest remaining overloads suggest not enough qualified capacity is available in that window.
 
-- Per-project weekly shifts (week-by-week shifts in total project hours)
-  - Project_001: W19 +120 hours, W20 -120 hours
-  - Project_002: W23 -100 hours, W24 +100 hours
-  - Project_006: W23 -30 hours, W24 +30 hours
+The remaining conflicts are concentrated heavily around W20–W23 and are dominated by a few individuals:
+Person_02: up to 130h in W22 (90h over capacity)
+Person_01: up to 125h in W21 (85h over capacity)
+Person_03: up to 125h in W21 (85h over capacity)
 
-- Staffing changes by project (new staffing entries added in updated schedule)
-  - Project_001: Added (Person_04, Analyst); Added (Person_08, Developer)
-  - Project_002: Added (Person_04, Analyst); Added (Person_06, Manager); Added (Person_09, Manager)
-  - Project_004: Added (Person_04, Analyst); Added (Person_05, Developer); Added (Person_06, Manager); Added (Person_07, Analyst); Added (Person_08, Developer)
-  - Project_005: Added (Person_05, Developer); Added (Person_06, Manager); Added (Person_07, Analyst); Added (Person_08, Developer); Added (Person_09, Manager)
-  - Project_006: Added (Person_05, Developer); Added (Person_07, Analyst); Added (Person_08, Developer); Added (Person_09, Manager)
+That magnitude strongly suggests a structural capacity shortfall in that period, not just a minor balancing issue.
 
-- Per-key (Person, Project, Role) changes (summary)
-  - 32 keys show nonzero deltas in total hours (new keys plus existing keys with changed hours).
-  - Net effect across these keys: hours redistributed while keeping total workload intact.
+Metrics
 
-4) Per-person changes (concise, table-style, with weeks/hours)
+Rows changed
+Rows in original file: 24
+Rows in updated file: 43
+Rows added (new Person+Project+Role assignments): 19
+Rows removed: 0
+Rows changed (same Person+Project+Role, but week-by-week hours changed): 15
 
-- Person_01
-  - Analyst on Project_001: total delta = -40 hours
-    - Weeks with changes: W19 +40, W20 -40, W23 -40
-  - Analyst on Project_002: total delta = -80 hours
-    - Weeks: W21 -40, W22 -40, W23 -40, W24 +40
-  - Analyst on Project_004: total delta = -50 hours
-    - Weeks: W20 -40, W23 -10
-  - Analyst on Project_005: total delta = -40 hours
-    - Weeks: W23 -40, W24 +40? (see delta)
-  - Analyst on Project_006: total delta = -120 hours
-    - Weeks: multiple weeks (e.g., behavior distributed across several weeks)
-  - Net effect: substantial reductions on multiple projects indicating load was shifted away from this person.
+Total hours (numeric hours only; markers like s/e ignored)
+Total hours before: 2610
+Total hours after: 2610
+No change in total workload; only redistribution.
 
-- Person_02
-  - Developer on Project_001: -40 hours
-  - Developer on Project_004: -120 hours
-  - Developer on Project_005: -90 hours
-  - Developer on Project_006: -70 hours
-  - Net effect: workload reduced on several projects; hours likely redistributed to others.
+Conflict count (person-week cells over 40h)
+Before: 12
+After: 11
+Improvement is marginal (down by 1), and several remaining conflicts are still far beyond 40h, especially in W20–W23.
 
-- Person_03
-  - Manager on Project_002: -80 hours
-  - Manager on Project_004: -40 hours
-  - Manager on Project_005: -120 hours
-  - Manager on Project_006: -80 hours
-  - Net effect: reductions across multiple projects.
-
-- Person_04
-  - Analyst on Project_001: +40 hours
-  - Analyst on Project_002: +80 hours
-  - Analyst on Project_004: +40 hours
-  - Net effect: overall increase (positive deltas) in several analyst roles, indicating reallocation to this person.
-
-- Person_05
-  - Developer on Project_004: +80 hours
-  - Developer on Project_005: +50 hours
-  - Developer on Project_006: +30 hours
-  - Net effect: increases in workload on multiple projects.
-
-- Person_06
-  - Manager on Project_002: +40 hours
-  - Manager on Project_004: +40 hours
-  - Manager on Project_005: +80 hours
-  - Net effect: increased managerial workload on several projects.
-
-- Person_07
-  - Analyst on Project_004: +10 hours
-  - Analyst on Project_005: +40 hours
-  - Analyst on Project_006: +120 hours
-  - Net effect: substantial increases across multiple projects.
-
-- Person_08
-  - Developer on Project_001: +40 hours
-  - Developer on Project_004: +40 hours
-  - Developer on Project_005: +40 hours
-  - Developer on Project_006: +40 hours
-  - Net effect: significant increases, indicating a shift of workload to this person.
-
-- Person_09
-  - Manager on Project_002: +40 hours
-  - Manager on Project_005: +40 hours
-  - Manager on Project_006: +80 hours
-  - Net effect: increases in managerial roles on several projects.
-
-Notes on interpretation:
-- Positive delta means updated schedule has more hours for that (Person, Project, Role) key than original.
-- Negative delta means updated schedule has fewer hours for that key.
-- Weeks listed with nonzero deltas show where hours were added or removed. For brevity, a few illustrative weeks are shown above; many keys involve multiple weeks.
-
-5) Per-project changes (project-level view)
-
-- Week shifts in hours (project-wide)
-  - Project_001: W19 +120; W20 -120
-  - Project_002: W23 -100; W24 +100
-  - Project_006: W23 -30; W24 +30
-  - Rationale: these movements suggest rebalancing across weeks to avoid peak loads and spread hours more evenly.
-
-- Staffing changes by project (staffing additions)
-  - Project_001: Added (Person_04, Analyst); Added (Person_08, Developer)
-  - Project_002: Added (Person_04, Analyst); Added (Person_06, Manager); Added (Person_09, Manager)
-  - Project_004: Added (Person_04, Analyst); Added (Person_05, Developer); Added (Person_06, Manager); Added (Person_07, Analyst); Added (Person_08, Developer)
-  - Project_005: Added (Person_05, Developer); Added (Person_06, Manager); Added (Person_07, Analyst); Added (Person_08, Developer); Added (Person_09, Manager)
-  - Project_006: Added (Person_05, Developer); Added (Person_07, Analyst); Added (Person_08, Developer); Added (Person_09, Manager)
-
-6) Assumptions or parsing issues
-
-- Hours parsing:
-  - Week columns contain numeric hours or non-numeric markers (e.g., s, e, blanks). Non-numeric markers are ignored for hour calculations (treated as 0). This aligns with the instruction to use numeric values only for calculations.
-  - The presence of s/e markers is acknowledged; if those markers carry semantic meaning in downstream logic (e.g., start after or end), they are not used in the numeric comparison here.
-
-- Row keys:
-  - Keys are treated as (Person, Project, Role). If a person/role combination reappears with different hours, it is considered a change. If a new key appears in the updated file, it is treated as an added key.
-
-- Import/export consistency:
-  - Total hours per file remains equal (2610) even though the number of rows increased in the updated file, implying redistribution and richer staffing rather than changing workload.
-
-- Uncertainty:
-  - If there are domain-specific constraints (e.g., exact S/E interpretation per project, or per-week shift rules beyond totals), the current analysis uses the provided constraints (capacities, 52 weeks, per-week hours) as the basis. If you want a deeper dive into sub-week patterns or validation against S/E windows, I can extend the analysis.
-
-7) Raw indicators (for reference)
-
-- Original schedule shape: 24 rows, 55 columns (W1–W52 plus metadata)
-- Updated schedule shape: 43 rows, 55 columns
-- Total hours (before/after): 2610 in both files
-- Conflicts (before/after): 12 → 11
-- Added keys in updated: 19
-- Removed keys in updated: 0
-- Keys with nonzero delta (across both files): 32
-
-If you want, I can provide:
-- A compact downloadable snapshot (CSV-style) of per-person deltas or per-project deltas for quick review.
-- A more detailed per-person table that lists every Week where a change occurred for each key (Person, Project, Role) along with exact week-by-week deltas, grouped by person.
+Additional note on overall workload smoothness (portfolio-level)
+The updated schedule is slightly less “spiky” across weeks (overall week-to-week variation decreased). This is consistent with an attempt to reduce crunch periods, but it did not fully resolve the critical individual over-allocations.

@@ -32,13 +32,13 @@ public class Program
 
         ScheduleState finalState = null;
         string apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
-        OpenAI openAI = new OpenAI(apiKey, "gpt-5-nano");
+        OpenAI openAI = new OpenAI(apiKey, "gpt-5.2");
 
 
         // loading data in
         foreach (string file in files)
         {
-            if (!file.Contains("realistic_min10_small_12projects_9people_sorted.csv"))
+            if (!file.Contains("realistic_min10_xxlarge_23projects_20people_sorted"))
             {
                 continue;
             }
@@ -83,10 +83,10 @@ public class Program
             string documentsDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents"));
             Directory.CreateDirectory(documentsDir);
 
-            // string responsePath = Path.Combine(documentsDir, baseName + "_OpenAI_Response.txt");
-            // Console.WriteLine("Wrote CSV: " + outputPath);
-            // File.WriteAllText(responsePath, responseText);
-            // Console.WriteLine("Saved OpenAI response: " + responsePath);
+            string responsePath = Path.Combine(documentsDir, baseName + "_OpenAI_Response.txt");
+            Console.WriteLine("Wrote CSV: " + outputPath);
+            //File.WriteAllText(responsePath, responseText);
+            Console.WriteLine("Saved OpenAI response: " + responsePath);
 
             // ******************** OLLAMA TEST **************************
             Console.WriteLine("\nTesting Ollama for comparison...");
@@ -215,7 +215,7 @@ public class Program
         await new Program().RunAsync();
         // new Program();
         // string apiKey = Environment.GetEnvironmentVariable("");
-        // OpenAI openAI = new OpenAI("", "gpt-5-mini");
+        // OpenAI openAI = new OpenAI("", "gpt-5.2-pro");
 
         // string reply = openAI.SendPrompt("What is the capital of france?");
         // Console.WriteLine(reply);
