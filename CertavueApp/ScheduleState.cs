@@ -436,8 +436,84 @@ public class ScheduleState
     }
 
 
+// Grab all original task data for a project that can feed it into the OR-Tools solver.
+public List<(int PersonId, int Week, int Hours)> GetOriginalAssignments(Project p)
+{
+    var assignments = new List<(int PersonId, int Week, int Hours)>();
+    foreach (var person in p.people) // loop all workers
+    {
+        if (person.projects.TryGetValue(p, out var weeks))
+        {
+            foreach (var kvp in weeks)
+            {
+                // kvp.Key is origin week，kvp.Value persent origin hours
+                assignments.Add((person.id, kvp.Key, kvp.Value));
+            }
+        }
+    }
+    return assignments;
+}
+
+// a heavy Lifter: Re maping the entire schedule based on the solver's optimized output.
+public void UpdateFromFineGrainedAssignments(Dictionary<(int PersonId, Project Project, int RawWeek), int> newAssignments)
+{
+    // Create a quick snapshot of original hours.
+    // use a Lookup and don't have to keep digging through the People list inside the loop.
+    var rawTaskHours = (from p in People
+                        from projEntry in p.projects
+                        from weekEntry in projEntry.Value
+                        select new { 
+                            Key = (projEntry.Key.id, weekEntry.Key), 
+                            Hours = weekEntry.Value 
+                        })
+                       .ToLookup(x => x.Key, x => x.Hours);
+
+    // Clear out the old data for projects the solver touched.
+    var affectedProjects = newAssignments.Keys.Select(k => k.Project).Distinct().ToList();
+    
+    foreach (var prj in affectedProjects)
+    {
+        foreach (var person in People) 
+        {
+            person.projects.Remove(prj); // just remove effected project
+        }
+    }
+
+    // Wipe the grid sums so we can recount everything from scratch 
+    PersonWeekGrid.Clear();
+    PersonWeekHours.Clear();
+
+    // new "Fine-Grained" assignments
+    foreach (var (assign, targetWeek) in newAssignments)
+    {
+        // Even if had swapped resources, the project ID and original RawWeek stay the same.
+        //  use that combo to find how many hours this specific task actually takes.
+        int hours = rawTaskHours[(assign.Project.id, assign.RawWeek)].FirstOrDefault();
+        
+        if (hours == 0) continue; // Safety check
+
+        // wirte to value
+        ApplySingleAssignment(assign.PersonId, assign.Project, targetWeek, hours);
+    }
+}
 
 
+// Low-level helper to actually write the data into the dictionaries and update the heat-map grid.
+private void ApplySingleAssignment(int personId, Project prj, int week, int hours)
+{
+    var person = People.First(p => p.id == personId);
+    
+    // Link the task to the person.
+    if (!person.projects.ContainsKey(prj)) person.projects[prj] = new Dictionary<int, int>();
+    person.projects[prj][week] = hours;
+
+   // Update the scoring grid keys.
+    var wk = new WeekKey(personId, prj.id, week);
+    PersonWeekGrid[wk] = PersonWeekGrid.GetValueOrDefault(wk) + hours;
+
+    var pwk = new PersonWeekKey(personId, week);
+    PersonWeekHours[pwk] = PersonWeekHours.GetValueOrDefault(pwk) + hours;
+}
 
     public void SwapPersonInProject(Project p, Person oldPerson, Person newPerson)
     {
