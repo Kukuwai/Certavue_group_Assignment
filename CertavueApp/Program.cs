@@ -60,6 +60,14 @@ public class Program
             }
             Console.WriteLine($"Total hours: {hourCount}");
 
+            NewProjectHandler newProjectJHandler = new();
+            Dictionary<string, int> newProjectTest = new()
+            {
+                { "Manager", 80 },
+                { "Developer", 60}
+            };
+            newProjectJHandler.addNewProject(originalState, 5, 10, newProjectTest);
+
             // export original data to html output
             // Output output = new Output();
             // output.ExportToHtml(file, originalState, "Original");
