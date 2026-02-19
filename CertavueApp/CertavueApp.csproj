@@ -14,6 +14,7 @@
     <PackageReference Include="Google.OrTools" Version="*" />
     <PackageReference Include="morelinq" Version="4.4.0" />
     <PackageReference Include="QuestPDF" Version="*" />
+    <PackageReference Include="OllamaSharp" Version="5.4.16" />
     
   </ItemGroup>
 
