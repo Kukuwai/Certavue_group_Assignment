@@ -31,7 +31,7 @@ public class Program
 
         ScheduleState finalState = null;
         string apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
-        OpenAI openAI = new OpenAI(apiKey, "gpt-5-nano");
+        OpenAI openAI = new OpenAI(apiKey, "gpt-5.2");
 
 
         // loading data in
@@ -195,7 +195,7 @@ public class Program
     {
         new Program();
         // string apiKey = Environment.GetEnvironmentVariable("");
-        // OpenAI openAI = new OpenAI("", "gpt-5-mini");
+        // OpenAI openAI = new OpenAI("", "gpt-5.2-pro");
 
         // string reply = openAI.SendPrompt("What is the capital of france?");
         // Console.WriteLine(reply);
