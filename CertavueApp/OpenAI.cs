@@ -20,11 +20,6 @@ public class OpenAI
         client.Timeout = TimeSpan.FromMinutes(30); //request timeout time
     }
 
-    public string GetModel()
-    {
-        return model;
-    }
-
     public string CompareTwoCsvWithInstructions(string originalCsvPath, string updatedCsvPath, string instructionsTxtPath)
     {
         string instructions = File.ReadAllText(instructionsTxtPath);
