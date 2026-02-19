@@ -37,7 +37,7 @@ public class Program
         // loading data in
         foreach (string file in files)
         {
-            if (!file.Contains("realistic_min10_small_12projects_9people_sorted.csv"))
+            if (!file.Contains("realistic_min10_xxlarge_23projects_20people_sorted"))
             {
                 continue;
             }
@@ -81,7 +81,7 @@ public class Program
 
             string responsePath = Path.Combine(documentsDir, baseName + "_OpenAI_Response.txt");
             Console.WriteLine("Wrote CSV: " + outputPath);
-            File.WriteAllText(responsePath, responseText);
+            //File.WriteAllText(responsePath, responseText);
             Console.WriteLine("Saved OpenAI response: " + responsePath);
 
             
