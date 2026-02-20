@@ -47,7 +47,7 @@ public SolveResult Optimize(ScheduleState state, Dictionary<int, List<(int Perso
     var x = new Dictionary<(int pId, Project prj, int tW, int tIdx), BoolVar>();
     var personWeekLoad = new Dictionary<(int pId, int tW), LinearExprBuilder>();
 
-    // 2. 核心循环：构建模型
+    // 2. loop for each state/assigns/candidates/windows
     foreach (var p in state.Projects)
     {
         if (!originalTaskMap.TryGetValue(p.id, out var rawAssigns)) 

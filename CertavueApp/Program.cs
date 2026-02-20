@@ -235,12 +235,6 @@ public class Program
     }
 
 
-   //a quick wrapper to push OR-Tools results into the state and refresh everything.
-    // static void ApplyAssignmentsToState(ScheduleState state, Dictionary<(int PersonId, Project Project, int RawWeek), int> assignments)
-    // {
-    // state.UpdateFromFineGrainedAssignments(result.Assignments, backup);
-    // state.RebuildGrid();
-    // }
 
     public ScheduleState loadData(string path)
     {
