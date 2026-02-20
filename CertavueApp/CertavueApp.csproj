@@ -13,6 +13,8 @@
     <PackageReference Include="GeneticSharp" Version="3.1.4" />
     <PackageReference Include="Google.OrTools" Version="*" />
     <PackageReference Include="morelinq" Version="4.4.0" />
+    <PackageReference Include="QuestPDF" Version="*" />
+    <PackageReference Include="OllamaSharp" Version="5.4.16" />
     
   </ItemGroup>
 

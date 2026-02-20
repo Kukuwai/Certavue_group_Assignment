@@ -21,7 +21,8 @@ public class Program
 
 
 
-    public Program()
+    // public Program()
+    public async Task RunAsync() // I changed it to run with Ollama because C# doesn't allow async constructors so we make it a regular async method.
     {
         var dataDirectory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Data"));
         string[] files = Directory.GetFiles(dataDirectory, "*.csv");
@@ -31,20 +32,20 @@ public class Program
 
         ScheduleState finalState = null;
         string apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
-        OpenAI openAI = new OpenAI(apiKey, "gpt-5-mini");
+        OpenAI openAI = new OpenAI(apiKey, "gpt-5.2");
 
 
         // loading data in
         foreach (string file in files)
         {
-            if (!file.Contains("schedule_spectacular_fitness_mixedA_varied40s.csv"))
+            if (!file.Contains("realistic_min10_xxlarge_23projects_20people_sorted"))
             {
                 continue;
             }
             var originalState = loadData(file);
             ScheduleHandler originalHandler = new ScheduleHandler(originalState);
-            Console.WriteLine("\n>>> [Before Optimization] Orignal conflicts detai:");
-            originalHandler.DebugConflictDetails(originalState);
+            // Console.WriteLine("\n>>> [Before Optimization] Orignal conflicts detai:");
+            // originalHandler.DebugConflictDetails(originalState);
 
             // export original data to html output
             Output output = new Output();
@@ -68,23 +69,40 @@ public class Program
             string baseName = Path.GetFileNameWithoutExtension(file);
             string outputPath = Path.Combine(outputCsvDir, baseName + "_after_greedy.csv");
             ScheduleHandler afterHandler = new ScheduleHandler(scheduleAfterGreedy);
-            Console.WriteLine("\n>>> [After Greedy] Conflictes detais:");
-            afterHandler.DebugConflictDetails(scheduleAfterGreedy);
+            // Console.WriteLine("\n>>> [After Greedy] Conflictes detais:");
+            // afterHandler.DebugConflictDetails(scheduleAfterGreedy);
 
             ScheduleCsvExporter.ExportStateToWeeklyTableCsv(scheduleAfterGreedy, outputPath);
-            string instructionsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents", "Instructions.txt"));
+            //string instructionsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents", "Instructions.txt"));
 
-            string responseText = openAI.CompareTwoCsvWithInstructions(file, outputPath, instructionsPath);
+            // I am using a smaller Instruction file with only essential questions as Ollama can not handle large prompts.
+            string instructionsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents", "Instructions_ollama.txt"));
+
+            // string responseText = openAI.CompareTwoCsvWithInstructions(file, outputPath, instructionsPath);
 
             string documentsDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents"));
             Directory.CreateDirectory(documentsDir);
 
             string responsePath = Path.Combine(documentsDir, baseName + "_OpenAI_Response.txt");
-
-            File.WriteAllText(responsePath, responseText);
+            Console.WriteLine("Wrote CSV: " + outputPath);
+            //File.WriteAllText(responsePath, responseText);
             Console.WriteLine("Saved OpenAI response: " + responsePath);
 
-            Console.WriteLine("Wrote CSV: " + outputPath);
+            // ******************** OLLAMA TEST **************************
+            Console.WriteLine("\nTesting Ollama for comparison...");
+            OllamaScheduleExplainer ollamaExplainer = new OllamaScheduleExplainer("llama3.2:3b");
+
+            string ollamaResponse = await ollamaExplainer.CompareTwoCsvWithInstructions(
+                file,
+                outputPath,
+                instructionsPath
+            );
+
+            string ollamaResponsePath = Path.Combine(documentsDir, baseName + "_Ollama_Response.txt");
+            File.WriteAllText(ollamaResponsePath, ollamaResponse); // here actual response is being written in the response.txt file. 
+            Console.WriteLine("Saved Ollama response: " + ollamaResponsePath);
+            ollamaExplainer.Close();
+            // =================================
 
             output.ExportToHtml(file, scheduleAfterGreedy, "after_greedy");
 
@@ -119,7 +137,7 @@ public class Program
         }
         openAI.Close();
 
-        
+
 
         //  ProcessNewProjectInsertion(finalState);
     }
@@ -191,11 +209,13 @@ public class Program
         return state;
     }
 
-    static void Main(string[] args)
+    // static void Main(string[] args)
+    static async Task Main(string[] args)
     {
-        new Program();
+        await new Program().RunAsync();
+        // new Program();
         // string apiKey = Environment.GetEnvironmentVariable("");
-        // OpenAI openAI = new OpenAI("", "gpt-5-mini");
+        // OpenAI openAI = new OpenAI("", "gpt-5.2-pro");
 
         // string reply = openAI.SendPrompt("What is the capital of france?");
         // Console.WriteLine(reply);
