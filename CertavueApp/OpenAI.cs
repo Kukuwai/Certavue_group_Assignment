@@ -13,16 +13,11 @@ public class OpenAI
 
     public OpenAI(string apiKey, string modelName)
     {
-        model = modelName; //Probably 5.1 mini
+        model = modelName; //Probably 5.1 mini or nano
         client = new HttpClient();
         client.BaseAddress = new Uri("https://api.openai.com/v1/");
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-        client.Timeout = TimeSpan.FromMinutes(5);
-    }
-
-    public string GetModel()
-    {
-        return model;
+        client.Timeout = TimeSpan.FromMinutes(30); //request timeout time
     }
 
     public string CompareTwoCsvWithInstructions(string originalCsvPath, string updatedCsvPath, string instructionsTxtPath)
@@ -32,13 +27,15 @@ public class OpenAI
         string originalFileId = UploadCsvAndGetFileId(originalCsvPath);
         string changedFileId = UploadCsvAndGetFileId(updatedCsvPath);
 
-        return SendPromptWithTwoFiles(
-            instructions,
-            originalFileId,
-            changedFileId,
-            Path.GetFileName(originalCsvPath),
-            Path.GetFileName(updatedCsvPath));
+        return SendPromptWithTwoFiles(instructions, originalFileId, changedFileId, Path.GetFileName(originalCsvPath), Path.GetFileName(updatedCsvPath));
     }
+
+   //help method to pass three files to open ai
+   // maybe also need a method to promate three files
+    // public string AnalyzeThreeWayStrategy(string originalCsvPath, string greedyCsvPath, string ortoolsCsvPath, string instructionsTxtPath)
+    // {
+    //     // should pass three file 
+    // }
 
 
     private string UploadCsvAndGetFileId(string csvPath)
@@ -46,16 +43,16 @@ public class OpenAI
         using MultipartFormDataContent form = new MultipartFormDataContent();
         form.Add(new StringContent("user_data"), "purpose");
 
-        byte[] bytes = File.ReadAllBytes(csvPath);
+        byte[] bytes = File.ReadAllBytes(csvPath); //reads the CSV bytes
         ByteArrayContent fileContent = new ByteArrayContent(bytes);
-        fileContent.Headers.ContentType = new MediaTypeHeaderValue("text/csv");
-        form.Add(fileContent, "file", Path.GetFileName(csvPath));
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("text/csv"); //notes it as CSV fomat
+        form.Add(fileContent, "file", Path.GetFileName(csvPath)); //adds file
 
-        HttpResponseMessage response = client.PostAsync("files", form).GetAwaiter().GetResult();
-        string body = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+        HttpResponseMessage response = client.PostAsync("files", form).GetAwaiter().GetResult(); //upload file
+        string body = response.Content.ReadAsStringAsync().GetAwaiter().GetResult(); 
 
         if (!response.IsSuccessStatusCode)
-            throw new Exception("File upload failed: " + body);
+            throw new Exception("File upload failed: " + body); //stop if failed
 
         using JsonDocument doc = JsonDocument.Parse(body);
         if (!doc.RootElement.TryGetProperty("id", out JsonElement idElement))
@@ -65,12 +62,7 @@ public class OpenAI
     }
 
 
-    private string SendPromptWithTwoFiles(
-    string instructions,
-    string fileId1,
-    string fileId2,
-    string originalFileName,
-    string updatedFileName)
+    private string SendPromptWithTwoFiles(string instructions, string fileId1, string fileId2, string originalFileName, string updatedFileName)
 {
     string comparePrompt =
         "Use code interpreter to load and compare the two CSV files.\n" +
@@ -82,8 +74,8 @@ public class OpenAI
     {
         model = model,
         instructions = instructions,
-        background = true,
-        tool_choice = "required",
+        background = true, //async and background processing
+        tool_choice = "required", //makes it use tools
         tools = new object[]
         {
             new
@@ -92,17 +84,17 @@ public class OpenAI
                 container = new
                 {
                     type = "auto",
-                    file_ids = new[] { fileId1, fileId2 }
+                    file_ids = new[] { fileId1, fileId2 } //atachaed both files
                 }
             }
         },
         input = comparePrompt
     };
 
-    string json = JsonSerializer.Serialize(payload);
+    string json = JsonSerializer.Serialize(payload); //convert to json
     StringContent content = new StringContent(json, Encoding.UTF8, "application/json");
 
-    HttpResponseMessage response = client.PostAsync("responses", content).GetAwaiter().GetResult();
+    HttpResponseMessage response = client.PostAsync("responses", content).GetAwaiter().GetResult(); //response job
     string body = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
 
     if (!response.IsSuccessStatusCode)
@@ -114,7 +106,7 @@ public class OpenAI
 
     if (status == "completed")
     {
-        return ExtractOutputText(body);
+        return ExtractOutputText(body); //return text
     }
 
     if (string.IsNullOrWhiteSpace(responseId))
@@ -122,7 +114,7 @@ public class OpenAI
         return body;
     }
 
-    return WaitForCompletion(responseId, TimeSpan.FromMinutes(10), 2000);
+    return WaitForCompletion(responseId, TimeSpan.FromMinutes(30), 2000); //timeout for each task 
 }
 
 

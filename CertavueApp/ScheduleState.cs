@@ -436,10 +436,9 @@ public class ScheduleState
     }
 
 
-// pull raw hours directly from the original assignments to ensure the solver works with 100% of the initial workload.
+// Grab all original task data for a project that can feed it into the OR-Tools solver.
 public List<(int PersonId, int Week, int Hours)> GetOriginalAssignments(Project p)
 {
-   
     var assignments = new List<(int PersonId, int Week, int Hours)>();
     foreach (var person in p.people) // loop all workers
     {
@@ -451,26 +450,17 @@ public List<(int PersonId, int Week, int Hours)> GetOriginalAssignments(Project 
                 assignments.Add((person.id, kvp.Key, kvp.Value));
             }
         }
-        // else
-        // {
-        //     // debug 3：make sure every one in list
-        //     Console.WriteLine($"  - [警告] 成员 {person.id} 在项目人员列表中，但在他的 projects 字典中找不到该项目数据！");
-        // }
     }
-    // debug 4：total hours
-    // int totalHours = assignments.Sum(a => a.Hours);
-    // Console.WriteLine($"[DEBUG] 项目 {p.id} 获取完毕。任务总块数: {assignments.Count}, 总工时: {totalHours}");
     return assignments;
 }
 
-
-// This is the bridge between the Solver's math and our Project objects.
+// a heavy Lifter: Re maping the entire schedule based on the solver's optimized output.
+// 修改方法签名，使其支持 4 个参数的元组 (PersonId, Project, RawWeek, TaskIdx)
 public void UpdateFromFineGrainedAssignments(
     Dictionary<(int PersonId, Project Project, int RawWeek, int TaskIdx), int> newAssignments,
     Dictionary<int, List<(int PersonId, int Week, int Hours)>> originalTaskMap)
 {
-    // Step 1: WIPE CURRENT STATE. We clear project/staff links for affected projects 
-    // to prevent "ghost" data from the previous Greedy pass from sticking around.
+    // 1. 清理：必须彻底清理 prj.people 和 person.projects
     var affectedProjects = newAssignments.Keys.Select(k => k.Project).Distinct().ToList();
     foreach (var prj in affectedProjects)
     {
@@ -478,66 +468,57 @@ public void UpdateFromFineGrainedAssignments(
         prj.people.Clear();
     }
 
-   // Step 2: DATA MAPPING. Use the solver's output (new address) combined with the 
-    // backup map (original hours) to rebuild the schedule accurately.
+    // 2. 映射：只还原基础的 Person -> Project 关系
     foreach (var entry in newAssignments)
     {
         var (personId, prjRef, _, tIdx) = entry.Key;
-        int targetWeek = entry.Value; 
+        int targetWeek = entry.Value; // 求解器给出的新周
 
-
-        if (originalTaskMap.ContainsKey(prjRef.id) && tIdx < originalTaskMap[prjRef.id].Count)
+        if (originalTaskMap.TryGetValue(prjRef.id, out var projectTasks) && tIdx < projectTasks.Count)
         {
-            var originalTask = originalTaskMap[prjRef.id][tIdx];
-            
+            var originalTask = projectTasks[tIdx];
+            var person = People.First(p => p.id == personId);
             var actualPrj = this.Projects.First(p => p.id == prjRef.id);
-            ApplySingleAssignmentInternal(personId, actualPrj, targetWeek, originalTask.Hours);
+
+            // 建立基础关联
+            if (!person.projects.ContainsKey(actualPrj)) 
+                person.projects[actualPrj] = new Dictionary<int, int>();
+            
+            // 累加工时（同一人周可能有多个 Task）
+            int current = person.projects[actualPrj].GetValueOrDefault(targetWeek, 0);
+            person.projects[actualPrj][targetWeek] = current + originalTask.Hours;
+
+            if (!actualPrj.people.Contains(person)) actualPrj.people.Add(person);
         }
     }
-    // Step 3: SYNCHRONIZATION. Refresh the global load heatmap (PersonWeekHours) 
-    // so that conflict detection and printStats show the real optimized results.
-    this.RebuildGrid();
+
+    // 3. 同步：依靠 RebuildGrid 一次性生成 PersonWeekHours
+    // 这样能保证 Stats 里的总工时和 Person.projects 里的完全守恒
+    RebuildGrid();
 }
 
-
-
-// Handles the two-way relationship between Person and Project.
-// Essential for ensuring that calls like project.getTotalHours() function correctly.
-private void ApplySingleAssignmentInternal(int personId, Project prj, int week, int hours)
+// Low-level helper to actually write the data into the dictionaries and update the heat-map grid.
+private void ApplySingleAssignment(int personId, Project prj, int week, int hours)
 {
     var person = People.First(p => p.id == personId);
     
-    // 1. Person -> Project 
-    if (!person.projects.ContainsKey(prj)) 
-        person.projects[prj] = new Dictionary<int, int>();
-    
-    // Use accumulation to prevent overwriting of old working hours
-    int existingHours = person.projects[prj].GetValueOrDefault(week, 0);
-    person.projects[prj][week] = existingHours + hours;
+    // Link the task to the person.
+    if (!person.projects.ContainsKey(prj)) person.projects[prj] = new Dictionary<int, int>();
+    person.projects[prj][week] = hours;
 
-    // 2. Project -> Person 
-    if (!prj.people.Contains(person))
-    {
-        prj.people.Add(person);
-    }
-
-    // 3. renew grid
+   // Update the scoring grid keys.
     var wk = new WeekKey(personId, prj.id, week);
-    PersonWeekGrid[wk] = PersonWeekGrid.GetValueOrDefault(wk, 0) + 1;
+    PersonWeekGrid[wk] = PersonWeekGrid.GetValueOrDefault(wk) + hours;
 
     var pwk = new PersonWeekKey(personId, week);
-    // Here you are already using the accumulation (+ hours), so this line is correct
-    PersonWeekHours[pwk] = PersonWeekHours.GetValueOrDefault(pwk, 0) + hours;
+    PersonWeekHours[pwk] = PersonWeekHours.GetValueOrDefault(pwk) + hours;
 }
 
+    public void SwapPersonInProject(Project p, Person oldPerson, Person newPerson)
+    {
+        RemoveProjectFromGrid(p);
 
-// --- RESOURCE SWAPPING ---
-public void SwapPersonInProject(Project p, Person oldPerson, Person newPerson)
-{
-    RemoveProjectFromGrid(p);
-
-    p.ReplaceStaff(oldPerson, newPerson);
-
-    AddProjectToGrid(p);
-}
+        p.ReplaceStaff(oldPerson, newPerson);
+        AddProjectToGrid(p);
+    }
 }

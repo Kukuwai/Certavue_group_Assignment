@@ -1,0 +1,41 @@
+SCHEDULE OPTIMIZATION ANALYSIS
+
+CSV RULES:
+- "s" = start week marker (exclusive)
+- "e" = end week marker (exclusive)  
+- Projects can shift between s and e weeks
+- Projects can split hours across weeks (40h → 20h + 20h)
+- People can swap if same role and improves fitness
+- Total project hours never change
+- Per person capacity: 40 hours/week
+
+FITNESS SCORING (weighted):
+- Conflict Score (40%): Penalize overallocation (>40h/week)
+- Movement Score (20%): Penalize frequent project switching
+- Focus Score (20%): Reward fewer simultaneous projects
+- Continuity Score (10%): Reward longer consecutive weeks
+- Duration Score (10%): Penalize very short assignments
+
+TASK:
+Compare ORIGINAL vs OPTIMIZED schedule and explain changes based on fitness rules.
+
+OUTPUT:
+1) SUMMARY (2-3 paragraphs)
+   - What problems existed in original (conflicts, overallocation)
+   - What changed in optimization
+   - Why changes improve fitness score
+
+2) KEY METRICS
+   - Fitness score: before → after
+   - Conflicts: count before → after
+   - Rows changed: X
+
+3) MAJOR CHANGES (top 3-5 most significant)
+   - Person/Project/Week changes
+   - Why each change improves fitness
+
+4) REASONING
+   - Which fitness rules drove the optimization
+   - Trade-offs made (if any)
+
+Keep explanations concise and evidence-based.

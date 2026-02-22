@@ -192,7 +192,7 @@ private List<int> GetSoftenedTimeWindows((int PersonId, int Week, int Hours) ass
                 totalRecoveredHours += task.Hours;
 
                 // 🚨 现在这里的 4 参数 Key 能与 SolveResult 定义匹配了
-                res.Assignments[(k.pId, k.prj, task.Week, k.tIdx)] = k.tW;
+              res.Assignments[(k.pId, k.prj, task.Week, k.tIdx)] = k.tW;
 
                 int deadline = k.prj.endDate > 0 ? k.prj.endDate : 52;
                 if (k.tW > deadline) 
@@ -220,5 +220,4 @@ private List<int> GetSoftenedTimeWindows((int PersonId, int Week, int Hours) ass
 
         return res;
     }
-
 }

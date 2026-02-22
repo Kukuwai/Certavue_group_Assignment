@@ -22,7 +22,8 @@ public class Program
 
 
 
-    public Program()
+    // public Program()
+    public async Task RunAsync() // I changed it to run with Ollama because C# doesn't allow async constructors so we make it a regular async method.
     {
         var dataDirectory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Data"));
         string[] files = Directory.GetFiles(dataDirectory, "*.csv");
@@ -30,39 +31,27 @@ public class Program
         Directory.CreateDirectory(outputCsvDir);
 
 
-        //ScheduleState finalState = null;
-        string apiKey = Environment.GetEnvironmentVariable("ApiKey");
-        OpenAI openAI = new OpenAI(apiKey, "gpt-5-mini");
+        ScheduleState finalState = null;
+        string apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+        OpenAI openAI = new OpenAI(apiKey, "gpt-5.2");
 
 
         // loading data in
         foreach (string file in files)
         {
-            if (!file.Contains("schedule_project_contiguous_fitness_high_improvable_varied40s.csv"))
+            if (!file.Contains("realistic_min10_xxlarge_23projects_20people_sorted"))
             {
                 continue;
             }
-            var originalState = loadData(file);//first time hold state!!!!
-            var backup = originalState.Projects.ToDictionary(
-            p => p.id, 
-            p => originalState.GetOriginalAssignments(p)
-            );
-
-            //ScheduleHandler originalHandler = new ScheduleHandler(originalState);
-            Console.WriteLine("\n>>> [Before Optimization] Orignal conflicts detai:");
-            //originalHandler.DebugConflictDetails(originalState);
-            printStats(file, originalState, "Original", false);
-            ScheduleCsvExporter.ExportStateToWeeklyTableCsv(originalState, outputCsvDir + "/outputOriginal.csv");
-            foreach (Project p in projects)
-            {
-                int h = p.getTotalHours();
-                Console.WriteLine($"Project: {p.id} | Hours: {h}");
-            }
+            var originalState = loadData(file);
+            ScheduleHandler originalHandler = new ScheduleHandler(originalState);
+            // Console.WriteLine("\n>>> [Before Optimization] Orignal conflicts detai:");
+            // originalHandler.DebugConflictDetails(originalState);
 
             // export original data to html output
-            // Output output = new Output();
-            // output.ExportToHtml(file, originalState, "Original");
-            // printStats("Original Data", originalState, file, false);
+            Output output = new Output();
+            output.ExportToHtml(file, originalState, "Original");
+            printStats("Original Data", originalState, file, false);
 
             // moveByConflict method (manual optimisation)
             // var scheduleAfterConflict = new MoveByConflict().start(originalState, projects);
@@ -77,70 +66,74 @@ public class Program
 
             // greedy algorithm starts, inluding export of output to html
             Console.WriteLine($"Greeding Running File - {System.IO.Path.GetFileName(file)}\n");
-            var greedyState = new GreedyAlg().StartGreedy(originalState.People, originalState.Projects);//!!!second time hold state!!!
+            var scheduleAfterGreedy = new GreedyAlg().StartGreedy(people, projects);
             string baseName = Path.GetFileNameWithoutExtension(file);
             string outputPath = Path.Combine(outputCsvDir, baseName + "_after_greedy.csv");
-            ScheduleHandler afterHandler = new ScheduleHandler(greedyState);
-            Console.WriteLine("\n>>> [After Greedy] Conflictes detais:");
-            afterHandler.DebugConflictDetails(greedyState);
-            printStats(file, greedyState, "Greedy", false);
-            ScheduleCsvExporter.ExportStateToWeeklyTableCsv(greedyState, outputCsvDir + "/outputGreedy.csv");
-            foreach (Project p in greedyState.Projects)
-            {
-                int h = p.getTotalHours();
-                Console.WriteLine($"Project: {p.id} | Hours: {h}");
-            }
+            ScheduleHandler afterHandler = new ScheduleHandler(scheduleAfterGreedy);
+            // Console.WriteLine("\n>>> [After Greedy] Conflictes detais:");
+            // afterHandler.DebugConflictDetails(scheduleAfterGreedy);
+            ScheduleCsvExporter.ExportStateToWeeklyTableCsv(scheduleAfterGreedy, outputPath);
+            //string instructionsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents", "Instructions.txt"));
 
-           // run or tools
-            Console.WriteLine("\n>>> [3. After OR-Tools] Optimization Starting...");
+            //-----------------------⚠️this part is adding to run ortools---------------
+            Console.WriteLine($"\nOR-Tools Running File - {System.IO.Path.GetFileName(file)}");
+            var stateOrTools = loadData(file); // Re-load original data to ensure the optimizer starts from a clean baseline
+            // Backup original assignments to calculate movement costs and map solver results back to business objects
+            var backupOrTools = stateOrTools.Projects.ToDictionary(p => p.id, p => stateOrTools.GetOriginalAssignments(p));
+            
             var optimizer = new CpSatOptimizer();
+            var orToolsResult = optimizer.Optimize(stateOrTools, backupOrTools, maxSeconds: 60.0);
 
-           // We pass 'originalState' for constraints and 'backup' (the raw data) to ensure 
-           // the solver accounts for every single hour, avoiding data loss from previous steps.
-            var result = optimizer.Optimize(originalState, backup, 60); 
-            Console.WriteLine($"\n>>> [After Ortools] Solver Status: {result.Status}");
+            string orToolsOutputPath = Path.Combine(outputCsvDir, baseName + "_after_ortools.csv");
+            if (orToolsResult.Status == CpSolverStatus.Feasible || orToolsResult.Status == CpSolverStatus.Optimal)
+            {
+                // Map solver variables back to the ScheduleState model
+               stateOrTools.UpdateFromFineGrainedAssignments(orToolsResult.Assignments, backupOrTools);
+                ScheduleCsvExporter.ExportStateToWeeklyTableCsv(stateOrTools, orToolsOutputPath);
 
-           // Proceed only if the solver found a valid (Feasible) or the best (Optimal) solution.
-            if (result.Status == Google.OrTools.Sat.CpSolverStatus.Feasible || result.Status == Google.OrTools.Sat.CpSolverStatus.Optimal)
-        {
-             // UPDATE LOGIC: Map the solver's mathematical results back to our domain objects.
-             // This method reassigns hours and calls RebuildGrid() to refresh the global load map.
-            originalState.UpdateFromFineGrainedAssignments(result.Assignments, backup);
-    
-            var finalHandler = new ScheduleHandler(originalState);
-            finalHandler.DebugConflictDetails(originalState);
-    
-             printStats(file, originalState, "CPSAT_Only", true);
-    
-            Console.WriteLine("--- Optional strategy ---");
-            Console.WriteLine($"Successful Reduction: {result.Report.ConflictReduced}h");
-            Console.WriteLine($"Extension Duration: {result.Report.TotalDelayWeeks}");
-            Console.WriteLine($"Adding more same-role people: {result.Report.ResourceSwaps}");
+                printStats("OR-Tools Optimization", stateOrTools, file, true);
+            }
+         
+            // I am using a smaller Instruction file with only essential questions as Ollama can not handle large prompts.
+        //     string instructionsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents", "Instructions_ollama.txt"));
+            // ⚠️Those lines which has double "//" is new adding.
+        //     // string responseText = openAI.CompareTwoCsvWithInstructions(file, outputPath, instructionsPath);
 
-           // Using 'originalState' ensures we are exporting the fully reconciled data.
-           // ScheduleCsvExporter.ExportStateToWeeklyTableCsv(originalState, outputCsvDir + "/outputSolver.csv");
+        //     string documentsDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents"));
+        //     Directory.CreateDirectory(documentsDir);
 
-            foreach (Project p in originalState.Projects)
-           {
-            int h = p.getTotalHours();
-            Console.WriteLine($"Project: {p.id} | Hours: {h}");
-           }
-        }
+        //     // ⚠️Perform a three-way analysis: Original Baseline vs. Greedy (Quick Fix) vs. OR-Tools (Global Optimal)
+        //     // This allows the LLM to synthesize a final strategic plan rather than just comparing files.
+        //     string integratedStrategy = openAI.AnalyzeThreeWayStrategy(
+        //            file,                // Raw status (Input)
+        //            greedyOutputPath,    
+        //            orToolsOutputPath,   
+        //            instructionsPath     
+        //     );
 
-            // ScheduleCsvExporter.ExportStateToWeeklyTableCsv(scheduleAfterGreedy, outputPath);
-            // string instructionsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents", "Instructions.txt"));
-
-            // string responseText = openAI.CompareTwoCsvWithInstructions(file, outputPath, instructionsPath);
-
-            // string documentsDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents"));
-            // Directory.CreateDirectory(documentsDir);
+        //   // Export the final AI-generated strategic report
+        //   File.WriteAllText(Path.Combine(documentsDir, baseName + "_Final_Strategy_Report.txt"), integratedStrategy);
 
             // string responsePath = Path.Combine(documentsDir, baseName + "_OpenAI_Response.txt");
-
-            // File.WriteAllText(responsePath, responseText);
+            // Console.WriteLine("Wrote CSV: " + outputPath);
+            // //File.WriteAllText(responsePath, responseText);
             // Console.WriteLine("Saved OpenAI response: " + responsePath);
 
-            // Console.WriteLine("Wrote CSV: " + outputPath);
+            // // ******************** OLLAMA TEST **************************
+            // Console.WriteLine("\nTesting Ollama for comparison...");
+            // OllamaScheduleExplainer ollamaExplainer = new OllamaScheduleExplainer("llama3.2:3b");
+
+            // string ollamaResponse = await ollamaExplainer.CompareTwoCsvWithInstructions(
+            //     file,
+            //     outputPath,
+            //     instructionsPath
+            // );
+
+            // string ollamaResponsePath = Path.Combine(documentsDir, baseName + "_Ollama_Response.txt");
+            // File.WriteAllText(ollamaResponsePath, ollamaResponse); // here actual response is being written in the response.txt file. 
+            // Console.WriteLine("Saved Ollama response: " + ollamaResponsePath);
+            // ollamaExplainer.Close();
+            // =================================
 
             // output.ExportToHtml(file, scheduleAfterGreedy, "after_greedy");
 
@@ -154,9 +147,12 @@ public class Program
 
 
 
-            
-
-           
+            // var roleOpt = new RoleOptimizer();
+            // var roleResult = roleOpt.Optimize(scheduleAfterGreedy, maxPasses: 1000);
+            // Program.LatestState = roleResult.BestState;
+            // output.ExportToHtml(file, roleResult.BestState, "After Role Checks");
+            // printStats("Role optimiser Data", roleResult.BestState, file, true);
+            // finalState = roleResult.BestState;
 
 
 
@@ -170,7 +166,9 @@ public class Program
             //     p.printPeopleOnProject();
             // }
         }
-        //openAI.Close();
+        // openAI.Close();
+
+
 
         //  ProcessNewProjectInsertion(finalState);
     }
@@ -224,17 +222,12 @@ public class Program
         Console.WriteLine("[SYSTEM] The final shift schedule has been exported to an HTML file.");
     }
 
-
-    
-
     public List<Project> LoadNewProjectsOnly(string path)
     {
         Loader load = new Loader();
         (_, var newProjects) = load.LoadData(path);
         return newProjects;
     }
-
-
 
     public ScheduleState loadData(string path)
     {
@@ -247,11 +240,13 @@ public class Program
         return state;
     }
 
-    static void Main(string[] args)
+    // static void Main(string[] args)
+    static async Task Main(string[] args)
     {
-        new Program();
+        await new Program().RunAsync();
+        // new Program();
         // string apiKey = Environment.GetEnvironmentVariable("");
-        // OpenAI openAI = new OpenAI("", "gpt-5-mini");
+        // OpenAI openAI = new OpenAI("", "gpt-5.2-pro");
 
         // string reply = openAI.SendPrompt("What is the capital of france?");
         // Console.WriteLine(reply);
