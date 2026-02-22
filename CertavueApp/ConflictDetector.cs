@@ -6,44 +6,24 @@ using static ScheduleState;
 
 public class ConflictDetector
 {
-  // // This is initial method to test the Detection and then report. This can be removed later but for now keep it. 
-  public ConflictReport DetectConflictsSimple(Dictionary<(int personId, int week), int> grid)
-  {
-    var report = new ConflictReport();
-
-    foreach (var ((personId, week), count) in grid)
-    {
-      if (count > 1)
-      {
-        report.Conflicts.Add(new Conflict
-        {
-          PersonId = personId,
-          PersonName = $"Person_{personId:D2}", // Temporary placeholder to test.
-          Week = week,
-          ProjectCount = count,
-          ProjectNames = new List<string> { "Unknown" } // Temporary for now.
-        });
-      }
-    }
-
-    return report;
-  }
-
-  // This method gives a list of Projects a person is working in a week. 
+  /// <summary>
+  /// Returns a list of project names that a specific person is allocated to in a given week,
+  /// based on their hours assignments in the schedule state.
+  /// </summary>
   private List<string> GetProjectsForPersonInWeek(ScheduleState state, int personId, int week)
-
   {
     var projects = new List<string>();
-    var person = state.People.First(p => p.id == personId);
+    var person = state.People.FirstOrDefault(p => p.id == personId);
 
-    foreach (var project in state.Projects)
+    if (person == null) return projects;
+
+    foreach (var projectEntry in person.projects)
     {
-      if (!project.people.Contains(person)) continue;
+      var project = projectEntry.Key;
+      var weekHours = projectEntry.Value;
 
-      var shift = state.GetShift(project);
-      var footprint = state.GetGrid(project, shift);
-
-      if (footprint.Any(f => f.PersonId == personId && f.Week == week))
+      // Check if person has hours allocated in this week for this project
+      if (weekHours.ContainsKey(week) && weekHours[week] > 0)
       {
         projects.Add(project.name);
       }
@@ -52,83 +32,150 @@ public class ConflictDetector
     return projects;
   }
 
-
-  // This method gives a conflict report for all persons when they are booked more than once in a week. 
-
+  /// <summary>
+  /// Analyzes the entire schedule to detect conflicts (hours > capacity) and high utilization warnings (90-100% capacity),
+  /// returning a comprehensive report for capacity planning and risk management.
+  /// </summary>
   public ConflictReport AnalyzeSchedule(ScheduleState state)
   {
     var report = new ConflictReport();
+    const int DEFAULT_CAPACITY = 40;
 
     foreach (var kvp in state.PersonWeekGrid)
     {
       var personId = kvp.Key.PersonId;
       var week = kvp.Key.Week;
-      var count = kvp.Value;
+      var totalHours = kvp.Value;
 
-      if (count > 1)
+      var person = state.People.FirstOrDefault(p => p.id == personId);
+      if (person == null) continue;
+
+      int capacity = person.capacity > 0 ? person.capacity : DEFAULT_CAPACITY;
+
+      // Flag OVERLOADED (exceeds capacity)
+      if (totalHours > capacity)
       {
-        var person = state.People.First(p => p.id == personId);
         var projectsThisWeek = GetProjectsForPersonInWeek(state, personId, week);
-
         report.Conflicts.Add(new Conflict
         {
           PersonId = personId,
           PersonName = person.name,
           Week = week,
-          ProjectCount = count,
+          TotalHours = totalHours,
+          Capacity = capacity,
+          ProjectCount = projectsThisWeek.Count,
+          ProjectNames = projectsThisWeek
+        });
+      }
+      // Flag HIGH UTILIZATION (90-100% capacity)
+      else if (totalHours >= capacity * 0.9)
+      {
+        var projectsThisWeek = GetProjectsForPersonInWeek(state, personId, week);
+        report.HighUtilization.Add(new Conflict
+        {
+          PersonId = personId,
+          PersonName = person.name,
+          Week = week,
+          TotalHours = totalHours,
+          Capacity = capacity,
+          ProjectCount = projectsThisWeek.Count,
           ProjectNames = projectsThisWeek
         });
       }
     }
 
+    report.CalculateStatistics(state);
     return report;
   }
 }
 // This class stores Conflicts, prints them, calculate statistics, counts affected people and groups conflicts by weeks and persons. 
 
+/// <summary>
+/// Contains a comprehensive analysis of scheduling conflicts (overloaded) and high utilization warnings (near capacity),
+/// including statistics grouped by person and week to support manager decision-making.
+/// </summary>
 public class ConflictReport
 {
   public List<Conflict> Conflicts { get; set; } = new List<Conflict>();
+  public List<Conflict> HighUtilization { get; set; } = new List<Conflict>();
 
   public int TotalConflictWeeks { get; set; }
   public int PeopleAffected { get; set; }
   public double ConflictPercentage { get; set; }
+  public int TotalOverloadHours { get; set; }  // NEW: Total hours over capacity
 
   public Dictionary<string, int> ConflictsByPerson { get; set; } = new Dictionary<string, int>();
   public Dictionary<int, int> ConflictsByWeek { get; set; } = new Dictionary<int, int>();
 
+  /// <summary>
+  /// Prints a detailed summary of conflicts, high utilization warnings, and burnout risks to the console.
+  /// </summary>
   public void PrintReport()
   {
-    Console.WriteLine($"\nTotal conflicts found: {Conflicts.Count}");
-    foreach (var conflict in Conflicts)
+    Console.WriteLine($"\n************** CONFLICT REPORT ***************");
+    Console.WriteLine($"Total conflicts found: {Conflicts.Count} person-weeks (URGENT)");
+    Console.WriteLine($"HIGH UTILIZATION: {HighUtilization.Count} person-weeks (90-100% capacity)");
+    Console.WriteLine($"People affected: {PeopleAffected}");
+    Console.WriteLine($"Total overload hours: {TotalOverloadHours}h");
+    Console.WriteLine($"Conflict percentage: {ConflictPercentage:F2}%\n");
+
+    // Show who's consistently maxed out
+    var consistentlyMaxed = HighUtilization
+        .GroupBy(c => c.PersonName)
+        .Where(g => g.Count() >= 3)  // 3+ weeks at high utilization
+        .OrderByDescending(g => g.Count());
+
+    if (consistentlyMaxed.Any())
     {
-      Console.WriteLine($"{conflict.PersonName}, Week {conflict.Week}: {conflict.ProjectCount} projects");
+      Console.WriteLine($"\nBURNOUT RISK (3+ weeks at 90%+ capacity):");
+      foreach (var group in consistentlyMaxed.Take(5))
+      {
+        Console.WriteLine($"  {group.Key}: {group.Count()} weeks");
+      }
     }
+    Console.WriteLine("****************************\n");
   }
 
+  /// <summary>
+  /// Calculates statistics including total conflicts, people affected, and groupings by person/week.
+  /// </summary>
   public void CalculateStatistics(ScheduleState state)
   {
     TotalConflictWeeks = Conflicts.Count;
     PeopleAffected = Conflicts.Select(c => c.PersonName).Distinct().Count();
-    int totalWeeks = state.PersonWeekGrid.Count;
-    ConflictPercentage = totalWeeks > 0 ? (double)TotalConflictWeeks / totalWeeks * 100 : 0;
+    TotalOverloadHours = Conflicts.Sum(c => c.Overload);
 
-    // group conflicts by Persons.
+    int totalAllocatedWeeks = state.PersonWeekGrid.Count;
+    ConflictPercentage = totalAllocatedWeeks > 0
+        ? (double)TotalConflictWeeks / totalAllocatedWeeks * 100
+        : 0;
+
+    // Group conflicts by person
     ConflictsByPerson = Conflicts
-    .GroupBy(c => c.PersonName)
-    .ToDictionary(g => g.Key, g => g.Count());
-    // group conflcits by Weeks.
+        .GroupBy(c => c.PersonName)
+        .ToDictionary(g => g.Key, g => g.Count());
 
+    // Group conflicts by week
     ConflictsByWeek = Conflicts
         .GroupBy(c => c.Week)
         .ToDictionary(g => g.Key, g => g.Count());
   }
 }
+/// <summary>
+/// Represents a scheduling conflict where a person's allocated hours
+/// exceed their weekly capacity in a specific week.
+/// </summary>
 public class Conflict
 {
   public int PersonId { get; set; }
   public string PersonName { get; set; }
   public int Week { get; set; }
-  public int ProjectCount { get; set; }
+  public int TotalHours { get; set; }           // Total hours allocated
+  public int Capacity { get; set; }             // Person's weekly capacity
+  public int ProjectCount { get; set; }         // Number of projects
   public List<string> ProjectNames { get; set; }
+
+  // Gets the severity of the overload (hours over capacity).
+
+  public int Overload => TotalHours - Capacity;
 }

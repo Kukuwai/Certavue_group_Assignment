@@ -31,8 +31,8 @@ public class Program
 
 
         ScheduleState finalState = null;
-        string apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
-        OpenAI openAI = new OpenAI(apiKey, "gpt-5.2");
+        // string apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+        // OpenAI openAI = new OpenAI(apiKey, "gpt-5.2");
 
 
         // loading data in
@@ -76,35 +76,38 @@ public class Program
             //string instructionsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents", "Instructions.txt"));
 
             // I am using a smaller Instruction file with only essential questions as Ollama can not handle large prompts.
-            string instructionsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents", "Instructions_ollama.txt"));
+            //string instructionsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents", "Instructions_ollama.txt"));
 
             // string responseText = openAI.CompareTwoCsvWithInstructions(file, outputPath, instructionsPath);
 
-            string documentsDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents"));
-            Directory.CreateDirectory(documentsDir);
+            // string documentsDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents"));
+            // Directory.CreateDirectory(documentsDir);
 
-            string responsePath = Path.Combine(documentsDir, baseName + "_OpenAI_Response.txt");
-            Console.WriteLine("Wrote CSV: " + outputPath);
-            //File.WriteAllText(responsePath, responseText);
-            Console.WriteLine("Saved OpenAI response: " + responsePath);
+            // string responsePath = Path.Combine(documentsDir, baseName + "_OpenAI_Response.txt");
+            // Console.WriteLine("Wrote CSV: " + outputPath);
+            // //File.WriteAllText(responsePath, responseText);
+            // Console.WriteLine("Saved OpenAI response: " + responsePath);
 
             // ******************** OLLAMA TEST **************************
-            Console.WriteLine("\nTesting Ollama for comparison...");
-            OllamaScheduleExplainer ollamaExplainer = new OllamaScheduleExplainer("llama3.2:3b");
+            // Console.WriteLine("\nTesting Ollama for comparison...");
+            // OllamaScheduleExplainer ollamaExplainer = new OllamaScheduleExplainer("llama3.2:3b");
 
-            string ollamaResponse = await ollamaExplainer.CompareTwoCsvWithInstructions(
-                file,
-                outputPath,
-                instructionsPath
-            );
+            // string ollamaResponse = await ollamaExplainer.CompareTwoCsvWithInstructions(
+            //     file,
+            //     outputPath,
+            //     instructionsPath
+            // );
 
-            string ollamaResponsePath = Path.Combine(documentsDir, baseName + "_Ollama_Response.txt");
-            File.WriteAllText(ollamaResponsePath, ollamaResponse); // here actual response is being written in the response.txt file. 
-            Console.WriteLine("Saved Ollama response: " + ollamaResponsePath);
-            ollamaExplainer.Close();
+            // string ollamaResponsePath = Path.Combine(documentsDir, baseName + "_Ollama_Response.txt");
+            // File.WriteAllText(ollamaResponsePath, ollamaResponse); // here actual response is being written in the response.txt file. 
+            // Console.WriteLine("Saved Ollama response: " + ollamaResponsePath);
+            // ollamaExplainer.Close();
             // =================================
 
-            output.ExportToHtml(file, scheduleAfterGreedy, "after_greedy");
+            //output.ExportToHtml(file, scheduleAfterGreedy, "after_greedy");
+
+            TestConflictDetector(originalState, "Original Schedule");
+            TestConflictDetector(scheduleAfterGreedy, "After Greedy Schedule");
 
             // string apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
             // OpenAI openAI = new OpenAI(apiKey, "gpt-5-mini");
@@ -135,13 +138,34 @@ public class Program
             //     p.printPeopleOnProject();
             // }
         }
-        openAI.Close();
-
-
+        // openAI.Close();
 
         //  ProcessNewProjectInsertion(finalState);
     }
+    public void TestConflictDetector(ScheduleState state, string label)
+    {
+        Console.WriteLine($"\n*** Conflict Analysis - {label} ***");
 
+        // DEBUG: Check actual hours
+        // Console.WriteLine("DEBUG: Sample person workloads:");
+        // foreach (var person in state.People.Take(5))
+        // {
+        //     var weeks = state.PersonWeekGrid
+        //         .Where(kvp => kvp.Key.PersonId == person.id)
+        //         .ToList();
+
+        //     if (weeks.Any())
+        //     {
+        //         var maxHours = weeks.Max(kvp => kvp.Value);
+        //         var avgHours = weeks.Average(kvp => kvp.Value);
+        //         Console.WriteLine($"  {person.name}: max {maxHours}h/week, avg {avgHours:F1}h/week");
+        //     }
+        // }
+        var detector = new ConflictDetector();
+
+        var report = detector.AnalyzeSchedule(state);
+        report.PrintReport();
+    }
 
     private void ProcessNewProjectInsertion(ScheduleState currentState)
     {
