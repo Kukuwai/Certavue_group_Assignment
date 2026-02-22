@@ -4,6 +4,14 @@ using System.Linq;
 using static GreedyAlg;
 using static ScheduleState;
 
+/// <summary>
+/// Detects scheduling problems by checking if people are assigned too many hours in any given week.
+/// Flags two levels of concern: (1) Overloaded - when total hours exceed a person's weekly capacity, and 
+/// (2) High Utilization - when people are working at 90-100% capacity with no buffer for urgent work.
+/// Provides detailed reports showing which people, weeks, and projects are affected. It helps managers 
+/// identify bottlenecks, prevent burnout, and make better staffing decisions.
+/// </summary>
+
 public class ConflictDetector
 {
   /// <summary>
