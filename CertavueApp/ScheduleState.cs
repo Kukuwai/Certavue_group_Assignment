@@ -436,8 +436,83 @@ public class ScheduleState
     }
 
 
+// Grab all original task data for a project that can feed it into the OR-Tools solver.
+public List<(int PersonId, int Week, int Hours)> GetOriginalAssignments(Project p)
+{
+    var assignments = new List<(int PersonId, int Week, int Hours)>();
+    foreach (var person in p.people) // loop all workers
+    {
+        if (person.projects.TryGetValue(p, out var weeks))
+        {
+            foreach (var kvp in weeks)
+            {
+                // kvp.Key is origin week，kvp.Value persent origin hours
+                assignments.Add((person.id, kvp.Key, kvp.Value));
+            }
+        }
+    }
+    return assignments;
+}
 
+// a heavy Lifter: Re maping the entire schedule based on the solver's optimized output.
+// 修改方法签名，使其支持 4 个参数的元组 (PersonId, Project, RawWeek, TaskIdx)
+public void UpdateFromFineGrainedAssignments(
+    Dictionary<(int PersonId, Project Project, int RawWeek, int TaskIdx), int> newAssignments,
+    Dictionary<int, List<(int PersonId, int Week, int Hours)>> originalTaskMap)
+{
+    // 1. 清理：必须彻底清理 prj.people 和 person.projects
+    var affectedProjects = newAssignments.Keys.Select(k => k.Project).Distinct().ToList();
+    foreach (var prj in affectedProjects)
+    {
+        foreach (var person in People) person.projects.Remove(prj);
+        prj.people.Clear();
+    }
 
+    // 2. 映射：只还原基础的 Person -> Project 关系
+    foreach (var entry in newAssignments)
+    {
+        var (personId, prjRef, _, tIdx) = entry.Key;
+        int targetWeek = entry.Value; // 求解器给出的新周
+
+        if (originalTaskMap.TryGetValue(prjRef.id, out var projectTasks) && tIdx < projectTasks.Count)
+        {
+            var originalTask = projectTasks[tIdx];
+            var person = People.First(p => p.id == personId);
+            var actualPrj = this.Projects.First(p => p.id == prjRef.id);
+
+            // 建立基础关联
+            if (!person.projects.ContainsKey(actualPrj)) 
+                person.projects[actualPrj] = new Dictionary<int, int>();
+            
+            // 累加工时（同一人周可能有多个 Task）
+            int current = person.projects[actualPrj].GetValueOrDefault(targetWeek, 0);
+            person.projects[actualPrj][targetWeek] = current + originalTask.Hours;
+
+            if (!actualPrj.people.Contains(person)) actualPrj.people.Add(person);
+        }
+    }
+
+    // 3. 同步：依靠 RebuildGrid 一次性生成 PersonWeekHours
+    // 这样能保证 Stats 里的总工时和 Person.projects 里的完全守恒
+    RebuildGrid();
+}
+
+// Low-level helper to actually write the data into the dictionaries and update the heat-map grid.
+private void ApplySingleAssignment(int personId, Project prj, int week, int hours)
+{
+    var person = People.First(p => p.id == personId);
+    
+    // Link the task to the person.
+    if (!person.projects.ContainsKey(prj)) person.projects[prj] = new Dictionary<int, int>();
+    person.projects[prj][week] = hours;
+
+   // Update the scoring grid keys.
+    var wk = new WeekKey(personId, prj.id, week);
+    PersonWeekGrid[wk] = PersonWeekGrid.GetValueOrDefault(wk) + hours;
+
+    var pwk = new PersonWeekKey(personId, week);
+    PersonWeekHours[pwk] = PersonWeekHours.GetValueOrDefault(pwk) + hours;
+}
 
     public void SwapPersonInProject(Project p, Person oldPerson, Person newPerson)
     {

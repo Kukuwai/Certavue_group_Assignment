@@ -20,11 +20,6 @@ public class OpenAI
         client.Timeout = TimeSpan.FromMinutes(30); //request timeout time
     }
 
-    public string GetModel()
-    {
-        return model;
-    }
-
     public string CompareTwoCsvWithInstructions(string originalCsvPath, string updatedCsvPath, string instructionsTxtPath)
     {
         string instructions = File.ReadAllText(instructionsTxtPath);
@@ -34,6 +29,13 @@ public class OpenAI
 
         return SendPromptWithTwoFiles(instructions, originalFileId, changedFileId, Path.GetFileName(originalCsvPath), Path.GetFileName(updatedCsvPath));
     }
+
+   //help method to pass three files to open ai
+   // maybe also need a method to promate three files
+    // public string AnalyzeThreeWayStrategy(string originalCsvPath, string greedyCsvPath, string ortoolsCsvPath, string instructionsTxtPath)
+    // {
+    //     // should pass three file 
+    // }
 
 
     private string UploadCsvAndGetFileId(string csvPath)

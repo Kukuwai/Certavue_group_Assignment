@@ -37,6 +37,8 @@ public static class ScheduleCsvExporter
                         int hours = kv.Value; //Hours for that week
                         if (hours > 0) // Ignores zero or negative entries.
                         {
+                            if (shiftedWeek < 1) shiftedWeek = 1; // Clamp early weeks into first export column.
+                            if (shiftedWeek > 52) shiftedWeek = 52; // Clamp late weeks into last export column.
                             hoursByWeek[shiftedWeek] = hoursByWeek[shiftedWeek] + hours; // Accumulates hours in case multiple entries land on same shifted week.
                         }
                     }

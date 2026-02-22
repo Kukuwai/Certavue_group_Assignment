@@ -14,7 +14,6 @@ public class Project
     public int endDate { get; set; }
     public int duration { get; set; }
     public int hoursNeeded { get; set; }
-
     public int capacityStartWeek {get; set;}
     public int capacityEndWeek {get; set;}
     public int capacity {get; set;}
@@ -164,6 +163,26 @@ public class Project
             }
         }
     }
+
+    public int getTotalHours()
+    {
+        int totalHours = 0;
+        foreach (Person p in people)
+        {
+            Dictionary<int, int> weekKey;
+            bool isOnProject = p.projects.TryGetValue(this, out weekKey);
+            if (isOnProject)
+            {
+                foreach (var week in weekKey)
+                {
+                    totalHours += week.Value;
+                }
+            }
+        }
+        return totalHours;
+    }
+
+    
 
 
 }

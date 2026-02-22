@@ -386,6 +386,8 @@ public class RoleOptimizer
         public int SourceHours { get; set; }
     }
 
+       
+
     private class MoveCandidate
     {
         public Project Project { get; set; }
