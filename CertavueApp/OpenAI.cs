@@ -30,6 +30,13 @@ public class OpenAI
         return SendPromptWithTwoFiles(instructions, originalFileId, changedFileId, Path.GetFileName(originalCsvPath), Path.GetFileName(updatedCsvPath));
     }
 
+   //help method to pass three files to open ai
+   // maybe also need a method to promate three files
+    // public string AnalyzeThreeWayStrategy(string originalCsvPath, string greedyCsvPath, string ortoolsCsvPath, string instructionsTxtPath)
+    // {
+    //     // should pass three file 
+    // }
+
 
     private string UploadCsvAndGetFileId(string csvPath)
     {

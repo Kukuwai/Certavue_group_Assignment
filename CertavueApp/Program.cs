@@ -10,6 +10,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using static OpenAI;
+using Google.OrTools.Sat;
 
 
 public class Program
@@ -71,40 +72,70 @@ public class Program
             ScheduleHandler afterHandler = new ScheduleHandler(scheduleAfterGreedy);
             // Console.WriteLine("\n>>> [After Greedy] Conflictes detais:");
             // afterHandler.DebugConflictDetails(scheduleAfterGreedy);
-
             ScheduleCsvExporter.ExportStateToWeeklyTableCsv(scheduleAfterGreedy, outputPath);
             //string instructionsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents", "Instructions.txt"));
 
+            //-----------------------⚠️this part is adding to run ortools---------------
+            Console.WriteLine($"\nOR-Tools Running File - {System.IO.Path.GetFileName(file)}");
+            var stateOrTools = loadData(file); // Re-load original data to ensure the optimizer starts from a clean baseline
+            // Backup original assignments to calculate movement costs and map solver results back to business objects
+            var backupOrTools = stateOrTools.Projects.ToDictionary(p => p.id, p => stateOrTools.GetOriginalAssignments(p));
+            
+            var optimizer = new CpSatOptimizer();
+            var orToolsResult = optimizer.Optimize(stateOrTools, backupOrTools, maxSeconds: 60.0);
+
+            string orToolsOutputPath = Path.Combine(outputCsvDir, baseName + "_after_ortools.csv");
+            if (orToolsResult.Status == CpSolverStatus.Feasible || orToolsResult.Status == CpSolverStatus.Optimal)
+            {
+                // Map solver variables back to the ScheduleState model
+               stateOrTools.UpdateFromFineGrainedAssignments(orToolsResult.Assignments, backupOrTools);
+                ScheduleCsvExporter.ExportStateToWeeklyTableCsv(stateOrTools, orToolsOutputPath);
+
+                printStats("OR-Tools Optimization", stateOrTools, file, true);
+            }
+         
             // I am using a smaller Instruction file with only essential questions as Ollama can not handle large prompts.
-            string instructionsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents", "Instructions_ollama.txt"));
+        //     string instructionsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents", "Instructions_ollama.txt"));
+            // ⚠️Those lines which has double "//" is new adding.
+        //     // string responseText = openAI.CompareTwoCsvWithInstructions(file, outputPath, instructionsPath);
 
-            // string responseText = openAI.CompareTwoCsvWithInstructions(file, outputPath, instructionsPath);
+        //     string documentsDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents"));
+        //     Directory.CreateDirectory(documentsDir);
 
-            string documentsDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents"));
-            Directory.CreateDirectory(documentsDir);
+        //     // ⚠️Perform a three-way analysis: Original Baseline vs. Greedy (Quick Fix) vs. OR-Tools (Global Optimal)
+        //     // This allows the LLM to synthesize a final strategic plan rather than just comparing files.
+        //     string integratedStrategy = openAI.AnalyzeThreeWayStrategy(
+        //            file,                // Raw status (Input)
+        //            greedyOutputPath,    
+        //            orToolsOutputPath,   
+        //            instructionsPath     
+        //     );
 
-            string responsePath = Path.Combine(documentsDir, baseName + "_OpenAI_Response.txt");
-            Console.WriteLine("Wrote CSV: " + outputPath);
-            //File.WriteAllText(responsePath, responseText);
-            Console.WriteLine("Saved OpenAI response: " + responsePath);
+        //   // Export the final AI-generated strategic report
+        //   File.WriteAllText(Path.Combine(documentsDir, baseName + "_Final_Strategy_Report.txt"), integratedStrategy);
 
-            // ******************** OLLAMA TEST **************************
-            Console.WriteLine("\nTesting Ollama for comparison...");
-            OllamaScheduleExplainer ollamaExplainer = new OllamaScheduleExplainer("llama3.2:3b");
+            // string responsePath = Path.Combine(documentsDir, baseName + "_OpenAI_Response.txt");
+            // Console.WriteLine("Wrote CSV: " + outputPath);
+            // //File.WriteAllText(responsePath, responseText);
+            // Console.WriteLine("Saved OpenAI response: " + responsePath);
 
-            string ollamaResponse = await ollamaExplainer.CompareTwoCsvWithInstructions(
-                file,
-                outputPath,
-                instructionsPath
-            );
+            // // ******************** OLLAMA TEST **************************
+            // Console.WriteLine("\nTesting Ollama for comparison...");
+            // OllamaScheduleExplainer ollamaExplainer = new OllamaScheduleExplainer("llama3.2:3b");
 
-            string ollamaResponsePath = Path.Combine(documentsDir, baseName + "_Ollama_Response.txt");
-            File.WriteAllText(ollamaResponsePath, ollamaResponse); // here actual response is being written in the response.txt file. 
-            Console.WriteLine("Saved Ollama response: " + ollamaResponsePath);
-            ollamaExplainer.Close();
+            // string ollamaResponse = await ollamaExplainer.CompareTwoCsvWithInstructions(
+            //     file,
+            //     outputPath,
+            //     instructionsPath
+            // );
+
+            // string ollamaResponsePath = Path.Combine(documentsDir, baseName + "_Ollama_Response.txt");
+            // File.WriteAllText(ollamaResponsePath, ollamaResponse); // here actual response is being written in the response.txt file. 
+            // Console.WriteLine("Saved Ollama response: " + ollamaResponsePath);
+            // ollamaExplainer.Close();
             // =================================
 
-            output.ExportToHtml(file, scheduleAfterGreedy, "after_greedy");
+            // output.ExportToHtml(file, scheduleAfterGreedy, "after_greedy");
 
             // string apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
             // OpenAI openAI = new OpenAI(apiKey, "gpt-5-mini");
@@ -135,7 +166,7 @@ public class Program
             //     p.printPeopleOnProject();
             // }
         }
-        openAI.Close();
+        // openAI.Close();
 
 
 
