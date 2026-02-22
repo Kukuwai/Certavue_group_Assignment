@@ -80,8 +80,8 @@ public class Program
 
             // // string responseText = openAI.CompareTwoCsvWithInstructions(file, outputPath, instructionsPath);
 
-            // string documentsDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents"));
-            // Directory.CreateDirectory(documentsDir);
+            string documentsDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents"));
+            Directory.CreateDirectory(documentsDir);
 
             // string responsePath = Path.Combine(documentsDir, baseName + "_OpenAI_Response.txt");
             // Console.WriteLine("Wrote CSV: " + outputPath);
@@ -416,7 +416,7 @@ public class Program
         result.PrintSummary();
     }
 
-    static void Main(string[] args)
+    static async Task Main(string[] args)
     {
         await new Program().RunAsync();
         // new Program();

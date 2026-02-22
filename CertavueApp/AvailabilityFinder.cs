@@ -2,7 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using static ScheduleState;
-
+/// <summary>
+/// Analyzes current schedule state to identify staffing availability and capacity constraints.
+/// Provides methods to find available people for new projects, identify overloaded weeks,
+/// discover work opportunities for new hires, and query individual or team-wide workload patterns.
+/// </summary>
 public class AvailabilityFinder
 {
   private ScheduleState _state;
@@ -263,6 +267,12 @@ public class AvailabilityFinder
   }
 
 }
+
+/// <summary>
+/// Contains the results of searching for work opportunities for a new person,
+/// identifying overloaded projects and the specific weeks where additional support is needed,
+/// helping to determine where a new hire could provide the most value to the schedule.
+/// </summary>
 public class NewPersonWorkResult
 {
   public string PersonName { get; set; } = string.Empty;
@@ -271,6 +281,7 @@ public class NewPersonWorkResult
   public int TotalWeeksAvailable { get; set; }
   public int ProjectsNeedingHelp { get; set; }
 
+  //Prints a formatted summary of work opportunities to the console.
   public void PrintSummary()
   {
     Console.WriteLine($"\n******* WORK OPPORTUNITIES FOR {PersonName} *******");
@@ -308,6 +319,11 @@ public class NewPersonWorkResult
     Console.WriteLine("*******************\n");
   }
 }
+/// <summary>
+/// Contains the results of searching for available staff for a new project,
+/// including fully and partially available people, week-by-week coverage analysis,
+/// and whether the project can be fulfilled with the required number of people.
+/// </summary>
 public class NewProjectStaffingResult
 {
   public int StartWeek { get; set; }
@@ -321,6 +337,7 @@ public class NewProjectStaffingResult
   public List<int> UncoveredWeeks { get; set; } = new List<int>();
   public bool CanBeFulfilled { get; set; }
 
+  /// Prints a summary of the staffing search results to the console.
   public void PrintSummary()
   {
     Console.WriteLine($"\n********* NEW PROJECT STAFFING ********");
