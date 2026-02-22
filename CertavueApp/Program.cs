@@ -4,166 +4,251 @@ using static Loader;
 using System;
 using System.Collections.Generic;
 using System.IO.Pipes;
+using static MoveByConflict;
+using static ScheduleState;
+using System.IO;
+using System.Linq;
+using System.Text;
+using static OpenAI;
+
+
 public class Program
 {
     List<Project> projects = new List<Project>();
     List<Person> people = new List<Person>();
 
-    public Program()
+    public static ScheduleState LatestState;
+
+
+
+    // public Program()
+    public async Task RunAsync() // I changed it to run with Ollama because C# doesn't allow async constructors so we make it a regular async method.
     {
-        loadData();
+        var dataDirectory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Data"));
+        string[] files = Directory.GetFiles(dataDirectory, "*.csv");
+        var outputCsvDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Data", "Outputcsv"));
+        Directory.CreateDirectory(outputCsvDir);
 
-        // Before Greedy algorithm
-        Console.WriteLine("********* Before running Greedy *********");
-        var stateBefore = new ScheduleState(people, projects);
-        var detectorBefore = new ConflictDetector();
-        var reportBefore = detectorBefore.AnalyzeSchedule(stateBefore);
-        reportBefore.CalculateStatistics(stateBefore);
-        //reportBefore.PrintReport();
 
-        // Run Greedy algorithm
-        Console.WriteLine("********* Running Greedy ***************");
-        var stateAfter = new GreedyAlg().StartGreedy(people, projects);
+        ScheduleState finalState = null;
+        string apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+        OpenAI openAI = new OpenAI(apiKey, "gpt-5.2");
 
-        // After Greedy algorithm
-        Console.WriteLine("********* After running Greedy *******");
-        var detectorAfter = new ConflictDetector();
-        var reportAfter = detectorAfter.AnalyzeSchedule(stateAfter);
-        reportAfter.CalculateStatistics(stateAfter);
-        //reportAfter.PrintReport();
 
-        // Comparison
-        Console.WriteLine("************ Comparison *************");
-        Console.WriteLine($"Conflicts before: {reportBefore.TotalConflictWeeks}");
-        Console.WriteLine($"Conflicts after:  {reportAfter.TotalConflictWeeks}");
-        Console.WriteLine($"Reduction:        {reportBefore.TotalConflictWeeks - reportAfter.TotalConflictWeeks}");
-        Console.WriteLine($"% Improvement:    {(1 - (double)reportAfter.TotalConflictWeeks / reportBefore.TotalConflictWeeks) * 100:F1}%");
-        //testPrint();
-        //var beforeGreedy = new ScheduleState(people, projects);
-        // GreedyChecker("Before Greedy", beforeGreedy);
-        //new GreedyAlg().StartGreedy(people, projects);
-        //var afterGreedy = new ScheduleState(people, projects);
-        //  GreedyChecker("After Greedy", afterGreedy);
-        //var state = new ScheduleState(people, projects);
-        //var detector = new ConflictDetector();
-        //var report = detector.AnalyzeSchedule(state);
-        //report.CalculateStatistics(state);
+        // loading data in
+        foreach (string file in files)
+        {
+            if (!file.Contains("realistic_min10_xxlarge_23projects_20people_sorted"))
+            {
+                continue;
+            }
+            var originalState = loadData(file);
+            ScheduleHandler originalHandler = new ScheduleHandler(originalState);
+            // Console.WriteLine("\n>>> [Before Optimization] Orignal conflicts detai:");
+            // originalHandler.DebugConflictDetails(originalState);
 
-        //Console.WriteLine($"Total conflicts: {report.TotalConflictWeeks}");
-        //Console.WriteLine($"People affected: {report.PeopleAffected}");
-        //Console.WriteLine($"Conflict rate: {report.ConflictPercentage:F2}%");
+            // export original data to html output
+            Output output = new Output();
+            output.ExportToHtml(file, originalState, "Original");
+            printStats("Original Data", originalState, file, false);
 
-        // Console.WriteLine("\nTop 3 conflicted people:");
-        // foreach (var person in report.ConflictsByPerson.OrderByDescending(kv => kv.Value).Take(3))
-        // {
-        //     Console.WriteLine($"  {person.Key}: {person.Value} conflicts");
-        // }
+            // moveByConflict method (manual optimisation)
+            // var scheduleAfterConflict = new MoveByConflict().start(originalState, projects);
+            // output.ExportToHtml(file, scheduleAfterConflict, "after_conflict");
+            // printStats("Conflict Moving Data", scheduleAfterConflict, file);
 
+            /*Console.WriteLine("start move conflict");
+            var scheduleAfterConflict = new MoveByConflict().start(originalState, projects);
+            output.ExportToHtml(file, scheduleAfterConflict, "after_conflict");
+            printStats("Conflict Moving Data", scheduleAfterConflict, file);*/
+
+
+            // greedy algorithm starts, inluding export of output to html
+            Console.WriteLine($"Greeding Running File - {System.IO.Path.GetFileName(file)}\n");
+            var scheduleAfterGreedy = new GreedyAlg().StartGreedy(people, projects);
+            string baseName = Path.GetFileNameWithoutExtension(file);
+            string outputPath = Path.Combine(outputCsvDir, baseName + "_after_greedy.csv");
+            ScheduleHandler afterHandler = new ScheduleHandler(scheduleAfterGreedy);
+            // Console.WriteLine("\n>>> [After Greedy] Conflictes detais:");
+            // afterHandler.DebugConflictDetails(scheduleAfterGreedy);
+
+            ScheduleCsvExporter.ExportStateToWeeklyTableCsv(scheduleAfterGreedy, outputPath);
+            //string instructionsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents", "Instructions.txt"));
+
+            // I am using a smaller Instruction file with only essential questions as Ollama can not handle large prompts.
+            string instructionsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents", "Instructions_ollama.txt"));
+
+            // string responseText = openAI.CompareTwoCsvWithInstructions(file, outputPath, instructionsPath);
+
+            string documentsDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents"));
+            Directory.CreateDirectory(documentsDir);
+
+            string responsePath = Path.Combine(documentsDir, baseName + "_OpenAI_Response.txt");
+            Console.WriteLine("Wrote CSV: " + outputPath);
+            //File.WriteAllText(responsePath, responseText);
+            Console.WriteLine("Saved OpenAI response: " + responsePath);
+
+            // ******************** OLLAMA TEST **************************
+            Console.WriteLine("\nTesting Ollama for comparison...");
+            OllamaScheduleExplainer ollamaExplainer = new OllamaScheduleExplainer("llama3.2:3b");
+
+            string ollamaResponse = await ollamaExplainer.CompareTwoCsvWithInstructions(
+                file,
+                outputPath,
+                instructionsPath
+            );
+
+            string ollamaResponsePath = Path.Combine(documentsDir, baseName + "_Ollama_Response.txt");
+            File.WriteAllText(ollamaResponsePath, ollamaResponse); // here actual response is being written in the response.txt file. 
+            Console.WriteLine("Saved Ollama response: " + ollamaResponsePath);
+            ollamaExplainer.Close();
+            // =================================
+
+            output.ExportToHtml(file, scheduleAfterGreedy, "after_greedy");
+
+            // string apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+            // OpenAI openAI = new OpenAI(apiKey, "gpt-5-mini");
+
+            // Console.WriteLine("Model: " + openAI.GetModel());
+            // Console.WriteLine("Connected: " + openAI.IsConnected());
+
+            // openAI.Close();
+
+
+
+            // var roleOpt = new RoleOptimizer();
+            // var roleResult = roleOpt.Optimize(scheduleAfterGreedy, maxPasses: 1000);
+            // Program.LatestState = roleResult.BestState;
+            // output.ExportToHtml(file, roleResult.BestState, "After Role Checks");
+            // printStats("Role optimiser Data", roleResult.BestState, file, true);
+            // finalState = roleResult.BestState;
+
+
+
+            // projects[0].printPeopleOnProject();
+            // Console.WriteLine("-------");
+            // people[0].printProjectsForPerson();
+
+            // Console.WriteLine("Find project by person test");
+            // foreach (Project p in projects)
+            // {
+            //     p.printPeopleOnProject();
+            // }
+        }
+        openAI.Close();
+
+
+
+        //  ProcessNewProjectInsertion(finalState);
     }
 
-    public void loadData()
+
+    private void ProcessNewProjectInsertion(ScheduleState currentState)
+    {
+        if (currentState == null)
+        {
+            Console.WriteLine("[Error] No available global optimization state was found, and a new project could not be inserted.");
+            return;
+        }
+
+        var newProjectDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "AddNewProject"));
+        Console.WriteLine($"\n[ACTION] is searching new project: {newProjectDir}");
+
+        if (!Directory.Exists(newProjectDir))
+        {
+            Console.WriteLine("[Error] can not find AddNewProject folder。");
+            return;
+        }
+
+        ScheduleHandler handler = new ScheduleHandler(currentState);
+        string[] newFiles = Directory.GetFiles(newProjectDir, "*.csv");
+
+        foreach (var file in newFiles)
+        {
+            Console.WriteLine($"[File] is processing: {Path.GetFileName(file)}");
+
+            List<Project> newProjects = LoadNewProjectsOnly(file);
+
+            foreach (var project in newProjects)
+            {
+                currentState.AddProject(project);           //fixed these 2 lines
+                double scoreDelta = handler.EvaluateNewProjectInsertion(project);  //fixed these 2 lines
+
+
+                if (scoreDelta >= 0)
+                {
+                    Console.WriteLine($"   ✅ [Success] project '{project.name}' had insert sucessful。score change: {scoreDelta:F4}");
+                }
+                else
+                {
+                    Console.WriteLine($"   ⚠️ [Warning] project '{project.name}' after insert,score change: ({scoreDelta:F4})，please check conflicts。");
+                }
+            }
+            Output finalOutput = new Output();
+            finalOutput.ExportToHtml("Global_Final_Schedule", currentState, "With_New_Projects.html");
+        }
+
+        Console.WriteLine("[SYSTEM] The final shift schedule has been exported to an HTML file.");
+    }
+
+    public List<Project> LoadNewProjectsOnly(string path)
     {
         Loader load = new Loader();
-        (this.people, this.projects) = load.LoadData("Data/schedule_target75_large.csv");
-        Console.WriteLine("Loaded.");
+        (_, var newProjects) = load.LoadData(path);
+        return newProjects;
     }
 
-    //checking in GreedyAlg now
-    // private void GreedyChecker(string label, ScheduleState state)
-    // {
-    //     int totalAssignments = state.PersonWeekGrid.Values.Sum();
-    //     int nonConflictAssignments = state.PersonWeekGrid
-    //         .Where(kv => kv.Value == 1)
-    //         .Sum(kv => kv.Value);
-    //     int doubleBooked = state.PersonWeekGrid.Count(kv => kv.Value >= 2);
-
-    //     double pctNotDoubleBooked = totalAssignments == 0
-    //         ? 100
-    //         : (double)nonConflictAssignments / totalAssignments * 100;
-
-    //     Console.WriteLine(label + " Total assignments=" + totalAssignments
-    //         + " Double-booked weeks=" + doubleBooked
-    //         + " % not double-booked=" + pctNotDoubleBooked.ToString("0.##"));
-    // }
-
-    public void testPrint()
+    public ScheduleState loadData(string path)
     {
-        // Console.WriteLine("People:");
-        // foreach (var p in people)
-        // {
-        //     Console.WriteLine("- " + p.name);
-        //     foreach (KeyValuePair<Project, List<int>> kvp in p.projects)
-        //     {
-        //         List<int> values = kvp.Value;
-        //         foreach (var v in values)
-        //         {
-        //             Console.WriteLine("Key = {0}, Value = {1}", kvp.Key.name, v);
-        //         }
-        //     }
-
-        // }
-        // Console.WriteLine("Count of projects: " + projects.Count);
+        Loader load = new Loader();
+        (var people, var projects) = load.LoadData(path);
+        var state = new ScheduleState(people, projects);
+        this.people = people;
+        this.projects = projects;
+        Console.WriteLine($"Loaded {System.IO.Path.GetFileName(path)}\n");
+        return state;
     }
 
-    public void test_ConflictClass()
+    // static void Main(string[] args)
+    static async Task Main(string[] args)
     {
-        var conflict = new Conflict
+        await new Program().RunAsync();
+        // new Program();
+        // string apiKey = Environment.GetEnvironmentVariable("");
+        // OpenAI openAI = new OpenAI("", "gpt-5.2-pro");
+
+        // string reply = openAI.SendPrompt("What is the capital of france?");
+        // Console.WriteLine(reply);
+
+        // openAI.Close();
+
+    }
+
+    public void printStats(string dataName, ScheduleState state, string path, bool end)
+    {
+        ScheduleHandler handler = new ScheduleHandler(state);
+        var conflictScore = handler.GetConflictScore(state);
+        var movementScore = handler.GetMovementScore(state);
+        var focusScore = handler.GetFocusScore(state);
+        var continuityScore = handler.GetContinuityScore(state);
+        var durationScore = handler.GetDurationScore(state);
+        var fitnessScore = handler.CalculateFitnessScore(state);
+        Console.WriteLine($"|-----{dataName}-----|");
+        Console.WriteLine($"Finess Score - {fitnessScore.ToString("F2")}\nBreakdown - Conflict Score: {conflictScore.ToString("F2")} || Movement Score: {movementScore.ToString("F2")} || Focus Score: {focusScore.ToString("F2")} || Continuity Score: {continuityScore.ToString("F2")} || Duration Score: {durationScore.ToString("F2")}\n");
+        if (end)
         {
-            PersonId = 1,
-            PersonName = "Person_01",
-            Week = 15,
-            ProjectCount = 2,
-            ProjectNames = new List<string> { "Project_001", "Project_002" }
-        };
-        Console.WriteLine($"{conflict.PersonName} has {conflict.ProjectCount} projects in week {conflict.Week}");
-        Console.WriteLine($"Projects: {string.Join(", ", conflict.ProjectNames)}");
+            Console.WriteLine("------------------------------------------------------------------\n");
+        }
     }
+}
 
-    private void test_Report()
-    {
-        var report = new ConflictReport();
-
-        report.Conflicts.Add(new Conflict
-        {
-            PersonName = "Person_01",
-            Week = 15,
-            ProjectCount = 2,
-            ProjectNames = new List<string> { "Project_001", "Project_002" }
-        });
-
-        report.Conflicts.Add(new Conflict
-        {
-            PersonName = "Person_02",
-            Week = 20,
-            ProjectCount = 3,
-            ProjectNames = new List<string> { "Project_003", "Project_004", "Project_005" }
-        });
-
-        report.PrintReport();
-    }
-
-    private void test_SimpleDetector()
-    {
-
-        var detector = new ConflictDetector();
-
-        // Create temporary grid data for testing
-        var testGrid = new Dictionary<(int, int), int>
-        {
-            { (1, 15), 2 },  // Person 1, Week 15, 2 projects (conflict)
-            { (1, 16), 1 },  // Person 1, Week 16, 1 project (no conflict)
-            { (2, 20), 3 },  // Person 2, Week 20, 3 projects (conflict)
-            { (3, 25), 1 },  // Person 3, Week 25, 1 project (no conflict)
-        };
-
-        var report = detector.DetectConflictsSimple(testGrid);
-        report.PrintReport();
-
-        Console.WriteLine($"Expected 2 conflicts, got {report.Conflicts.Count}");
-    }
-
-    static void Main(string[] args)
-    {
-        new Program();
-    }
+public class AssignmentRow
+{
+    public string PersonName { get; set; }
+    public string ProjectName { get; set; }
+    public int StartWeek { get; set; }
+    public HashSet<int> ActiveWeeks { get; set; }
+    public int Duration { get; set; }
+    public int PeopleCount { get; set; }
+    public string PersonRole { get; internal set; }
 }

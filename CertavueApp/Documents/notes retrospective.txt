@@ -1,0 +1,2 @@
+Finding by project and finding by people, searching filter. Have inside their own class. 
+Have the LLM explain our scenario based decisions or options / break down algorithm.

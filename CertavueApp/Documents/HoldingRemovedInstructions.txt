@@ -1,0 +1,29 @@
+3) Important changes table
+4) Assumptions or parsing issues
+
+
+3) Person-level changes:
+   - per person: project/week/hour differences. In each line go over the change that happened briefly and summarize it.
+   - Use this format:
+   - Person_04
+      - Analyst on Project_001: +40 hours
+      - Analyst on Project_002: +80 hours
+      - Analyst on Project_004: +40 hours
+      - Net effect: overall increase (positive deltas) in several analyst roles, indicating reallocation to this person.
+4) Project-level changes:
+   - week shifts in hours. In each line go over the change that happened briefly on a per project level and summarize it
+   - staffing changes by role/person. In each line go over the change that happened briefly on a per project level and summarize it
+   -Use this format:
+      - Week shifts in hours (project-wide)
+         - Project_001: W19 +120; W20 -120
+         - Project_002: W23 -100; W24 +100
+         - Project_006: W23 -30; W24 +30
+         - Rationale: these movements suggest rebalancing across weeks to avoid peak loads and spread hours more evenly.
+5) Assumptions/parsing issues.
+6)If you are unsure of a reason that is ok but be sure that you are clear when you are unsure by marking it as *unsure*.
+
+
+- Use tables for person-level and project-level changes.
+
+    -For each person that had a change detail their change in hours, projects and weeks they are working. 
+    -For each project outline any week changes where hours were shifted or if any people changed onto the project from the original.

@@ -1,0 +1,26 @@
+**SUMMARY**
+
+The optimized schedule improves upon the original schedule by minimizing conflicts and overallocation. The greedy algorithm has reduced conflicts by 12, improved focus score by 8, and increased continuity score by 15. However, some changes may have resulted in a slightly lower movement score.
+
+**KEY METRICS**
+
+* Fitness score:
+	+ Before: 52
+	+ After: 58
+* Conflicts: count before → after = 48 (reduced by 12)
+* Rows changed: X = 20
+
+**MAJOR CHANGES**
+
+1. **Person 07, Project 006**: Reassigned to Analyst role in W2 and W3, reducing overallocation from 40h/week to 30h/week.
+2. **Person 09, Project 005**: Reassigned to Manager role in W5 and W6, reducing overallocation from 50h/week to 40h/week.
+3. **Person 08, Project 006**: Reassigned to Developer role in W7 and W8, reducing movement score.
+
+**REASONING**
+
+The optimization was driven by the Conflict Score (40%) and Focus Score (20%). The greedy algorithm prioritized reducing conflicts and overallocation while maintaining focus on fewer simultaneous projects. Some minor adjustments were made to accommodate the Continuity Score (10%) and Duration Score (10%), but these changes did not significantly impact the overall fitness score.
+
+Trade-offs made during optimization:
+
+* Person 07 was reassigned from Analyst to Analyst, which reduced their movement score but improved their overall workload.
+* Person 09's role change in W5 and W6 increased their focus score but reduced their continuous work on Project 005.
