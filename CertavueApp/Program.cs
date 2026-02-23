@@ -62,11 +62,11 @@ public class Program
             
             // OpenAI explantation section of data
             Directory.CreateDirectory(documentsDir);
-            string responsePath = Path.Combine(documentsDir, Path.GetFileName(file) + "_OpenAI_Response.txt");
+            string responsePath = Path.Combine(documentsDir, Path.GetFileName(file).Replace(".scv", "_OpenAI_Response.txt"));
             string instructionsPath = Path.Combine(documentsDir, "Instructions.txt");
 
-            //string responseText = openAI.CompareTwoCsvWithInstructions(file, responsePath, instructionsPath);
-            //File.WriteAllText(responsePath, responseText);
+            string responseText = openAI.CompareTwoCsvWithInstructions(file, responsePath, instructionsPath);
+            File.WriteAllText(responsePath, responseText);
             Console.WriteLine("Saved OpenAI response: " + responsePath);
         }
         openAI.Close();
@@ -84,8 +84,6 @@ public class Program
         Loader load = new Loader();
         (var people, var projects) = load.LoadData(path);
         var state = new ScheduleState(people, projects);
-        this.people = people;
-        this.projects = projects;
         Console.WriteLine($"Loaded {System.IO.Path.GetFileName(path)}\n");
         return state;
     }

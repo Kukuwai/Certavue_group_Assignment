@@ -7,11 +7,21 @@ using static Person;
 using static Project;
 
 /* 
-This is a class dedicsted to loading/parsing the raw data (csv).
-It doesn't require any inputs, just that the formatting of the csv 
+This is a class dedicated to loading/parsing the raw data (csv).
+
+It requires a file path in order to start reading the data.
+The way this loader parses the data into objects is tailored according to the 
+test data produced, so any new data needs to match the existing formatting.
+
+The data is then parsed into lists of Project and People objects, which are then returned.
 */
 public class Loader
 {
+    /// <summary>
+    /// In order to run this method, a file path containing valid data is required.
+    /// 
+    /// 
+    /// </summary>
     public (List<Person> people, List<Project> projects) LoadData(string filePath)
     {
         var lines = File.ReadAllLines(filePath);
