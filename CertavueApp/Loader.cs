@@ -65,26 +65,34 @@ public class Loader
                 // if new project, create new project object with specified start/end dates
                 projectsByName[projectName] = new Project(projectName, startDate - 2, endDate - 2);
             
-            
+            // get the person / project, using reference dictionary
             var person = peopleByName[personName];
             var project = projectsByName[projectName];
 
+            // initiate new dictionary - tracking each week and the hours worked on that week
             Dictionary<int, int> weekWorkingHours = new Dictionary<int, int>();
+            // loop over the dates between the start and end date of the current project
             for (int i = startDate + 1; i < endDate; i++)
             {
+                // if the cell contains a int (hours worked) it returns that value
                 if (int.TryParse(cells[i], out int hours))
                 {
+                    // add the capacity (value) to that the dictionary for the current week (i)
                     weekWorkingHours.Add(i - 2, Convert.ToInt32(cells[i]));
                 }
             }
-
+            // Track the list of projects and the weeks/hours they are assigned, within each person object
             person.projects.Add(project, weekWorkingHours);
+            // track the list of people within each project object
             project.people.Add(person);
+            // keeping a record of the original ids of people on the project for comparison later (might be useful)
             project.originalPeopleIds.Add(person.id);
+            // track the capacity (hours needed) for each project
             project.updateCapacity();
+            // track origina duration to compare for fitness score
             project.OriginalDurationSpan = project.durationProjectFinder();            
         }
-
+        // return the uniques list of people and projects 
         return (peopleByName.Values.ToList(), projectsByName.Values.ToList());
     }
 }
