@@ -6,6 +6,10 @@ using System.Linq;
 using static Person;
 using static Project;
 
+/* 
+This is a class dedicsted to loading/parsing the raw data (csv).
+It doesn't require any inputs, just that the formatting of the csv 
+*/
 public class Loader
 {
     public (List<Person> people, List<Project> projects) LoadData(string filePath)
