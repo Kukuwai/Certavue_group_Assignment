@@ -1,4 +1,5 @@
 ﻿﻿using Google.OrTools.Sat;
+using QuestPDF.Infrastructure;
 
 
 public class Program
@@ -62,7 +63,7 @@ public class Program
             
             // OpenAI explantation section of data
             Directory.CreateDirectory(documentsDir);
-            string responsePath = Path.Combine(documentsDir, Path.GetFileName(file).Replace(".scv", "_OpenAI_Response.txt"));
+            string responsePath = Path.Combine(documentsDir, Path.GetFileName(file.Replace(".csv", "_OpenAI_Response.txt")));
             string instructionsPath = Path.Combine(documentsDir, "Instructions.txt");
 
             string responseText = openAI.CompareTwoCsvWithInstructions(file, responsePath, instructionsPath);
