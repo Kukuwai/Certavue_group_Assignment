@@ -37,7 +37,7 @@ public class Program
       
             // greedy algorithm starts, inluding export of output to html
             Console.WriteLine($"Greeding Running File - {System.IO.Path.GetFileName(file)}\n");
-            var scheduleAfterGreedy = new GreedyAlg().StartGreedy(people, projects);
+            var scheduleAfterGreedy = new GreedyAlg().StartGreedy(originalState.People, originalState.Projects);
             ScheduleHandler afterHandler = new ScheduleHandler(scheduleAfterGreedy);
             exportCSV(file, outputCsvDir, "_after_greedy.csv", scheduleAfterGreedy);
             
