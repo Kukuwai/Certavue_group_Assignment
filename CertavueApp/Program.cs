@@ -15,6 +15,7 @@ public class Program
         var dataDirectory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Data"));
         string[] files = Directory.GetFiles(dataDirectory, "*.csv");
         var outputCsvDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Data", "Outputcsv"));
+        string documentsDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents"));
         Directory.CreateDirectory(outputCsvDir);
 
 
@@ -54,9 +55,19 @@ public class Program
                 // Map solver variables back to the ScheduleState model
                 stateOrTools.UpdateFromFineGrainedAssignments(orToolsResult.Assignments, backupOrTools);
                 exportCSV(file, outputCsvDir, "_after_orTools.csv", stateOrTools);
-
+                // stat checker
                 printStats("OR-Tools Optimization", stateOrTools, file, true);
             }
+
+            
+            // OpenAI explantation section of data
+            Directory.CreateDirectory(documentsDir);
+            string responsePath = Path.Combine(documentsDir, Path.GetFileName(file) + "_OpenAI_Response.txt");
+            string instructionsPath = Path.Combine(documentsDir, "Instructions.txt");
+
+            //string responseText = openAI.CompareTwoCsvWithInstructions(file, responsePath, instructionsPath);
+            //File.WriteAllText(responsePath, responseText);
+            Console.WriteLine("Saved OpenAI response: " + responsePath);
         }
         openAI.Close();
     }
