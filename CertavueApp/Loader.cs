@@ -20,15 +20,17 @@ public class Loader
     /// <summary>
     /// In order to run this method, a file path containing valid data is required.
     /// 
-    /// 
+    /// After parsing csv data into a People and Projects object list, this method returns those lists.
     /// </summary>
     public (List<Person> people, List<Project> projects) LoadData(string filePath)
     {
+        // reads all lines in the raw data (csv) and stores it as a string array of lines
         var lines = File.ReadAllLines(filePath);
 
-        // initiate the people / projects dictionaries
+        // initiate the people / projects dictionaries for name lookup (only used for reference)
         var peopleByName = new Dictionary<string, Person>();
         var projectsByName = new Dictionary<string, Project>();
+        // splits the first line (the headers) and stores each header in the string array
         var header = lines[0].Split(',');
         // searches the index for the headers i.e people name and project name (this should always be 0 and 1)
         int personHeader = Array.IndexOf(header, "Person");
@@ -46,18 +48,24 @@ public class Loader
             // stores the name of the project in the current row
             string projectName = cells[projectHeader].Trim();
 
-            // stores the name of the project in the current row
+            // stores the role of that person in the current row
             string RoleName = cells[roleHeader].Trim();
 
+            // get the start and end data but searching cells for the specific placeholders
             var startDate = Array.IndexOf(cells, "s");
             var endDate = Array.IndexOf(cells, "e");
 
+            // search dictionary for person (using name as key)
             if (!peopleByName.ContainsKey(personName))
+                // if new person create new person object with role
                 peopleByName[personName] = new Person(personName, RoleName);
 
+            // search dictionary for project (using name as key)
             if (!projectsByName.ContainsKey(projectName))
+                // if new project, create new project object with specified start/end dates
                 projectsByName[projectName] = new Project(projectName, startDate - 2, endDate - 2);
-
+            
+            
             var person = peopleByName[personName];
             var project = projectsByName[projectName];
 
