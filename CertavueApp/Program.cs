@@ -85,8 +85,6 @@ public class Program
         Loader load = new Loader();
         (var people, var projects) = load.LoadData(path);
         var state = new ScheduleState(people, projects);
-        this.people = people;
-        this.projects = projects;
         Console.WriteLine($"Loaded {System.IO.Path.GetFileName(path)}\n");
         return state;
     }
