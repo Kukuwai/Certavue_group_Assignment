@@ -1,32 +1,22 @@
-﻿﻿using static Project;
-using static Person;
-using static Loader;
-using System;
-using System.Collections.Generic;
-using System.IO.Pipes;
-using static MoveByConflict;
-using static ScheduleState;
-using System.IO;
-using System.Linq;
-using System.Text;
-using static OpenAI;
+﻿﻿using Google.OrTools.Sat;
+using QuestPDF.Infrastructure;
 
 
 public class Program
 {
-    List<Project> projects = new List<Project>();
-    List<Person> people = new List<Person>();
-
     public static ScheduleState LatestState;
+    public List<Person> people = new();
+    public List<Project> projects =new ();
 
 
 
-    // public Program()
-    public async Task RunAsync() // I changed it to run with Ollama because C# doesn't allow async constructors so we make it a regular async method.
+    public Program()
     {
+        // directory building
         var dataDirectory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Data"));
         string[] files = Directory.GetFiles(dataDirectory, "*.csv");
         var outputCsvDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Data", "Outputcsv"));
+        string documentsDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents"));
         Directory.CreateDirectory(outputCsvDir);
 
 
@@ -44,175 +34,43 @@ public class Program
             }
             var originalState = loadData(file);
             ScheduleHandler originalHandler = new ScheduleHandler(originalState);
-            // Console.WriteLine("\n>>> [Before Optimization] Orignal conflicts detai:");
-            // originalHandler.DebugConflictDetails(originalState);
-
-            // export original data to html output
-            Output output = new Output();
-            output.ExportToHtml(file, originalState, "Original");
-            printStats("Original Data", originalState, file, false);
-
-            // moveByConflict method (manual optimisation)
-            // var scheduleAfterConflict = new MoveByConflict().start(originalState, projects);
-            // output.ExportToHtml(file, scheduleAfterConflict, "after_conflict");
-            // printStats("Conflict Moving Data", scheduleAfterConflict, file);
-
-            /*Console.WriteLine("start move conflict");
-            var scheduleAfterConflict = new MoveByConflict().start(originalState, projects);
-            output.ExportToHtml(file, scheduleAfterConflict, "after_conflict");
-            printStats("Conflict Moving Data", scheduleAfterConflict, file);*/
-
-
+      
             // greedy algorithm starts, inluding export of output to html
             Console.WriteLine($"Greeding Running File - {System.IO.Path.GetFileName(file)}\n");
             var scheduleAfterGreedy = new GreedyAlg().StartGreedy(people, projects);
-            string baseName = Path.GetFileNameWithoutExtension(file);
-            string outputPath = Path.Combine(outputCsvDir, baseName + "_after_greedy.csv");
             ScheduleHandler afterHandler = new ScheduleHandler(scheduleAfterGreedy);
-            // Console.WriteLine("\n>>> [After Greedy] Conflictes detais:");
-            // afterHandler.DebugConflictDetails(scheduleAfterGreedy);
+            exportCSV(file, outputCsvDir, "_after_greedy.csv", scheduleAfterGreedy);
+            
 
-            ScheduleCsvExporter.ExportStateToWeeklyTableCsv(scheduleAfterGreedy, outputPath);
-            //string instructionsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents", "Instructions.txt"));
+            Console.WriteLine($"\nOR-Tools Running File - {System.IO.Path.GetFileName(file)}");
+            // Re-load original data to ensure the optimizer starts from a clean baseline
+            var stateOrTools = loadData(file); 
+            // Backup original assignments to calculate movement costs and map solver results back to business objects
+            var backupOrTools = stateOrTools.Projects.ToDictionary(p => p.id, p => stateOrTools.GetOriginalAssignments(p));
+            
+            var optimizer = new CpSatOptimizer();
+            var orToolsResult = optimizer.Optimize(stateOrTools, backupOrTools, maxSeconds: 60.0);
 
-            // I am using a smaller Instruction file with only essential questions as Ollama can not handle large prompts.
-            //string instructionsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents", "Instructions_ollama.txt"));
-
-            // string responseText = openAI.CompareTwoCsvWithInstructions(file, outputPath, instructionsPath);
-
-            // string documentsDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Documents"));
-            // Directory.CreateDirectory(documentsDir);
-
-            // string responsePath = Path.Combine(documentsDir, baseName + "_OpenAI_Response.txt");
-            // Console.WriteLine("Wrote CSV: " + outputPath);
-            // //File.WriteAllText(responsePath, responseText);
-            // Console.WriteLine("Saved OpenAI response: " + responsePath);
-
-            // ******************** OLLAMA TEST **************************
-            // Console.WriteLine("\nTesting Ollama for comparison...");
-            // OllamaScheduleExplainer ollamaExplainer = new OllamaScheduleExplainer("llama3.2:3b");
-
-            // string ollamaResponse = await ollamaExplainer.CompareTwoCsvWithInstructions(
-            //     file,
-            //     outputPath,
-            //     instructionsPath
-            // );
-
-            // string ollamaResponsePath = Path.Combine(documentsDir, baseName + "_Ollama_Response.txt");
-            // File.WriteAllText(ollamaResponsePath, ollamaResponse); // here actual response is being written in the response.txt file. 
-            // Console.WriteLine("Saved Ollama response: " + ollamaResponsePath);
-            // ollamaExplainer.Close();
-            // =================================
-
-            //output.ExportToHtml(file, scheduleAfterGreedy, "after_greedy");
-
-            TestConflictDetector(originalState, "Original Schedule");
-            TestConflictDetector(scheduleAfterGreedy, "After Greedy Schedule");
-
-            // string apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
-            // OpenAI openAI = new OpenAI(apiKey, "gpt-5-mini");
-
-            // Console.WriteLine("Model: " + openAI.GetModel());
-            // Console.WriteLine("Connected: " + openAI.IsConnected());
-
-            // openAI.Close();
-
-
-
-            // var roleOpt = new RoleOptimizer();
-            // var roleResult = roleOpt.Optimize(scheduleAfterGreedy, maxPasses: 1000);
-            // Program.LatestState = roleResult.BestState;
-            // output.ExportToHtml(file, roleResult.BestState, "After Role Checks");
-            // printStats("Role optimiser Data", roleResult.BestState, file, true);
-            // finalState = roleResult.BestState;
-
-
-
-            // projects[0].printPeopleOnProject();
-            // Console.WriteLine("-------");
-            // people[0].printProjectsForPerson();
-
-            // Console.WriteLine("Find project by person test");
-            // foreach (Project p in projects)
-            // {
-            //     p.printPeopleOnProject();
-            // }
-        }
-        // openAI.Close();
-
-        //  ProcessNewProjectInsertion(finalState);
-    }
-    public void TestConflictDetector(ScheduleState state, string label)
-    {
-        Console.WriteLine($"\n*** Conflict Analysis - {label} ***");
-
-        // DEBUG: Check actual hours
-        // Console.WriteLine("DEBUG: Sample person workloads:");
-        // foreach (var person in state.People.Take(5))
-        // {
-        //     var weeks = state.PersonWeekGrid
-        //         .Where(kvp => kvp.Key.PersonId == person.id)
-        //         .ToList();
-
-        //     if (weeks.Any())
-        //     {
-        //         var maxHours = weeks.Max(kvp => kvp.Value);
-        //         var avgHours = weeks.Average(kvp => kvp.Value);
-        //         Console.WriteLine($"  {person.name}: max {maxHours}h/week, avg {avgHours:F1}h/week");
-        //     }
-        // }
-        var detector = new ConflictDetector();
-
-        var report = detector.AnalyzeSchedule(state);
-        report.PrintReport();
-    }
-
-    private void ProcessNewProjectInsertion(ScheduleState currentState)
-    {
-        if (currentState == null)
-        {
-            Console.WriteLine("[Error] No available global optimization state was found, and a new project could not be inserted.");
-            return;
-        }
-
-        var newProjectDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "AddNewProject"));
-        Console.WriteLine($"\n[ACTION] is searching new project: {newProjectDir}");
-
-        if (!Directory.Exists(newProjectDir))
-        {
-            Console.WriteLine("[Error] can not find AddNewProject folder。");
-            return;
-        }
-
-        ScheduleHandler handler = new ScheduleHandler(currentState);
-        string[] newFiles = Directory.GetFiles(newProjectDir, "*.csv");
-
-        foreach (var file in newFiles)
-        {
-            Console.WriteLine($"[File] is processing: {Path.GetFileName(file)}");
-
-            List<Project> newProjects = LoadNewProjectsOnly(file);
-
-            foreach (var project in newProjects)
+            if (orToolsResult.Status == CpSolverStatus.Feasible || orToolsResult.Status == CpSolverStatus.Optimal)
             {
-                currentState.AddProject(project);           //fixed these 2 lines
-                double scoreDelta = handler.EvaluateNewProjectInsertion(project);  //fixed these 2 lines
-
-
-                if (scoreDelta >= 0)
-                {
-                    Console.WriteLine($"   ✅ [Success] project '{project.name}' had insert sucessful。score change: {scoreDelta:F4}");
-                }
-                else
-                {
-                    Console.WriteLine($"   ⚠️ [Warning] project '{project.name}' after insert,score change: ({scoreDelta:F4})，please check conflicts。");
-                }
+                // Map solver variables back to the ScheduleState model
+                stateOrTools.UpdateFromFineGrainedAssignments(orToolsResult.Assignments, backupOrTools);
+                exportCSV(file, outputCsvDir, "_after_orTools.csv", stateOrTools);
+                // stat checker
+                printStats("OR-Tools Optimization", stateOrTools, file, true);
             }
-            Output finalOutput = new Output();
-            finalOutput.ExportToHtml("Global_Final_Schedule", currentState, "With_New_Projects.html");
-        }
 
-        Console.WriteLine("[SYSTEM] The final shift schedule has been exported to an HTML file.");
+            
+            // OpenAI explantation section of data
+            Directory.CreateDirectory(documentsDir);
+            string responsePath = Path.Combine(documentsDir, Path.GetFileName(file.Replace(".csv", "_OpenAI_Response.txt")));
+            string instructionsPath = Path.Combine(documentsDir, "Instructions.txt");
+
+            string responseText = openAI.CompareTwoCsvWithInstructions(file, responsePath, instructionsPath);
+            File.WriteAllText(responsePath, responseText);
+            Console.WriteLine("Saved OpenAI response: " + responsePath);
+        }
+        openAI.Close();
     }
 
     public List<Project> LoadNewProjectsOnly(string path)
@@ -227,24 +85,20 @@ public class Program
         Loader load = new Loader();
         (var people, var projects) = load.LoadData(path);
         var state = new ScheduleState(people, projects);
-        this.people = people;
-        this.projects = projects;
         Console.WriteLine($"Loaded {System.IO.Path.GetFileName(path)}\n");
         return state;
     }
 
-    // static void Main(string[] args)
-    static async Task Main(string[] args)
+    public void exportCSV(string fileName, string outputPathDir, string newfileExtension, ScheduleState state)
     {
-        await new Program().RunAsync();
-        // new Program();
-        // string apiKey = Environment.GetEnvironmentVariable("");
-        // OpenAI openAI = new OpenAI("", "gpt-5.2-pro");
+        fileName =  Path.GetFileName(fileName).Replace(".csv", newfileExtension);
+        string outputPath = Path.Combine(outputPathDir, fileName);
+        ScheduleCsvExporter.ExportStateToWeeklyTableCsv(state, outputPath);
+    }
 
-        // string reply = openAI.SendPrompt("What is the capital of france?");
-        // Console.WriteLine(reply);
-
-        // openAI.Close();
+    static void Main(string[] args)
+    {
+        new Program();
 
     }
 
