@@ -26,7 +26,7 @@ public class GreedyAlg
     {
         const int maxPasses = 100; //Can be whatever we want
         ScheduleHandler scheduleHandler = new ScheduleHandler(state);
-
+        printStats("Greedy Initial", state);
         for (int pass = 1; pass <= maxPasses; pass++)
         {
             List<ScheduleState.OverloadCell> overloads = GetOverloadCellsOrdered(state); //list of over time cells
