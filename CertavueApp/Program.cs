@@ -6,7 +6,7 @@ public class Program
 {
     public static ScheduleState LatestState;
     public List<Person> people = new();
-    public List<Project> projects =new ();
+    public List<Project> projects = new();
 
 
 
@@ -34,39 +34,40 @@ public class Program
             }
             var originalState = loadData(file);
             ScheduleHandler originalHandler = new ScheduleHandler(originalState);
-      
+
             // greedy algorithm starts, inluding export of output to html
             Console.WriteLine($"Greeding Running File - {System.IO.Path.GetFileName(file)}\n");
             var scheduleAfterGreedy = new GreedyAlg().StartGreedy(originalState.People, originalState.Projects);
             ScheduleHandler afterHandler = new ScheduleHandler(scheduleAfterGreedy);
-            exportCSV(file, outputCsvDir, "_after_greedy.csv", scheduleAfterGreedy);
-            
+            var greedyCsvPath = exportCSV(file, outputCsvDir, "_after_greedy.csv", scheduleAfterGreedy);
+            Console.WriteLine("Saved greedy CSV: " + greedyCsvPath);
 
-            Console.WriteLine($"\nOR-Tools Running File - {System.IO.Path.GetFileName(file)}");
+
+            //Console.WriteLine($"\nOR-Tools Running File - {System.IO.Path.GetFileName(file)}");
             // Re-load original data to ensure the optimizer starts from a clean baseline
-            var stateOrTools = loadData(file); 
+            //var stateOrTools = loadData(file); 
             // Backup original assignments to calculate movement costs and map solver results back to business objects
-            var backupOrTools = stateOrTools.Projects.ToDictionary(p => p.id, p => stateOrTools.GetOriginalAssignments(p));
-            
-            var optimizer = new CpSatOptimizer();
-            var orToolsResult = optimizer.Optimize(stateOrTools, backupOrTools, maxSeconds: 60.0);
+            //var backupOrTools = stateOrTools.Projects.ToDictionary(p => p.id, p => stateOrTools.GetOriginalAssignments(p));
 
-            if (orToolsResult.Status == CpSolverStatus.Feasible || orToolsResult.Status == CpSolverStatus.Optimal)
-            {
-                // Map solver variables back to the ScheduleState model
-                stateOrTools.UpdateFromFineGrainedAssignments(orToolsResult.Assignments, backupOrTools);
-                exportCSV(file, outputCsvDir, "_after_orTools.csv", stateOrTools);
-                // stat checker
-                printStats("OR-Tools Optimization", stateOrTools, file, true);
-            }
+            //var optimizer = new CpSatOptimizer();
+            //var orToolsResult = optimizer.Optimize(stateOrTools, backupOrTools, maxSeconds: 60.0);
 
-            
+            // if (orToolsResult.Status == CpSolverStatus.Feasible || orToolsResult.Status == CpSolverStatus.Optimal)
+            // {
+            //     // Map solver variables back to the ScheduleState model
+            //     stateOrTools.UpdateFromFineGrainedAssignments(orToolsResult.Assignments, backupOrTools);
+            //     exportCSV(file, outputCsvDir, "_after_orTools.csv", stateOrTools);
+            //     // stat checker
+            //     printStats("OR-Tools Optimization", stateOrTools, file, true);
+            // }
+
+
             // OpenAI explantation section of data
             Directory.CreateDirectory(documentsDir);
             string responsePath = Path.Combine(documentsDir, Path.GetFileName(file.Replace(".csv", "_OpenAI_Response.txt")));
             string instructionsPath = Path.Combine(documentsDir, "Instructions.txt");
 
-            string responseText = openAI.CompareTwoCsvWithInstructions(file, responsePath, instructionsPath);
+            string responseText = openAI.CompareTwoCsvWithInstructions(file, greedyCsvPath, instructionsPath);
             File.WriteAllText(responsePath, responseText);
             Console.WriteLine("Saved OpenAI response: " + responsePath);
         }
@@ -89,12 +90,14 @@ public class Program
         return state;
     }
 
-    public void exportCSV(string fileName, string outputPathDir, string newfileExtension, ScheduleState state)
+    public string exportCSV(string fileName, string outputPathDir, string newfileExtension, ScheduleState state)
     {
-        fileName =  Path.GetFileName(fileName).Replace(".csv", newfileExtension);
+        fileName = Path.GetFileName(fileName).Replace(".csv", newfileExtension);
         string outputPath = Path.Combine(outputPathDir, fileName);
         ScheduleCsvExporter.ExportStateToWeeklyTableCsv(state, outputPath);
+        return outputPath;
     }
+
 
     static void Main(string[] args)
     {
