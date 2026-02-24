@@ -78,7 +78,8 @@ public class Program
             //-----------------------⚠️this part is adding to run ortools---------------
             Console.WriteLine($"\nOR-Tools Running File - {System.IO.Path.GetFileName(file)}");
             var stateOrTools = loadData(file); // Re-load original data to ensure the optimizer starts from a clean baseline
-            // Backup original assignments to calculate movement costs and map solver results back to business objects
+            // Result: A complete lookup table where each Project ID points to its full list of planned tasks.
+            // This acts as the 'Gold Standard' for the optimizer to ensure work conservation.
             var backupOrTools = stateOrTools.Projects.ToDictionary(p => p.id, p => stateOrTools.GetOriginalAssignments(p));
             
             var optimizer = new CpSatOptimizer();
@@ -174,60 +175,60 @@ public class Program
     }
 
 
-    private void ProcessNewProjectInsertion(ScheduleState currentState)
-    {
-        if (currentState == null)
-        {
-            Console.WriteLine("[Error] No available global optimization state was found, and a new project could not be inserted.");
-            return;
-        }
+    // private void ProcessNewProjectInsertion(ScheduleState currentState)
+    // {
+    //     if (currentState == null)
+    //     {
+    //         Console.WriteLine("[Error] No available global optimization state was found, and a new project could not be inserted.");
+    //         return;
+    //     }
 
-        var newProjectDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "AddNewProject"));
-        Console.WriteLine($"\n[ACTION] is searching new project: {newProjectDir}");
+    //     var newProjectDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "AddNewProject"));
+    //     Console.WriteLine($"\n[ACTION] is searching new project: {newProjectDir}");
 
-        if (!Directory.Exists(newProjectDir))
-        {
-            Console.WriteLine("[Error] can not find AddNewProject folder。");
-            return;
-        }
+    //     if (!Directory.Exists(newProjectDir))
+    //     {
+    //         Console.WriteLine("[Error] can not find AddNewProject folder。");
+    //         return;
+    //     }
 
-        ScheduleHandler handler = new ScheduleHandler(currentState);
-        string[] newFiles = Directory.GetFiles(newProjectDir, "*.csv");
+    //     ScheduleHandler handler = new ScheduleHandler(currentState);
+    //     string[] newFiles = Directory.GetFiles(newProjectDir, "*.csv");
 
-        foreach (var file in newFiles)
-        {
-            Console.WriteLine($"[File] is processing: {Path.GetFileName(file)}");
+    //     foreach (var file in newFiles)
+    //     {
+    //         Console.WriteLine($"[File] is processing: {Path.GetFileName(file)}");
 
-            List<Project> newProjects = LoadNewProjectsOnly(file);
+    //         List<Project> newProjects = LoadNewProjectsOnly(file);
 
-            foreach (var project in newProjects)
-            {
-                currentState.AddProject(project);           //fixed these 2 lines
-                double scoreDelta = handler.EvaluateNewProjectInsertion(project);  //fixed these 2 lines
+    //         foreach (var project in newProjects)
+    //         {
+    //             currentState.AddProject(project);           //fixed these 2 lines
+    //             double scoreDelta = handler.EvaluateNewProjectInsertion(project);  //fixed these 2 lines
 
 
-                if (scoreDelta >= 0)
-                {
-                    Console.WriteLine($"   ✅ [Success] project '{project.name}' had insert sucessful。score change: {scoreDelta:F4}");
-                }
-                else
-                {
-                    Console.WriteLine($"   ⚠️ [Warning] project '{project.name}' after insert,score change: ({scoreDelta:F4})，please check conflicts。");
-                }
-            }
-            Output finalOutput = new Output();
-            finalOutput.ExportToHtml("Global_Final_Schedule", currentState, "With_New_Projects.html");
-        }
+    //             if (scoreDelta >= 0)
+    //             {
+    //                 Console.WriteLine($"   ✅ [Success] project '{project.name}' had insert sucessful。score change: {scoreDelta:F4}");
+    //             }
+    //             else
+    //             {
+    //                 Console.WriteLine($"   ⚠️ [Warning] project '{project.name}' after insert,score change: ({scoreDelta:F4})，please check conflicts。");
+    //             }
+    //         }
+    //         Output finalOutput = new Output();
+    //         finalOutput.ExportToHtml("Global_Final_Schedule", currentState, "With_New_Projects.html");
+    //     }
 
-        Console.WriteLine("[SYSTEM] The final shift schedule has been exported to an HTML file.");
-    }
+    //     Console.WriteLine("[SYSTEM] The final shift schedule has been exported to an HTML file.");
+    // }
 
-    public List<Project> LoadNewProjectsOnly(string path)
-    {
-        Loader load = new Loader();
-        (_, var newProjects) = load.LoadData(path);
-        return newProjects;
-    }
+    // public List<Project> LoadNewProjectsOnly(string path)
+    // {
+    //     Loader load = new Loader();
+    //     (_, var newProjects) = load.LoadData(path);
+    //     return newProjects;
+    // }
 
     public ScheduleState loadData(string path)
     {

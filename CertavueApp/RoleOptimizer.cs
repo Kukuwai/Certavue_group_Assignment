@@ -82,6 +82,7 @@ public class RoleOptimizer
             RestoreSnapshot(state, beforeMove);
         }
     }
+    
     private List<MoveCandidate> EnumerateLegalMoves(ScheduleState state) //Every possible move
     {
         var moves = new List<MoveCandidate>(); //All possible moves for state

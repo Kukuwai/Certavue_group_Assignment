@@ -674,6 +674,7 @@ public class GreedyAlg
 
         return (current + hoursToAdd) <= capacity; //Hours stay within limit
     }
+    
     public static bool MoveHoursToReplacement(ScheduleState state, Project project, Person from, Person to, int rawWeek, int shiftedWeek, int hoursToMove)
     {
         if (hoursToMove < 10) //Must be 10 hours
