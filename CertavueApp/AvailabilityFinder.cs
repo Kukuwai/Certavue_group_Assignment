@@ -2,292 +2,367 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using static ScheduleState;
-
+/// <summary>
+/// Analyzes schedule state to find staffing availability and optimal scheduling opportunities.
+/// 
+/// Functionality: Searches for available people to staff new projects (by role, timeframe, headcount), 
+/// identifies where new hires would add value by finding overloaded projects, discovers least busy weeks 
+/// for timing new work, and queries individual or team availability patterns.
+/// 
+/// Purpose: Supports capacity planning by helping users/managers answer "Who can I assign?", "When should we 
+/// schedule this?", "Where do we need help?", and "Who's free this week?".
+/// 
+/// Methods: FindPeopleForNewProject, FindWorkForNewPerson, FindLeastBusyWeeks, 
+/// GetAvailablePeopleInWeek.
+/// </summary>
 public class AvailabilityFinder
 {
-     private ScheduleState _state;
+  private ScheduleState _state;
 
   public AvailabilityFinder(ScheduleState state)
   {
     _state = state;
   }
-  //   // This method gives the number of projects a person is working in a week.
-  //   public int GetPersonWorkload(string personName, int week)
-  //   {
-  //     var person = _state.People.FirstOrDefault(p => p.name == personName);
-  //     if (person == null) return -1;
 
-  //     var key = new ScheduleState.WeekKey(person.id, week);
+  /// <summary>
+  /// Finds all people who are completely free in a specific week.
+  /// 
+  /// Input: Week number to check.
+  /// Logic: Filters through all people, summing their allocated hours from PersonWeekGrid for the specified week. Includes only people with zero total hours.
+  /// Purpose: Helps managers quickly identify who is available to assign to urgent tasks or new projects in a particular week.
+  /// Output: Returns list of Person objects who are free that week.
+  /// </summary>
+  public List<Person> GetAvailablePeopleInWeek(int week)
+  {
+    // Filter people to find those with zero hours allocated in the specified week
+    return _state.People
+        .Where(p =>
+        {
+          // Sum all hours allocated to this person for this week across all projects
+          int totalHours = _state.PersonWeekGrid
+              .Where(kvp => kvp.Key.PersonId == p.id && kvp.Key.Week == week)
+              .Sum(kvp => kvp.Value);
 
-  //     if (_state.PersonWeekGrid.ContainsKey(key))
-  //     {
-  //       return _state.PersonWeekGrid[key];
-  //     }
-  //     return 0;
-  //   }
-  //   // This method gives a list of Person objects which are free in a given week. 
-  //   public List<Person> GetAvailablePeopleInWeek(int week)
-  //   {
-  //     return _state.People
-  //         .Where(p =>
-  //         {
-  //           var key = new ScheduleState.WeekKey(p.id, week);
-  //           return !_state.PersonWeekGrid.ContainsKey(key) || _state.PersonWeekGrid[key] == 0;
-  //         })
-  //         .ToList();
-  //   }
-  //   // This method gives all weeks where a given person is free or not working.
-  //   public List<int> GetAvailableWeeksForPerson(string personName)
-  //   {
-  //     var person = _state.People.FirstOrDefault(p => p.name == personName);
-  //     if (person == null) return new List<int>();
+          // Include only people with zero hours (completely free)
+          return totalHours == 0;
+        })
+        .ToList();
+  }
+  /// <summary>
+  /// Finds the weeks with the lightest overall workload for optimal project scheduling.
+  /// 
+  /// Input: Number of weeks to return (defaults to 5).
+  /// Logic: Loops through all 52 weeks, summing total allocated hours across all people from PersonWeekGrid. Sorts weeks by total hours ascending and returns the requested number of least busy weeks.
+  /// Purpose: Helps managers identify the best time windows to schedule new projects when team capacity is highest.
+  /// Output: Returns list of week numbers ordered from least to most busy (limited to requested count).
+  /// </summary>
+  public List<int> FindLeastBusyWeeks(int numberOfWeeks = 5)
+  {
+    // Track total workload for each week
+    var weekWorkload = new Dictionary<int, int>();
 
-  //     var availableWeeks = new List<int>();
-  //     for (int week = 1; week <= 52; week++)
-  //     {
-  //       var key = new ScheduleState.WeekKey(person.id, week);
-  //       if (!_state.PersonWeekGrid.ContainsKey(key) || _state.PersonWeekGrid[key] == 0)
-  //       {
-  //         availableWeeks.Add(week);
-  //       }
-  //     }
-  //     return availableWeeks;
-  //   }
+    // Calculate total hours allocated across all people for each week
+    for (int week = 1; week <= 52; week++)
+    {
+      // Sum all hours allocated in this week across entire team
+      int totalHours = _state.PersonWeekGrid
+          .Where(kvp => kvp.Key.Week == week)
+          .Sum(kvp => kvp.Value);
 
-  //   // This method gives an ordered list of weeks starting with least number of projects.
-  //   public List<int> FindLeastBusyWeeks(int numberOfWeeks = 5)
-  //   {
-  //     var weekWorkload = new Dictionary<int, int>();
+      weekWorkload[week] = totalHours;
+    }
 
-  //     // Calculate total assignments per week
-  //     for (int week = 1; week <= 52; week++)
-  //     {
-  //       int totalWork = _state.PersonWeekGrid
-  //           .Where(kv => kv.Key.Week == week)
-  //           .Sum(kv => kv.Value);
+    // Sort weeks by workload (ascending) and return the least busy ones
+    return weekWorkload
+        .OrderBy(kvp => kvp.Value)
+        .Take(numberOfWeeks)
+        .Select(kvp => kvp.Key)
+        .ToList();
+  }
 
-  //       weekWorkload[week] = totalWork;
-  //       Console.WriteLine($"Week {week}: {weekWorkload[week]} total assignments");
-  //     }
+  /// <summary>
+  /// Identifies work opportunities for a new hire by finding overloaded projects.
+  /// 
+  /// Input: New person's name and number of weeks they're available (defaults to 52).
+  /// Logic: Scans all weeks to find people working at/over capacity (defaults to 40h). For each overloaded person, identifies which projects they're working on that week. Groups opportunities by project and ranks them by number of weeks needing help.
+  /// Purpose: Helps managers determine where a new hire would be most valuable by showing which projects have the most capacity constraints.
+  /// Output: Returns NewPersonWorkResult with top 10 projects needing help, showing which weeks need support and total opportunity count.
+  /// </summary>
+  public NewPersonWorkResult FindWorkForNewPerson(string personName, int availableWeeks = 52)
+  {
+    // Initialize result object with new person's details
+    var result = new NewPersonWorkResult
+    {
+      PersonName = personName,
+      AvailableWeeks = availableWeeks
+    };
 
-  //     // Return least busy weeks
-  //     return weekWorkload
-  //         .OrderBy(kv => kv.Value)
-  //         .Take(numberOfWeeks)
-  //         .Select(kv => kv.Key)
-  //         .ToList();
-  //   }
-  //   // This method gives number of weeks for a person working on more than one project that means the person is overloaded.
-  //   public int CountOverloadedWeeks(string personName)
-  //   {
-  //     var person = _state.People.FirstOrDefault(p => p.name == personName);
-  //     if (person == null) return 0;
+    // Default capacity for people whose capacity isn't set in data
+    const int DEFAULT_CAPACITY = 40;
 
-  //     int overloadedWeeks = 0;
-  //     for (int week = 1; week <= 52; week++)
-  //     {
-  //       var key = new ScheduleState.WeekKey(person.id, week);
-  //       if (_state.PersonWeekGrid.ContainsKey(key) && _state.PersonWeekGrid[key] > 1)
-  //       {
-  //         overloadedWeeks++;
-  //       }
-  //     }
-  //     return overloadedWeeks;
-  //   }
-  //   // Find what work a new person could take on;
-  //   public NewPersonWorkResult FindWorkForNewPerson(string personName, int availableWeeks = 52)
-  //   {
-  //     var result = new NewPersonWorkResult
-  //     {
-  //       PersonName = personName,
-  //       AvailableWeeks = availableWeeks
+    // Track which weeks have overloaded people
+    var overloadedWeeks = new Dictionary<int, List<Person>>();
 
-  //     };
+    // Scan all weeks to find overloaded people
+    for (int week = 1; week <= availableWeeks; week++)
+    {
+      var overloadedPeople = _state.People
+          .Where(p =>
+          {
+            // Sum total hours allocated to this person this week
+            int totalHours = _state.PersonWeekGrid
+                  .Where(kvp => kvp.Key.PersonId == p.id && kvp.Key.Week == week)
+                  .Sum(kvp => kvp.Value);
 
-  //     // Find weeks where people are overloaded (2+ projects);
+            // Use person's actual capacity if set, otherwise use default 40 hours
+            int capacity = p.capacity > 0 ? p.capacity : DEFAULT_CAPACITY;
 
-  //     var overloadedWeeks = new Dictionary<int, List<Person>>();
+            // Flag as overloaded if hours meet or exceed capacity
+            return totalHours >= capacity;
+          })
+          .ToList();
 
-  //     for (int week = 1; week <= 52; week++)
-  //     {
-  //       var overloadedPeople = _state.People
-  //           .Where(p =>
-  //           {
-  //             var key = new ScheduleState.WeekKey(p.id, week);
-  //             return _state.PersonWeekGrid.ContainsKey(key) && _state.PersonWeekGrid[key] > 1;
-  //           })
-  //           .ToList();
+      // Store overloaded people for this week
+      if (overloadedPeople.Count > 0)
+        overloadedWeeks[week] = overloadedPeople;
+    }
 
-  //       if (overloadedPeople.Count > 0)
-  //       {
-  //         overloadedWeeks[week] = overloadedPeople;
-  //       }
+    // Track which projects need help in which weeks
+    var opportunitiesByProject = new Dictionary<string, List<int>>();
 
-  //     }
+    // For each week with overloaded people, find which projects are involved
+    foreach (var (week, overloadedPeople) in overloadedWeeks)
+    {
+      foreach (var person in overloadedPeople)
+      {
+        // Check all projects this person is working on
+        foreach (var projectEntry in person.projects)
+        {
+          var project = projectEntry.Key;
+          var weekHours = projectEntry.Value;
 
-  //     // Find projects during overloaded weeks that new person could help with;
-  //     var opportunitiesByProject = new Dictionary<string, List<int>>();
+          // Skip if person not working on this project this week
+          if (!weekHours.ContainsKey(week)) continue;
 
-  //     foreach (var (week, overloadedPeople) in overloadedWeeks)
-  //     {
-  //       // Find projects these overloaded people are working on;
-  //       foreach (var person in overloadedPeople)
-  //       {
-  //         foreach (var project in _state.Projects)
-  //         {
-  //           if (!project.people.Contains(person)) continue;
+          // Add project to opportunities list if not already there
+          if (!opportunitiesByProject.ContainsKey(project.name))
+            opportunitiesByProject[project.name] = new List<int>();
 
-  //           // Check if person works on this project this week;
-  //           var shift = _state.GetShift(project);
-  //           var footprint = _state.GetGrid(project, shift);
+          // Add this week to the project's list of needy weeks (avoid duplicates)
+          if (!opportunitiesByProject[project.name].Contains(week))
+            opportunitiesByProject[project.name].Add(week);
+        }
+      }
+    }
 
-  //           if (footprint.Any(f => f.PersonId == person.id && f.Week == week))
-  //           {
-  //             // This project needs help this week;
-  //             if (!opportunitiesByProject.ContainsKey(project.name))
-  //             {
-  //               opportunitiesByProject[project.name] = new List<int>();
-  //             }
+    // Rank projects by number of weeks they need help, take top 10
+    result.WorkOpportunities = opportunitiesByProject
+        .OrderByDescending(kvp => kvp.Value.Count)
+        .Take(10)
+        .ToDictionary(kvp => kvp.Key, kvp => kvp.Value.OrderBy(w => w).ToList());
 
-  //             if (!opportunitiesByProject[project.name].Contains(week))
-  //             {
-  //               opportunitiesByProject[project.name].Add(week);
-  //             }
-  //           }
-  //         }
-  //       }
-  //     }
+    // Calculate summary statistics
+    result.TotalWeeksAvailable = result.WorkOpportunities.Values.Sum(weeks => weeks.Count);
+    result.ProjectsNeedingHelp = result.WorkOpportunities.Count;
 
-  //     // Sort projects by number of weeks they need help
-  //     result.WorkOpportunities = opportunitiesByProject
-  //         .OrderByDescending(kvp => kvp.Value.Count)
-  //         .Take(10)  // Top 10 projects that need most help
-  //         .ToDictionary(kvp => kvp.Key, kvp => kvp.Value.OrderBy(w => w).ToList());
+    return result;
+  }
+  /// <summary>
+  /// Searches for available people to staff a new project based on role, timeframe, and headcount needs.
+  /// 
+  /// Input: Start week, duration, number of people needed, and optional role filter.
+  /// Logic: Filters people by role (case-insensitive), then checks each person's availability week-by-week by comparing allocated hours against capacity (defaults to 40h). Classifies people as fully available (free all weeks) or partially available (free some weeks), then calculates if enough coverage exists.
+  /// Purpose: Helps managers quickly identify who can be assigned to new projects and whether sufficient staffing is available.
+  /// Output: Returns NewProjectStaffingResult with lists of fully/partially available people, week coverage analysis, and feasibility assessment.
+  /// </summary>
+  public NewProjectStaffingResult FindPeopleForNewProject(int startWeek, int duration, int peopleNeeded, string requiredRole = "")
+  {
+    // Initialize result object with project parameters
+    var result = new NewProjectStaffingResult
+    {
+      StartWeek = startWeek,
+      Duration = duration,
+      PeopleNeeded = peopleNeeded,
+      EndWeek = startWeek + duration - 1,
+      RequiredRole = requiredRole
+    };
 
-  //     result.TotalWeeksAvailable = result.WorkOpportunities.Values.Sum(weeks => weeks.Count);
-  //     result.ProjectsNeedingHelp = result.WorkOpportunities.Count;
+    // Default capacity for people whose capacity isn't set in data
+    const int DEFAULT_CAPACITY = 40;
 
-  //     return result;
-  //   }
-  //   // Find available people for a new project
-  //   public NewProjectStaffingResult FindPeopleForNewProject(int startWeek, int duration, int peopleNeeded)
-  //   {
-  //     var result = new NewProjectStaffingResult
-  //     {
-  //       StartWeek = startWeek,
-  //       Duration = duration,
-  //       PeopleNeeded = peopleNeeded,
-  //       EndWeek = startWeek + duration - 1
-  //     };
+    // Filter by role if specified (case-insensitive match)
+    var peopleToCheck = string.IsNullOrEmpty(requiredRole)
+        ? _state.People
+        : _state.People.Where(p => p.role.Equals(requiredRole, StringComparison.OrdinalIgnoreCase)).ToList();
 
-  //     // Find people who are free for ALL weeks of the project
-  //     var availableForAllWeeks = new List<Person>();
+    // Check each person's availability week by week
+    foreach (var person in peopleToCheck)
+    {
+      // Use person's actual capacity if set, otherwise use default 40 hours
+      int capacity = person.capacity > 0 ? person.capacity : DEFAULT_CAPACITY;
 
-  //     foreach (var person in _state.People)
-  //     {
-  //       bool isFreeForAllWeeks = true;
+      bool isFreeForAllWeeks = true;
+      var availableWeeks = new List<int>();
 
-  //       // Check each week of the project
-  //       for (int week = startWeek; week < startWeek + duration; week++)
-  //       {
-  //         var key = new ScheduleState.WeekKey(person.id, week);
+      // Loop through each week of the project duration
+      for (int week = startWeek; week < startWeek + duration; week++)
+      {
+        // Sum all hours already allocated to this person across all projects for this week
+        int allocatedHours = _state.PersonWeekGrid
+            .Where(kvp => kvp.Key.PersonId == person.id && kvp.Key.Week == week)
+            .Sum(kvp => kvp.Value);
 
-  //         // If person is busy in ANY week, they can't do the full project
-  //         if (_state.PersonWeekGrid.ContainsKey(key) && _state.PersonWeekGrid[key] > 0)
-  //         {
-  //           isFreeForAllWeeks = false;
-  //           break;
-  //         }
-  //       }
+        // Check if person has remaining capacity (not at/over limit)
+        if (allocatedHours < capacity)
+        {
+          availableWeeks.Add(week);
+        }
+        else
+        {
+          isFreeForAllWeeks = false;
+        }
+      }
 
-  //       if (isFreeForAllWeeks)
-  //       {
-  //         availableForAllWeeks.Add(person);
-  //       }
-  //     }
+      // Add to fully available list if free for entire project duration
+      if (isFreeForAllWeeks)
+      {
+        result.FullyAvailablePeople.Add(person);
+      }
 
-  //     result.AvailablePeople = availableForAllWeeks;
-  //     result.CanBeFulfilled = availableForAllWeeks.Count >= peopleNeeded;
+      // Add to partially available list if free for at least some weeks
+      if (availableWeeks.Any())
+      {
+        result.PartiallyAvailablePeople[person] = availableWeeks;
+      }
+    }
 
-  //     return result;
-  //   }
+    // Calculate which weeks have at least one person available (coverage analysis)
+    var coveredWeeksSet = new HashSet<int>();
+    foreach (var weeksList in result.PartiallyAvailablePeople.Values)
+    {
+      foreach (var week in weeksList)
+      {
+        coveredWeeksSet.Add(week);
+      }
+    }
 
-  // }
-  // public class NewPersonWorkResult
-  // {
-  //   public string PersonName { get; set; } = string.Empty;
-  //   public int AvailableWeeks { get; set; }
-  //   public Dictionary<string, List<int>> WorkOpportunities { get; set; } = new Dictionary<string, List<int>>();
-  //   public int TotalWeeksAvailable { get; set; }
-  //   public int ProjectsNeedingHelp { get; set; }
+    result.CoveredWeeks = coveredWeeksSet.OrderBy(w => w).ToList();
 
-  //   public void PrintSummary()
-  //   {
-  //     Console.WriteLine($"\n******* WORK OPPORTUNITIES FOR {PersonName} *******");
-  //     Console.WriteLine($"Available for: {AvailableWeeks} weeks");
-  //     Console.WriteLine($"Projects needing help: {ProjectsNeedingHelp}");
-  //     Console.WriteLine($"Total work opportunities: {TotalWeeksAvailable} person-weeks");
+    // Find weeks with no available people
+    result.UncoveredWeeks = Enumerable.Range(startWeek, duration)
+        .Except(coveredWeeksSet)
+        .ToList();
 
-  //     if (WorkOpportunities.Count > 0)
-  //     {
-  //       Console.WriteLine($"\nTop projects where {PersonName} could help:");
-  //       foreach (var (projectName, weeks) in WorkOpportunities.Take(5))
-  //       {
-  //         Console.WriteLine($"\n  {projectName}:");
-  //         Console.WriteLine($"    Weeks needed: {string.Join(", ", weeks.Take(10))}");
-  //         Console.WriteLine($"    Total: {weeks.Count} weeks");
-  //       }
+    // Determine if project can be fulfilled: either enough fully available people, or full week coverage with enough partial people
+    result.CanBeFulfilled =
+        (result.FullyAvailablePeople.Count >= peopleNeeded) ||
+        (result.CoveredWeeks.Count == duration && result.PartiallyAvailablePeople.Count >= peopleNeeded);
 
-  //       if (WorkOpportunities.Count > 5)
-  //       {
-  //         Console.WriteLine($"\n  ... and {WorkOpportunities.Count - 5} more projects");
-  //       }
+    return result;
+  }
 
-  //     }
-  //     else
-  //     {
-  //       Console.WriteLine("\n  No overloaded projects found - schedule is well balanced!");
+}
 
-  //     }
+/// <summary>
+/// Contains the results of searching for work opportunities for a new person,
+/// identifying overloaded projects and the specific weeks where additional support is needed,
+/// helping to determine where a new hire could provide the most value to the schedule.
+/// </summary>
+public class NewPersonWorkResult
+{
+  public string PersonName { get; set; } = string.Empty;
+  public int AvailableWeeks { get; set; }
+  public Dictionary<string, List<int>> WorkOpportunities { get; set; } = new Dictionary<string, List<int>>();
+  public int TotalWeeksAvailable { get; set; }
+  public int ProjectsNeedingHelp { get; set; }
 
-  //     Console.WriteLine("****************\n");
-  //   }
-  // }
-  // public class NewProjectStaffingResult
-  // {
-  //   public int StartWeek { get; set; }
-  //   public int Duration { get; set; }
-  //   public int EndWeek { get; set; }
-  //   public int PeopleNeeded { get; set; }
-  //   public List<Person> AvailablePeople { get; set; } = new List<Person>();
-  //   public bool CanBeFulfilled { get; set; }
-
-  //   public void PrintSummary()
-  //   {
-  //     Console.WriteLine($"\n********** NEW PROJECT STAFFING ********");
-  //     Console.WriteLine($"Project: Weeks {StartWeek}-{EndWeek} ({Duration} weeks)");
-  //     Console.WriteLine($"People needed: {PeopleNeeded}");
-  //     Console.WriteLine($"People available: {AvailablePeople.Count}");
-  //     Console.WriteLine($"Can be fulfilled: {(CanBeFulfilled ? " YES" : "NO")}");
+  //Prints a formatted summary of work opportunities to the console.
+  public void PrintSummary()
+  {
+    Console.WriteLine($"\n******* WORK OPPORTUNITIES FOR {PersonName} *******");
+    Console.WriteLine($"Available for: {AvailableWeeks} weeks");
+    Console.WriteLine($"Projects needing help: {ProjectsNeedingHelp}");
+    Console.WriteLine($"Total work opportunities: {TotalWeeksAvailable} person-weeks");
 
 
 
-  //     if (AvailablePeople.Count > 0)
-  //     {
-  //       Console.WriteLine($"\nAvailable people:");
-  //       foreach (var person in AvailablePeople.Take(10))
-  //       {
-  //         Console.WriteLine($"  - {person.name}");
-  //       }
-  //       if (AvailablePeople.Count > 10)
-  //       {
-  //         Console.WriteLine($"  ... and {AvailablePeople.Count - 10} more");
-  //       }
-  //     }
-  //     else
-  //     {
-  //       Console.WriteLine("\n  No people available for this timeframe.");
-  //     }
-  //     Console.WriteLine("***************************\n");
-  //   }
+    if (WorkOpportunities.Count > 0)
+    {
+      Console.WriteLine($"\nTop projects where {PersonName} could help:");
+      foreach (var (projectName, weeks) in WorkOpportunities.Take(5))
+      {
+        Console.WriteLine($"\n  {projectName}:");
+        Console.WriteLine($"    Weeks needed: {string.Join(", ", weeks.Take(10))}");
+        Console.WriteLine($"    Total: {weeks.Count} weeks");
+
+
+      }
+
+      if (WorkOpportunities.Count > 5)
+      {
+        Console.WriteLine($"\n  ... and {WorkOpportunities.Count - 5} more projects");
+      }
+
+
+    }
+    else
+    {
+      Console.WriteLine("\n  No overloaded projects found - schedule is well balanced!");
+
+    }
+
+    Console.WriteLine("*******************\n");
+  }
+}
+/// <summary>
+/// Contains the results of searching for available staff for a new project,
+/// including fully and partially available people, week-by-week coverage analysis,
+/// and whether the project can be fulfilled with the required number of people.
+/// </summary>
+public class NewProjectStaffingResult
+{
+  public int StartWeek { get; set; }
+  public int Duration { get; set; }
+  public int EndWeek { get; set; }
+  public int PeopleNeeded { get; set; }
+  public string RequiredRole { get; set; } = string.Empty;
+  public List<Person> FullyAvailablePeople { get; set; } = new List<Person>();
+  public Dictionary<Person, List<int>> PartiallyAvailablePeople { get; set; } = new Dictionary<Person, List<int>>();
+  public List<int> CoveredWeeks { get; set; } = new List<int>();
+  public List<int> UncoveredWeeks { get; set; } = new List<int>();
+  public bool CanBeFulfilled { get; set; }
+
+  /// Prints a summary of the staffing search results to the console.
+  public void PrintSummary()
+  {
+    Console.WriteLine($"\n********* NEW PROJECT STAFFING ********");
+    Console.WriteLine($"Project: Weeks {StartWeek}-{EndWeek} ({Duration} weeks)");
+    Console.WriteLine($"Role: {(string.IsNullOrEmpty(RequiredRole) ? "Any" : RequiredRole)}");
+    Console.WriteLine($"People needed: {PeopleNeeded}");
+    Console.WriteLine($"Can be fulfilled: {(CanBeFulfilled ? " YES" : "NO")}");
+
+
+
+    Console.WriteLine($"\nFully available: {FullyAvailablePeople.Count}");
+    foreach (var person in FullyAvailablePeople.Take(5))
+    {
+      Console.WriteLine($"  - {person.name}");
+    }
+
+    Console.WriteLine($"\nPartially available: {PartiallyAvailablePeople.Count}");
+    foreach (var (person, weeks) in PartiallyAvailablePeople.Take(5))
+    {
+      Console.WriteLine($"  - {person.name}: {weeks.Count} weeks");
+
+    }
+
+    Console.WriteLine($"\nCoverage: {CoveredWeeks.Count}/{Duration} weeks");
+    if (UncoveredWeeks.Any())
+    {
+      Console.WriteLine($"Uncovered: {string.Join(", ", UncoveredWeeks)}");
+
+    }
+
+    Console.WriteLine("***************************\n");
+  }
 }
